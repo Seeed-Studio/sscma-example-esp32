@@ -32,6 +32,7 @@ extern "C" {
     // } fb_data_t;
 
     void     fb_gfx_fillRect     (camera_fb_t *fb, int32_t x, int32_t y, int32_t w, int32_t h, uint32_t color);
+    void     fb_gfx_drawRect     (camera_fb_t *fb, int32_t x, int32_t y, int32_t w, int32_t h, uint32_t color);
     void     fb_gfx_drawFastHLine(camera_fb_t *fb, int32_t x, int32_t y, int32_t w, uint32_t color);
     void     fb_gfx_drawFastVLine(camera_fb_t *fb, int32_t x, int32_t y, int32_t h, uint32_t color);
     uint8_t  fb_gfx_putc         (camera_fb_t *fb, int32_t x, int32_t y, uint32_t color, unsigned char c);

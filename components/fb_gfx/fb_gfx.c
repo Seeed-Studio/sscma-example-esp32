@@ -212,3 +212,11 @@ uint32_t fb_gfx_printf(camera_fb_t *fb, int32_t x, int32_t y, uint32_t color, co
     }
     return len;
 }
+
+void fb_gfx_drawRect(camera_fb_t *fb, int32_t x, int32_t y, int32_t w, int32_t h, uint32_t color)
+{
+    fb_gfx_drawFastHLine(fb, x, y, w, color);
+    fb_gfx_drawFastHLine(fb, x, y + h - 1, w, color);
+    fb_gfx_drawFastVLine(fb, x, y, h, color);
+    fb_gfx_drawFastVLine(fb, x + w - 1, y, h, color);
+}

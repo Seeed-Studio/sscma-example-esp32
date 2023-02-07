@@ -15040,12 +15040,12 @@ alignas(8) const unsigned char g_pfld_meter_model_data[] =  {
 
 const int g_pfld_meter_model_data_len = 240504;
 
-#include <stdio.h>
+// #include <stdio.h>
 
-int main() {
-    FILE *f = fopen("pfld_meter_int8.tflite", "w+");
-    for(int i = 0; i < g_pfld_meter_model_data_len; i++) {
-        fputc(g_pfld_meter_model_data[i], f);
-    }
-    return 0;
-};
+// int main() {
+//     FILE *f = fopen("pfld_meter_int8.tflite", "w+");
+//     for(int i = 0; i < g_pfld_meter_model_data_len; i++) {
+//         fputc(g_pfld_meter_model_data[i], f);
+//     }
+//     return 0;
+// };

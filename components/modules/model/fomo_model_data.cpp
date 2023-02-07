@@ -2568,14 +2568,14 @@ alignas(8) const unsigned char g_fomo_model_data[] = {
 
 const int g_fomo_model_data_len = 40968;
 
-#include <stdio.h>
+// #include <stdio.h>
 
-int main()
-{
-    FILE *f = fopen("fomo_int8.tflite", "w+");
-    for (int i = 0; i < g_fomo_model_data_len; i++)
-    {
-        fputc(g_fomo_model_data[i], f);
-    }
-    return 0;
-};
+// int main()
+// {
+//     FILE *f = fopen("fomo_int8.tflite", "w+");
+//     for (int i = 0; i < g_fomo_model_data_len; i++)
+//     {
+//         fputc(g_fomo_model_data[i], f);
+//     }
+//     return 0;
+// };

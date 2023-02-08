@@ -70,10 +70,6 @@ static void task_process_handler(void *arg)
 
                 rgb565_to_rgb888(input->data.uint8, frame->buf, frame->width, frame->height, input->dims->data[1], input->dims->data[2], ROTATION_UP);
 
-                for (int i = 0; i < input->bytes; i++)
-                {
-                    input->data.int8[i] = input->data.uint8[i] - 128;
-                }
                 // Run the model on this input and make sure it succeeds.
 
                 if (kTfLiteOk != interpreter->Invoke())
@@ -89,6 +85,7 @@ static void task_process_handler(void *arg)
 
                 for (int i = 0; i < n_h; i++)
                 {
+                    printf("\r");
                     for (int j = 0; j < n_w; j++)
                     {
                         uint8_t max_conf = 0;
@@ -97,12 +94,13 @@ static void task_process_handler(void *arg)
                         {
                             uint8_t conf = (output->data.int8[i * n_w * n_t + j * n_t + t] + 128) * 0.390625;
                             if (conf > max_conf)
-                            {
+                            { 
                                 max_conf = conf;
                                 max_target = t;
                             }
                         }
-                        if (max_conf > 80 && max_target != 0)
+                        printf("%d:%d ", max_target, max_conf);
+                        if (max_conf > 50 && max_target != 0)
                         {
                             fomo_t obj;
                             obj.x = j * frame->width / n_w + (frame->width / n_w) / 2;
@@ -112,8 +110,8 @@ static void task_process_handler(void *arg)
 
                             ESP_LOGI(TAG, "x: %d, y: %d, conf: %d, target: %d", obj.x, obj.y, obj.confidence, obj.target);
 
-                            fb_gfx_drawRect(frame, obj.x - 10, obj.y - 10, 20, 20, 0x07E0);
-                            fb_gfx_printf(frame, obj.x - 10, obj.y - 10, 0x07E0, 0x0000, "%d:%d", obj.target, obj.confidence);
+                            fb_gfx_drawRect(frame, obj.x - 10, obj.y - 10, 20, 20, 0x03E0);
+                            fb_gfx_printf(frame, obj.x - 10, obj.y - 10, 0x000F, "%d:%d", obj.target, obj.confidence);
 
                         }
                     }

@@ -84,7 +84,7 @@ void rgb565_to_rgb888(uint8_t *pdst, const uint8_t *psrc, int h, int w, int th, 
 
     float beta_h = (float)h / th, beta_w = (float)w / tw;
 
-    ESP_LOGI(TAG, "h:%d, w:%d, th:%d, tw:%d, beta_h:%f, beta_w:%f", h, w, th, tw, beta_h, beta_w);
+    //ESP_LOGI(TAG, "h:%d, w:%d, th:%d, tw:%d, beta_h:%f, beta_w:%f", h, w, th, tw, beta_h, beta_w);
 
     for (int i = 0; i < th; i++)
     {

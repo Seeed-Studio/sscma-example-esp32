@@ -46,12 +46,12 @@ namespace
     // signed value.
 
 #ifdef CONFIG_IDF_TARGET_ESP32S3
-    constexpr int scratchBufSize = 500 * 1024;
+    constexpr int scratchBufSize = 1024 * 1024;
 #else
     constexpr int scratchBufSize = 0;
 #endif
     // An area of memory to use for input, output, and intermediate arrays.
-    constexpr int kTensorArenaSize = 81 * 1024 + scratchBufSize;
+    constexpr int kTensorArenaSize = 256 * 1024 + scratchBufSize;
     static uint8_t *tensor_arena; //[kTensorArenaSize]; // Maybe we should move this to external
 } //
 

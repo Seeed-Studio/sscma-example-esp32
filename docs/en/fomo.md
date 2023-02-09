@@ -1,30 +1,31 @@
-# 训练和部署一个模拟读表检测模型
 
-## 概述
+# Train and deploy a meter reading detection model
 
-本教程将指导您如何使用EdgeLab进行模拟读表检测模型的训练以及将其部署在ESP32-S3芯片上。
+## Introduction
 
-## 准备工作
+This tutorial shows how to train and deploy a meter reading detection model on ESP32-S3.
 
-### 硬件
-- 一台Linux或者Mac电脑
-- 一块ESP32-S3开发板
-- 一根USB线
+## Prerequisites
 
+### Hardware
+- PC with Linux or Mac OS, WSL2 is also supported.
+- ESP32-S3 development board
+- USB cable
 
-
-### 软件
+### Software
 - [EdgeLab](https://edgelab.readthedocs.io/zh_CN/latest/)
-- [ESP-IDF](./get_start.md#环境安装)
+- [ESP-IDF](./get_start.md#How-to-Install)  
 - [edgelab-example-esp32](https://github.com/Seeed-Studio/edgelab-example-esp32)
 
 ```{note}
-请根据对应软件的文档进行安装。
+Plesae make sure that you have installed the latest version of EdgeLab & ESP-IDF.
 ```
 
-## 训练模型
-### 准备数据集
-使用我们提供的数据集来训练模型。
+## Train the model
+
+### Prepare the dataset
+
+Use the provided dataset to train the model.
 
 ```bash
 cd EdgeLab
@@ -34,7 +35,8 @@ wget https://files.seeedstudio.com/wiki/Edgelab/meter.zip
 unzip meter.zip
 ```
 
-### 准备配置文件
+### Prepare the configuration file
+
 ```python
 _base_ = '../_base_/default_runtime.py'
 
@@ -123,7 +125,7 @@ total_epochs = epochs
 find_unused_parameters = True
 ```
 
-### 训练模型
+### Train the model
 
 ```bash
 cd EdgeLab
@@ -131,24 +133,24 @@ conda activate edgelab
 tools/train.py mmpose configs/pfld/pfld_mv2n_112.py --gpus=1 --cfg-options total_epochs=50
 ```
 
-### 模型转换
-将模型转换为TensorFlow Lite。
+## Convert the model
+Convert models to TensorFlow Lite.
+
 ```bash
 cd EdgeLab
 conda activate edgelab
 python tools/export.py configs/pfld/pfld_mv2n_112.py --weights work_dirs/pfld_mv2n_112/exp1/latest.pth --data ~/datasets/meter/train/images
 ```
 
-## 部署模型
-
-将模型转换为C语言文件，然后将其放入到`edgelab-example-esp32`的`components/modules/model`目录下。
+## Deploy the model
+Convert the model to a C file and put it in the `components/modules/model` directory of `edgelab-example-esp32`.
 ```bash
 cd edgelab-example-esp32
 conda activate edgelab
 python tools/tflite2c.py --input work_dirs/pfld_mv2n_112/exp1/latest.tflite --model_name pfld_meter --output_dir ./components/modules/model
 ```
 
-编译并烧录程序到ESP32-S3开发板。
+Compile and flash the program to the ESP32-S3 development board.
 
 ```bash
 cd edgelab-example-esp32/examples/meter
@@ -156,7 +158,4 @@ idf.py set-target esp32s3
 idf.py build
 ```
 
-## 运行示例
-
-
-
+### Run 

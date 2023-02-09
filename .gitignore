@@ -8,3 +8,4 @@ sdkconfig.old
 *.orig
 *.swp
 *dependencies.lock
+*.tflite

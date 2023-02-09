@@ -40,6 +40,46 @@ typedef struct
 #include "FreeMonoBold12pt7b.h" //14x24
 #define gfxFont ((GFXfont *)(&FreeMonoBold12pt7b))
 
+void fb_gfx_drawPixel(camera_fb_t *fb, int32_t x, int32_t y, uint32_t color)
+{
+    int bytes_per_pixel = 0;
+    switch (fb->format)
+    {
+    case PIXFORMAT_GRAYSCALE:
+        bytes_per_pixel = 1;
+        break;
+    case PIXFORMAT_RGB565:
+        bytes_per_pixel = 2;
+        break;
+    case PIXFORMAT_RGB888:
+        bytes_per_pixel = 3;
+    default:
+        break;
+    }
+
+    uint8_t *data = fb->buf + ((x + (y * fb->width)) * bytes_per_pixel);
+    uint8_t c0 = color >> 16;
+    uint8_t c1 = color >> 8;
+    uint8_t c2 = color;
+
+    switch (bytes_per_pixel)
+    {
+    case 1:
+        data[0] = c2;
+        break;
+    case 2:
+        data[0] = c1;
+        data[1] = c2;
+        break;
+    case 3:
+        data[0] = c0;
+        data[1] = c1;
+        data[2] = c2;
+    default:
+        break;
+    }
+}
+
 void fb_gfx_fillRect(camera_fb_t *fb, int32_t x, int32_t y, int32_t w, int32_t h, uint32_t color)
 {
     int bytes_per_pixel = 0;
@@ -219,4 +259,39 @@ void fb_gfx_drawRect(camera_fb_t *fb, int32_t x, int32_t y, int32_t w, int32_t h
     fb_gfx_drawFastHLine(fb, x, y + h - 1, w, color);
     fb_gfx_drawFastVLine(fb, x, y, h, color);
     fb_gfx_drawFastVLine(fb, x + w - 1, y, h, color);
+}
+
+void fb_gfx_drawCicle(camera_fb_t *fb, int32_t x0, int32_t y0, int32_t r, uint32_t color)
+{
+    int32_t f = 1 - r;
+    int32_t ddF_x = 1;
+    int32_t ddF_y = -2 * r;
+    int32_t x = 0;
+    int32_t y = r;
+
+    fb_gfx_drawPixel(fb, x0, y0 + r, color);
+    fb_gfx_drawPixel(fb, x0, y0 - r, color);
+    fb_gfx_drawPixel(fb, x0 + r, y0, color);
+    fb_gfx_drawPixel(fb, x0 - r, y0, color);
+
+    while (x < y)
+    {
+        if (f >= 0)
+        {
+            y--;
+            ddF_y += 2;
+            f += ddF_y;
+        }
+        x++;
+        ddF_x += 2;
+        f += ddF_x;
+        fb_gfx_drawPixel(fb, x0 + x, y0 + y, color);
+        fb_gfx_drawPixel(fb, x0 - x, y0 + y, color);
+        fb_gfx_drawPixel(fb, x0 + x, y0 - y, color);
+        fb_gfx_drawPixel(fb, x0 - x, y0 - y, color);
+        fb_gfx_drawPixel(fb, x0 + y, y0 + x, color);
+        fb_gfx_drawPixel(fb, x0 - y, y0 + x, color);
+        fb_gfx_drawPixel(fb, x0 + y, y0 - x, color);
+        fb_gfx_drawPixel(fb, x0 - y, y0 - x, color);
+    }
 }

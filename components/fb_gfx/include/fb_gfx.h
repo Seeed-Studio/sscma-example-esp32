@@ -16,7 +16,8 @@
 #include "esp_camera.h"
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
     // typedef enum {
@@ -30,14 +31,15 @@ extern "C" {
     //         fb_format_t format;
     //         uint8_t * data;
     // } fb_data_t;
-
-    void     fb_gfx_fillRect     (camera_fb_t *fb, int32_t x, int32_t y, int32_t w, int32_t h, uint32_t color);
-    void     fb_gfx_drawRect     (camera_fb_t *fb, int32_t x, int32_t y, int32_t w, int32_t h, uint32_t color);
-    void     fb_gfx_drawFastHLine(camera_fb_t *fb, int32_t x, int32_t y, int32_t w, uint32_t color);
-    void     fb_gfx_drawFastVLine(camera_fb_t *fb, int32_t x, int32_t y, int32_t h, uint32_t color);
-    uint8_t  fb_gfx_putc         (camera_fb_t *fb, int32_t x, int32_t y, uint32_t color, unsigned char c);
-    uint32_t fb_gfx_print        (camera_fb_t *fb, int32_t x, int32_t y, uint32_t color, const char * str);
-    uint32_t fb_gfx_printf       (camera_fb_t *fb, int32_t x, int32_t y, uint32_t color, const char *format, ...);
+    void fb_gfx_drawPixel(camera_fb_t *fb, int32_t x, int32_t y, uint32_t color);
+    void fb_gfx_fillRect(camera_fb_t *fb, int32_t x, int32_t y, int32_t w, int32_t h, uint32_t color);
+    void fb_gfx_drawRect(camera_fb_t *fb, int32_t x, int32_t y, int32_t w, int32_t h, uint32_t color);
+    void fb_gfx_drawCicle(camera_fb_t *fb, int32_t x0, int32_t y0, int32_t r, uint32_t color);
+    void fb_gfx_drawFastHLine(camera_fb_t *fb, int32_t x, int32_t y, int32_t w, uint32_t color);
+    void fb_gfx_drawFastVLine(camera_fb_t *fb, int32_t x, int32_t y, int32_t h, uint32_t color);
+    uint8_t fb_gfx_putc(camera_fb_t *fb, int32_t x, int32_t y, uint32_t color, unsigned char c);
+    uint32_t fb_gfx_print(camera_fb_t *fb, int32_t x, int32_t y, uint32_t color, const char *str);
+    uint32_t fb_gfx_printf(camera_fb_t *fb, int32_t x, int32_t y, uint32_t color, const char *format, ...);
 
 #ifdef __cplusplus
 }

@@ -30,8 +30,11 @@ extern "C"
         ROTATION_DOWN
     };
 
+    void yuv422_to_gray(uint8_t *pdst, const uint8_t *psrc, int h, int w, int th, int tw, uint8_t rotation);
     void yuv422p_to_rgb888(uint8_t *pdst, const uint8_t *psrc, int h, int w, int th, int tw, uint8_t rotation);
+    void rgb565_to_gray(uint8_t *pdst, const uint8_t *psrc, int h, int w, int th, int tw, uint8_t rotation);
     void rgb565_to_rgb888(uint8_t *pdst, const uint8_t *psrc, int h, int w, int th, int tw, uint8_t rotation);
+    
     
 #ifdef __cplusplus
 }

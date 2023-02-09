@@ -7,6 +7,7 @@
 
 #include "fb_gfx.h"
 #include "isp.h"
+#include "base64.h"
 
 #include "esp_log.h"
 #include "esp_camera.h"
@@ -30,6 +31,7 @@ static QueueHandle_t xQueueResult = NULL;
 
 static bool gEvent = true;
 static bool gReturnFB = true;
+static bool debug_mode = false;
 
 // Globals, used for compatibility with Arduino-style sketches.
 namespace
@@ -59,23 +61,46 @@ static void task_process_handler(void *arg)
 {
     camera_fb_t *frame = NULL;
 
+    uint16_t h = input->dims->data[1];
+    uint16_t w = input->dims->data[2];
+    uint16_t c = input->dims->data[3];
+
     while (true)
     {
         if (gEvent)
         {
             if (xQueueReceive(xQueueFrameI, &frame, portMAX_DELAY))
             {
-                // run inference
-                long long start_time = esp_timer_get_time();
 
-                rgb565_to_rgb888(input->data.uint8, frame->buf, frame->width, frame->height, input->dims->data[1], input->dims->data[2], ROTATION_UP);
+                int dsp_start_time = esp_timer_get_time() / 1000;
+                c = 1;
+                if (c == 1)
+                    rgb565_to_gray(input->data.uint8, frame->buf, frame->height, frame->width, h, w, ROTATION_UP);
+                else if (c == 3)
+                    rgb565_to_rgb888(input->data.uint8, frame->buf, frame->height, frame->width, h, w, ROTATION_UP);
+
+                if (debug_mode)
+                {
+                    printf("Begin output\n");
+                    printf("Format: {\"height\": %d, \"width\": %d, \"channels\": %d}\r\n", h, w, c);
+                    printf("Framebuffer: ");
+                    base64_encode(input->data.uint8, input->bytes, putchar);
+                    printf("\r\n");
+                }
+
+                int dsp_end_time = esp_timer_get_time() / 1000;
 
                 // Run the model on this input and make sure it succeeds.
+                int start_time = esp_timer_get_time() / 1000;
 
                 if (kTfLiteOk != interpreter->Invoke())
                 {
                     MicroPrintf("Invoke failed.");
                 }
+
+                int end_time = esp_timer_get_time() / 1000;
+
+                vTaskDelay(10 / portTICK_PERIOD_MS);
 
                 TfLiteTensor *output = interpreter->output(0);
 
@@ -83,44 +108,51 @@ static void task_process_handler(void *arg)
                 uint16_t n_w = output->dims->data[2]; // result in col
                 uint16_t n_t = output->dims->data[3]; // result in target
 
+                printf("Predictions (DSP: %d ms., Classification: %d ms., Anomaly: %d ms.): \n", (dsp_end_time - dsp_start_time), (end_time - start_time), 0);
+                bool found = false;
                 for (int i = 0; i < n_h; i++)
                 {
-                    printf("\r");
+
                     for (int j = 0; j < n_w; j++)
                     {
                         uint8_t max_conf = 0;
                         uint8_t max_target = 0;
                         for (int t = 0; t < n_t; t++)
                         {
-                            uint8_t conf = (output->data.int8[i * n_w * n_t + j * n_t + t] + 128) * 0.390625;
+                            uint8_t conf = (output->data.int8[i * n_w * n_t + j * n_t + t] - output->params.zero_point) * output->params.scale * 100;
                             if (conf > max_conf)
-                            { 
+                            {
                                 max_conf = conf;
                                 max_target = t;
                             }
                         }
-                        printf("%d:%d ", max_target, max_conf);
                         if (max_conf > 50 && max_target != 0)
                         {
+                            found = true;
                             fomo_t obj;
                             obj.x = j * frame->width / n_w + (frame->width / n_w) / 2;
                             obj.y = i * frame->height / n_h + (frame->height / n_h) / 2;
                             obj.confidence = max_conf;
                             obj.target = max_target;
 
-                            ESP_LOGI(TAG, "x: %d, y: %d, conf: %d, target: %d", obj.x, obj.y, obj.confidence, obj.target);
-
-                            fb_gfx_drawRect(frame, obj.x - 10, obj.y - 10, 20, 20, 0x03E0);
+                            fb_gfx_drawCicle(frame, obj.x, obj.y, 10, 0xF800);
                             fb_gfx_printf(frame, obj.x - 10, obj.y - 10, 0x000F, "%d:%d", obj.target, obj.confidence);
 
+                            printf("    %d (", obj.target);
+                            printf("%f", obj.confidence / 100.0f);
+                            printf(") [ x: %u, y: %u, width: %u, height: %u ]\n", obj.x, obj.y, frame->width / n_w, frame->height / n_h);
                         }
                     }
                 }
+                if (!found)
+                {
+                    printf("    No objects found\n");
+                }
+            }
 
-                long long end_time = esp_timer_get_time();
-                ESP_LOGI(TAG, "Inference took %lld us", end_time - start_time);
-
-                vTaskDelay(10 / portTICK_PERIOD_MS);
+            if (debug_mode)
+            {
+                printf("End output\n");
             }
 
             if (xQueueFrameO)
@@ -153,10 +185,10 @@ static void task_event_handler(void *arg)
 }
 
 int register_algo_fomo(const QueueHandle_t frame_i,
-                        const QueueHandle_t event,
-                        const QueueHandle_t result,
-                        const QueueHandle_t frame_o,
-                        const bool camera_fb_return)
+                       const QueueHandle_t event,
+                       const QueueHandle_t result,
+                       const QueueHandle_t frame_o,
+                       const bool camera_fb_return)
 {
     xQueueFrameI = frame_i;
     xQueueFrameO = frame_o;

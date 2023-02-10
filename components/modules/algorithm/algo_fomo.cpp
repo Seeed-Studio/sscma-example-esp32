@@ -79,16 +79,21 @@ static void task_process_handler(void *arg)
                 else if (c == 3)
                     rgb565_to_rgb888(input->data.uint8, frame->buf, frame->height, frame->width, h, w, ROTATION_UP);
 
+                int dsp_end_time = esp_timer_get_time() / 1000;
+
                 if (debug_mode)
                 {
                     printf("Begin output\n");
-                    printf("Format: {\"height\": %d, \"width\": %d, \"channels\": %d}\r\n", h, w, c);
+                    printf("Format: {\"height\": %d, \"width\": %d, \"channels\": %d, \"model\": \"fomo\"}\r\n", h, w, c);
                     printf("Framebuffer: ");
                     base64_encode(input->data.uint8, input->bytes, putchar);
                     printf("\r\n");
                 }
 
-                int dsp_end_time = esp_timer_get_time() / 1000;
+                for (int i = 0; i < input->bytes; i++)
+                {
+                    input->data.int8[i] = input->data.uint8[i] - 128;
+                }
 
                 // Run the model on this input and make sure it succeeds.
                 int start_time = esp_timer_get_time() / 1000;
@@ -126,21 +131,21 @@ static void task_process_handler(void *arg)
                                 max_target = t;
                             }
                         }
-                        if (max_conf > 50 && max_target != 0)
+                        if (max_conf > 80 && max_target != 0)
                         {
                             found = true;
                             fomo_t obj;
-                            obj.x = j * frame->width / n_w + (frame->width / n_w) / 2;
-                            obj.y = i * frame->height / n_h + (frame->height / n_h) / 2;
+                            obj.x = j * w / n_w + (w / n_w) / 2;
+                            obj.y = i * h / n_h + (h / n_h) / 2;
                             obj.confidence = max_conf;
                             obj.target = max_target;
 
-                            fb_gfx_drawCicle(frame, obj.x, obj.y, 10, 0xF800);
-                            fb_gfx_printf(frame, obj.x - 10, obj.y - 10, 0x000F, "%d:%d", obj.target, obj.confidence);
+                            fb_gfx_drawCicle(frame, obj.x * (frame->width / w), obj.y * (frame->height / h), frame->width / n_w, 0xF800);
+                            fb_gfx_printf(frame, obj.x, obj.y, 0x000F, "%s:%d", g_fomo_model_classes[obj.target - 1], obj.confidence);
 
-                            printf("    %d (", obj.target);
+                            printf("    %s (", g_fomo_model_classes[obj.target - 1]);
                             printf("%f", obj.confidence / 100.0f);
-                            printf(") [ x: %u, y: %u, width: %u, height: %u ]\n", obj.x, obj.y, frame->width / n_w, frame->height / n_h);
+                            printf(") [ x: %u, y: %u, width: %u, height: %u ]\n", obj.x, obj.y, w / n_w, h / n_h);
                         }
                     }
                 }
@@ -148,11 +153,10 @@ static void task_process_handler(void *arg)
                 {
                     printf("    No objects found\n");
                 }
-            }
-
-            if (debug_mode)
-            {
-                printf("End output\n");
+                if (debug_mode)
+                {
+                    printf("End output\n");
+                }
             }
 
             if (xQueueFrameO)

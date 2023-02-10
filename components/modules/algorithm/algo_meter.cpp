@@ -7,6 +7,7 @@
 
 #include "fb_gfx.h"
 #include "isp.h"
+#include "base64.h"
 
 #include "esp_log.h"
 #include "esp_camera.h"
@@ -30,6 +31,7 @@ static QueueHandle_t xQueueResult = NULL;
 
 static bool gEvent = true;
 static bool gReturnFB = true;
+static bool debug_mode = false;
 
 // Globals, used for compatibility with Arduino-style sketches.
 namespace
@@ -59,6 +61,10 @@ static void task_process_handler(void *arg)
 {
     camera_fb_t *frame = NULL;
 
+    uint16_t h = input->dims->data[1];
+    uint16_t w = input->dims->data[2];
+    uint16_t c = input->dims->data[3];
+
     while (true)
     {
         if (gEvent)
@@ -68,34 +74,62 @@ static void task_process_handler(void *arg)
             if (xQueueReceive(xQueueFrameI, &frame, portMAX_DELAY))
             {
                 // run inference
-                long long start_time = esp_timer_get_time();
+                int dsp_start_time = esp_timer_get_time() / 1000;
 
-                rgb565_to_rgb888(input->data.uint8, frame->buf, frame->width, frame->height, input->dims->data[1], input->dims->data[2], ROTATION_UP);
+                if (c == 1)
+                {
+                    rgb565_to_gray(input->data.uint8, frame->buf, frame->width, frame->height, h, w, ROTATION_UP);
+                }
+                else
+                {
+                    rgb565_to_rgb888(input->data.uint8, frame->buf, frame->width, frame->height, h, w, ROTATION_UP);
+                }
+                int dsp_end_time = esp_timer_get_time() / 1000;
+
+                if (debug_mode)
+                {
+                    printf("Begin output\n");
+                    printf("Format: {\"height\": %d, \"width\": %d, \"channels\": %d, \"model\": \"meter\"}\r\n", h, w, c);
+                    printf("Framebuffer: ");
+                    base64_encode(input->data.uint8, input->bytes, putchar);
+                    printf("\r\n");
+                }
 
                 for (int i = 0; i < input->bytes; i++)
                 {
                     input->data.int8[i] = input->data.uint8[i] - 128;
                 }
-                // Run the model on this input and make sure it succeeds.
 
+                // Run the model on this input and make sure it succeeds.
+                int start_time = esp_timer_get_time() / 1000;
                 if (kTfLiteOk != interpreter->Invoke())
                 {
                     MicroPrintf("Invoke failed.");
                 }
+                int end_time = esp_timer_get_time() / 1000;
+
+                printf("[Meter]Predictions (DSP: %d ms., Classification: %d ms., Anomaly: %d ms.): \n", (dsp_end_time - dsp_start_time), (end_time - start_time), 0);
 
                 TfLiteTensor *output = interpreter->output(0);
+
+                obj.x = (uint16_t)(float(float(output->data.int8[0] - output->params.zero_point) * output->params.scale) * w);
+                obj.y = (uint16_t)(float(float(output->data.int8[1] - output->params.zero_point) * output->params.scale) * h);
+
+                printf("    %s (", "meter");
+                printf("%f", 1.0);
+                printf(") [ x: %u, y: %u ]\n", obj.x, obj.y);
 
                 obj.x = (uint16_t)(float(float(output->data.int8[0] - output->params.zero_point) * output->params.scale) * frame->width);
                 obj.y = (uint16_t)(float(float(output->data.int8[1] - output->params.zero_point) * output->params.scale) * frame->height);
 
-                ESP_LOGI(TAG, "(%d, %d)", obj.x, obj.y);
-
-                long long end_time = esp_timer_get_time();
-                ESP_LOGI(TAG, "Inference took %lld us", end_time - start_time);
-
-                fb_gfx_fillRect(frame, obj.x - 2, obj.y - 2, 4, 4, 0x0000FF);
+                fb_gfx_fillRect(frame, obj.x - 2, obj.y - 2, 4, 4, 0x07E0);
 
                 vTaskDelay(10 / portTICK_PERIOD_MS);
+
+                if (debug_mode)
+                {
+                    printf("End output\n");
+                }
             }
 
             if (xQueueFrameO)

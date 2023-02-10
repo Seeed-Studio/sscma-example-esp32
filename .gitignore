@@ -1,3 +1,4 @@
+.vscode
 build
 sdkconfig
 sdkconfig.old
@@ -9,3 +10,4 @@ sdkconfig.old
 *.swp
 *dependencies.lock
 *.tflite
+*.lite

@@ -90,7 +90,7 @@ if __name__ == '__main__':
                 'const unsigned int g_%s_model_data_len = %d;\r\n' % (name, len(data) // 2))
             if classes != None:
                 f_output_c.write(
-                    'const char* g_%s_model_classes[] = {\r\n' % name)
+                    'const char* g_%s_model_classes[] = {' % name)
                 for i in range(len(classes)):
                     f_output_c.write('"%s", ' % classes[i])
                 f_output_c.write('};\r\n\r\n')

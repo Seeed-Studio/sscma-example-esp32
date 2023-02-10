@@ -1,5 +1,12 @@
 # EdgeLab在Espressif芯片上的部署
 
+<div align="center">
+  <img width="100%" src="https://user-images.githubusercontent.com/20147381/206665275-feceede2-c68c-4259-a4db-541b3bd25b2f.png">
+  <h3> <a href="https://edgelab.readthedocs.io/en/latest/"> Documentation </a> | <a href="https://edgelab.readthedocs.io/zh_CN/latest/"> 中文文档 </a>  </h3>
+</div>
+
+[English](README.md) | 简体中文
+
 - [简介](#简介)
 - [环境安装](#环境安装)
   * [安装 ESP IDF](#安装-esp-idf)
@@ -83,12 +90,12 @@ idf.py --port /dev/ttyUSB0 flash monitor
 
 | Target | Model | Dataset | Input Resolution | Peak RAM |Inferencing  Time | F1 Score|Link|
 | ---- | -----| ---| ---| -----------| --------| --------| --------|
-| ESP32-S3 |          Meter         | [custom](https://files.seeedstudio.com/wiki/Edgelab/meter.zip)|112x112 (RGB)| 320KB |     380ms    |  97% |[pfld_meter_int8.tflite](../_static/model_zoo/pfld_meter_int8.tflite)|
-| ESP32-S3  |          Fomo          | [custom]()|96x96 (GRAY)| 244KB |    150ms    |  99.5%|[fomo_int8.tflite](../_static/model_zoo/fomo_int8.tflite)|
+| ESP32-S3 |          Meter         | [custom](https://files.seeedstudio.com/wiki/Edgelab/meter.zip)|112x112 (RGB)| 320KB |     380ms    |  97% |[pfld_meter_int8.tflite](./docs/_static/model_zoo/pfld_meter_int8.tflite)|
+| ESP32-S3  |          Fomo          | [custom]()|96x96 (GRAY)| 244KB |    150ms    |  99.5%|[fomo_int8.tflite](./docs/_static/model_zoo/fomo_int8.tflite)|
 ### 模型演示
 
 #### PFLD 模拟表计
-![meter_reading](../_static/images/meter_reading.gif)
+![meter_reading](./docs/_static/images/meter_reading.gif)
 
 ## 贡献
 - 如果你在这些例子中发现了问题，或者希望提交一个增强请求，请使用Github上的问题部分。

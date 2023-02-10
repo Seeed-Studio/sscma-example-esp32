@@ -1,4 +1,12 @@
-# Edgelab for Espressif Chipsets
+# Edgelab Deployment on Espressif Chipsets
+
+
+<div align="center">
+  <img width="100%" src="https://user-images.githubusercontent.com/20147381/206665275-feceede2-c68c-4259-a4db-541b3bd25b2f.png">
+  <h3> <a href="https://edgelab.readthedocs.io/en/latest/"> Documentation </a> | <a href="https://edgelab.readthedocs.io/zh_CN/latest/"> 中文文档 </a>  </h3>
+</div>
+
+English | [简体中文](README_zh-CN.md)
 
 - [Introduction](#introduction)
 - [How to Install](#how-to-install)
@@ -7,7 +15,7 @@
 
 ## Introduction
 
-Edgelab examples for Espressif chipsets is a collection of examples for Espressif chipsets. It is based on the [ESP-IDF](https://github.com/espressif/esp-idf) and [tensorflow lite micro](https://github.com/tensorflow/tflite-micro).
+The project provides examples of how to deploy models from EdgeLab toEspressif chipsets. It is based on the [ESP-IDF](https://github.com/espressif/esp-idf) and [tensorflow lite micro](https://github.com/tensorflow/tflite-micro). 
 
 
 ## How to Install
@@ -68,22 +76,33 @@ The previous two commands can be combined:
 idf.py --port /dev/ttyUSB0 flash monitor
 ```
 
-  - Please follow example READMEs for more details.
+```{tips}
+Please follow example READMEs for more details.
+```
 
 
-### Performance Comparison
+### Performance 
 
-A quick summary of ESP-NN optimisations, measured on various chipsets:
+The performance of the EdgeLab-related models, measured on different chipsets, is summarized in the following table.
 
-|   Target  |   TFLite Micro Example  |  with ESP-NN | CPU Freq  |
-| --------- | ----------------------- | -------------| ----------|
-| ESP32-S3  |   Meter                 |     550ms    |   240MHz  |
+| Target | Model | Dataset | Input Resolution | Peak RAM |Inferencing  Time | F1 Score|Link|
+| ---- | -----| ---| ---| -----------| --------| --------| --------|
+| ESP32-S3 |          Meter         | [custom](https://files.seeedstudio.com/wiki/Edgelab/meter.zip)|112x112 (RGB)| 320KB |     380ms    |  97% |[pfld_meter_int8.tflite](./docs/_static/model_zoo/pfld_meter_int8.tflite)|
+| ESP32-S3  |          Fomo          | [custom]()|96x96 (GRAY)| 244KB |    150ms    |  99.5%|[fomo_int8.tflite](./docs/_static/model_zoo/fomo_int8.tflite)|
+
+
+### Demonstration
+
+#### Meter Reading
+
+![meter_reading](./docs/_static/images/meter_reading.gif)
 
 
 ## Contributing
 - If you find an issue in these examples, or wish to submit an enhancement request, please use the Issues section on Github.
 - For ESP-IDF related issues please use [esp-idf](https://github.com/espressif/esp-idf) repo.
 - For TensorFlow related information use [tflite-micro](https://github.com/tensorflow/tflite-micro) repo.
+- For EdgeLab use [EdgeLab](https://github.com/seeed-studio/EdgeLab) repo.
 
 ## License
 

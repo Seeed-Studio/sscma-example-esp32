@@ -159,3 +159,5 @@ idf.py build
 ```
 
 ### Run 
+
+![fomo_mask](../_static/images/fomo_mask.gif)

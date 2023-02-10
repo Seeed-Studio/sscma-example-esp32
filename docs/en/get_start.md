@@ -77,10 +77,16 @@ Please follow example READMEs for more details.
 
 The performance of the EdgeLab-related models, measured on different chipsets, is summarized in the following table.
 
-|   Target                |   Model | Input Resolution| Take Times  | CPU Freq  |
-| ----------------------- | :---------------------:| :---:| :-----------:| :--------:|
-| ESP32-S3(extern psram)  |          Meter         | 112x112 (RGB)|     550ms    |   240MHz  |
-| ESP32-S3(extern psram)  |          Fomo          | 112x112 (RGB)|     200ms    |   240MHz  |
+| Target | Model | Dataset | Input Resolution | Peak RAM |Inferencing  Time | F1 Score|Link|
+| ---- | -----| ---| ---| -----------| --------| --------| --------|
+| ESP32-S3 |          Meter         | [custom](https://files.seeedstudio.com/wiki/Edgelab/meter.zip)|112x112 (RGB)| 320KB |     380ms    |  97% |[pfld_meter_int8.tflite](../_static/model_zoo/pfld_meter_int8.tflite)|
+| ESP32-S3  |          Fomo          | [custom]()|96x96 (GRAY)| 244KB |    150ms    |  99.5%|[fomo_int8.tflite](../_static/model_zoo/fomo_int8.tflite)|
+
+### Demonstration
+
+#### Meter Reading
+
+![meter](../_static/images/meter_reading.gif)
 
 
 ## Contributing

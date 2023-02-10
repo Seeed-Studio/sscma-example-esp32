@@ -11,3 +11,4 @@ sdkconfig.old
 *dependencies.lock
 *.tflite
 *.lite
+!model_zoo/*.*

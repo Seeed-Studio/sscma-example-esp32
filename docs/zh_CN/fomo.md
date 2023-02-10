@@ -159,5 +159,5 @@ idf.py build
 
 ## 运行示例
 
-
+![fomo_mask](../_static/images/fomo_mask.gif)
 

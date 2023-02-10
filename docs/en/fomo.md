@@ -160,4 +160,4 @@ idf.py build
 
 ### Run 
 
-![fomo_mask](../_static/images/fomo_mask.gif)
+![fomo_mask](../_static/esp32/images/fomo_mask.gif)

@@ -1,5 +1,5 @@
 
-# Train and deploy a meter reading detection model
+# Train and deploy a fomo model on ESP32-S3
 
 ## Introduction
 
@@ -14,7 +14,7 @@ This tutorial shows how to train and deploy a meter reading detection model on E
 
 ### Software
 - [EdgeLab](https://edgelab.readthedocs.io/zh_CN/latest/)
-- [ESP-IDF](./get_start.md#How-to-Install)  
+- [ESP-IDF](./get_start.md#how-to-install)  
 - [edgelab-example-esp32](https://github.com/Seeed-Studio/edgelab-example-esp32)
 
 ```{note}
@@ -160,4 +160,4 @@ idf.py build
 
 ### Run 
 
-![fomo_mask](../_static/esp32/images/fomo_mask.gif)
+![fomo_mask](../_static/images/fomo_mask.gif)

@@ -158,5 +158,5 @@ idf.py build
 
 ## 运行示例
 
-![meter](../_static/esp32/images/meter_reading.gif)
+![meter](../_static/images/meter_reading.gif)
 

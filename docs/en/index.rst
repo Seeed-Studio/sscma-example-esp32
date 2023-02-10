@@ -1,3 +1,7 @@
+*********************
+edgelab-example-esp32
+*********************
+
 .. toctree::
    :maxdepth: 2
 

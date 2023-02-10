@@ -1,4 +1,4 @@
-# Edgelab Deployment on Espressif Chipsets
+# Getting Started with EdgeLab on ESP32
 
 - [Introduction](#introduction)
 - [How to Install](#how-to-install)
@@ -68,7 +68,7 @@ The previous two commands can be combined:
 idf.py --port /dev/ttyUSB0 flash monitor
 ```
 
-```{tips}
+```{tip}
 Please follow example READMEs for more details.
 ```
 
@@ -86,7 +86,7 @@ The performance of the EdgeLab-related models, measured on different chipsets, i
 
 #### Meter Reading
 
-![meter](../_static/esp32/images/meter_reading.gif)
+![meter](../_static/images/meter_reading.gif)
 
 
 ## Contributing

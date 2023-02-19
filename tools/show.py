@@ -5,14 +5,21 @@ from PIL import Image
 import numpy as np
 import cv2
 import math
+import argparse
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description='Convert tflite to c or cpp file')
+
+    parser.add_argument('--port', help='COM port')
+    parser.add_argument('--baudrate', help='baudrate')
+
+    return args
+
 
 
 def calculate(start_x, start_y, end_x, end_y, center_x, center_y, pointer_x, pointer_y, range):
     pi = np.pi
-
-    # assert math.sqrt(pow(abs(center_x - start_x), 2) + pow(abs(center_y - start_y), 2)) == \
-    #        math.sqrt(pow(abs(center_x - end_x), 2) + pow(abs(center_y - end_y), 2)), \
-    #         'the side length must be equal!'
 
     cneter_to_start = math.sqrt(
         pow(abs(center_x - start_x), 2) + pow(abs(center_y - start_y), 2))
@@ -64,12 +71,7 @@ def base64img(width, height, channel, img):
         return None
 
 
-if __name__ == '__main__':
-
-    ser = Serial('COM6', 2000000, timeout=2000)
-
-    # text = 'AT+RUNIMPULSEDEBUG=y\r\n'
-    # result = ser.write(text.encode("utf8"))
+def show(ser):
 
     data = ''
     width = 0
@@ -140,3 +142,29 @@ if __name__ == '__main__':
 
             if data.find('Begin output') > -1:
                 data = data.split('Begin output')[1]
+
+
+if __name__ == '__main__':
+
+    args = parse_args()
+
+    port = args.port
+    baudrate = args.baudrate
+
+    if port == None:
+        print('Please input com port')
+        exit()
+
+    if baudrate == None:
+        baudrate = 115200
+
+    try:
+        ser = Serial(port, baudrate, timeout=2000)
+    except:
+        print('Open serial port failed')
+        exit()
+    
+    show(ser)
+
+
+

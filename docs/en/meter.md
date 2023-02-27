@@ -154,4 +154,4 @@ idf.py build
 
 ### Run 
 
-![meter](../_static/images/meter_reading.gif)
+![meter](../_static/esp32/images/meter_reading.gif)

@@ -86,7 +86,7 @@ The performance of the EdgeLab-related models, measured on different chipsets, i
 
 #### Meter Reading
 
-![meter](../_static/images/meter_reading.gif)
+![meter](../_static/esp32/images/meter_reading.gif)
 
 
 ## Contributing

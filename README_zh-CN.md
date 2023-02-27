@@ -95,7 +95,7 @@ idf.py --port /dev/ttyUSB0 flash monitor
 ### 模型演示
 
 #### PFLD 模拟表计
-![meter_reading](./docs/_static/images/meter_reading.gif)
+![meter_reading](./docs/_static/esp32/images/meter_reading.gif)
 
 ## 贡献
 - 如果你在这些例子中发现了问题，或者希望提交一个增强请求，请使用Github上的问题部分。

@@ -56,7 +56,7 @@ model = dict(type='PFLD',
 # dataset settings
 dataset_type = 'MeterData'
 
-data_root = '~/datasets/meter'
+data_root = '../work_dirs/datasets/meter'
 height=112
 width=112
 batch_size=32
@@ -110,33 +110,38 @@ lr_config = dict(policy='step',
                  warmup_iters=400,
                  warmup_ratio=0.0001,
                  step=[400, 440, 490])
-# lr_config = dict(
-#     policy='OneCycle',
-#     max_lr=0.0001,
-#     # steps_per_epoch=388,
-#     # epoch=1500,
-#     pct_start=0.1)
-# runtime settings
-# runner = dict(type='EpochBasedRunner', max_epochs=30)
-# evaluation = dict(interval=1, metric=['bbox'])
 total_epochs = epochs
 find_unused_parameters = True
 ```
+保存为EdgeLab/configs/pfld/pfld_mv2n_112_custom.py
 
 ### 训练模型
+
+获取预训练模型
+```bash
+cd EdgeLab
+mkdir -p work_dirs/pretrain/ && cd work_dirs/pretrain
+wget  https://github.com/Seeed-Studio/EdgeLab/releases/download/model_zoo/pfld_mv2n_112.pth 
+```
+
+训练表记模型模型
 
 ```bash
 cd EdgeLab
 conda activate edgelab
-tools/train.py mmpose configs/pfld/pfld_mv2n_112.py --gpus=1 --cfg-options total_epochs=50
+python tools/train.py mmpose configs/pfld/pfld_mv2n_112_custom.py --gpus=1 --cfg-options total_epochs=50 load_from=./work_dirs/pretrain/pfld_mv2n_112.pth 
 ```
+训练完成的模型会存储到 **exp**`<x>`目录下，x是训练的工作目录
 
 ### 模型转换
 将模型转换为TensorFlow Lite。
 ```bash
 cd EdgeLab
 conda activate edgelab
-python tools/export.py configs/pfld/pfld_mv2n_112.py --weights work_dirs/pfld_mv2n_112/exp1/latest.pth --data ~/datasets/meter/train/images
+python tools/torch2tflite.py mmpose  configs/pfld/pfld_mv2n_112_custom.py --weights work_dirs/pfld_mv2n_112_custom/exp1/latest.pth --tflite_type int8 
+```
+```{note}
+注意：路径中的exp1是第一次训练是生成的，如果您多次训练expx会依次累加。
 ```
 
 ## 部署模型

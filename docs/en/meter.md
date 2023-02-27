@@ -57,7 +57,7 @@ model = dict(type='PFLD',
 # dataset settings
 dataset_type = 'MeterData'
 
-data_root = '~/datasets/meter'
+data_root = './work_dirs/datasets/meter'
 height=112
 width=112
 batch_size=32
@@ -111,15 +111,6 @@ lr_config = dict(policy='step',
                  warmup_iters=400,
                  warmup_ratio=0.0001,
                  step=[400, 440, 490])
-# lr_config = dict(
-#     policy='OneCycle',
-#     max_lr=0.0001,
-#     # steps_per_epoch=388,
-#     # epoch=1500,
-#     pct_start=0.1)
-# runtime settings
-# runner = dict(type='EpochBasedRunner', max_epochs=30)
-# evaluation = dict(interval=1, metric=['bbox'])
 total_epochs = epochs
 find_unused_parameters = True
 ```
@@ -129,7 +120,7 @@ find_unused_parameters = True
 ```bash
 cd EdgeLab
 conda activate edgelab
-tools/train.py mmpose configs/pfld/pfld_mv2n_112.py --gpus=1 --cfg-options total_epochs=50
+tools/train.py mmpose configs/pfld/pfld_mv2n_112.py --cfg-options total_epochs=50
 ```
 
 ## Convert the model
@@ -146,7 +137,11 @@ Convert the model to a C file and put it in the `components/modules/model` direc
 ```bash
 cd edgelab-example-esp32
 conda activate edgelab
-python tools/tflite2c.py --input work_dirs/pfld_mv2n_112/exp1/latest.tflite --model_name pfld_meter --output_dir ./components/modules/model
+python tools/torch2tflite.py mmpose  configs/pfld/pfld_mv2n_112_custom.py --weights work_dirs/pfld_mv2n_112_custom/exp1/latest.pth --tflite_type int8 
+```
+```{note}
+Note: The exp1 in the path is generated in the first training. If you train multiple times, expx will be added one by one.
+```
 ```
 
 Compile and flash the program to the ESP32-S3 development board.

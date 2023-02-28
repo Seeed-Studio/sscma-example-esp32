@@ -26,22 +26,16 @@
 你可以使用你熟悉的数据集获取方式， 以Roboflow提供的[mask-detection](https://universe.roboflow.com/compvis-final-project/mask-detection-m3skq)为例，下载数据集并解压到`EdgeLab/datasets`目录下。
 
 ```bash
-
 cd EdgeLab
 mkdir -p datasets
 cd datasets
+wget https://files.seeedstudio.com/wiki/Edgelab/coco_mask.zip
+unzip coco_mask.zip
 
-conda activate edgelab
-
-pip install roboflow
-
-from roboflow import Roboflow
-rf = Roboflow(api_key="YOUR_API_KEY")
-project = rf.workspace("compvis-final-project").project("mask-detection-m3skq")
-dataset = project.version(2).download("coco")
 ```
 
 ### 准备配置文件
+
 ```python
 _base_ = '../_base_/default_runtime.py'
 
@@ -65,7 +59,7 @@ model = dict(
 
 # dataset settings
 dataset_type = 'FomoDatasets'
-data_root = 'datasets/mask-detection-m3skq'
+data_root = './work_dirs/datasets/coco_mask'
 height=96
 width=96
 batch_size=16
@@ -126,18 +120,32 @@ find_unused_parameters = True
 
 ### 训练模型
 
+#### 下载预训练模型
+
+```bash
+cd EdgeLab
+mkdir -p work_dirs/pretrain/ && cd work_dirs/pretrain
+wget  https://github.com/Seeed-Studio/EdgeLab/releases/download/model_zoo/fomo_mv2n_96.pth 
+```
+
+#### 训练模型
+
 ```bash
 cd EdgeLab
 conda activate edgelab
-tools/train.py mmpose configs/pfld/pfld_mv2n_112.py --gpus=1 --cfg-options total_epochs=50
+python tools/train.py mmdet configs/fomo/fomo_mobnetv2_x8_custom.py --cfg-options total_epochs=50 load_from=./work_dirs/pretrain/fomo_mv2n_96.pth 
 ```
+## 模型转换
 
-### 模型转换
 将模型转换为TensorFlow Lite。
 ```bash
 cd EdgeLab
 conda activate edgelab
-python tools/export.py configs/pfld/pfld_mv2n_112.py --weights work_dirs/pfld_mv2n_112/exp1/latest.pth --data ~/datasets/meter/train/images
+python tools/torch2tflite.py mmdet  configs/fomo/fomo_mobnetv2_x8_custom.py --weights work_dirs/fomo_mobnetv2_x8_custom/exp1/latest.pth --tflite_type int8 
+```
+
+```{note}
+注意：路径中的exp1是第一次训练是生成的，如果您多次训练expx会依次累加。
 ```
 
 ## 部署模型
@@ -146,7 +154,7 @@ python tools/export.py configs/pfld/pfld_mv2n_112.py --weights work_dirs/pfld_mv
 ```bash
 cd edgelab-example-esp32
 conda activate edgelab
-python tools/tflite2c.py --input work_dirs/pfld_mv2n_112/exp1/latest.tflite --model_name fomo --output_dir ./components/modules/model
+python tools/tflite2c.py --input work_dirs/fomo_mobnetv2_x8_custom/exp1/latest.tflite --model_name fomo --output_dir ./components/modules/model
 ```
 
 编译并烧录程序到ESP32-S3开发板。

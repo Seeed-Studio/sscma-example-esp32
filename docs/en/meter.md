@@ -115,12 +115,22 @@ total_epochs = epochs
 find_unused_parameters = True
 ```
 
+Save as EdgeLab/configs/pfld/pfld_mv2n_112_custom.py
+
 ### Train the model
 
+#### Download the pre-trained model.
+```bash
+cd EdgeLab
+mkdir -p work_dirs/pretrain/ && cd work_dirs/pretrain
+wget  https://github.com/Seeed-Studio/EdgeLab/releases/download/model_zoo/pfld_mv2n_112.pth 
+```
+
+#### Start training.
 ```bash
 cd EdgeLab
 conda activate edgelab
-tools/train.py mmpose configs/pfld/pfld_mv2n_112.py --cfg-options total_epochs=50
+python tools/train.py mmpose configs/pfld/pfld_mv2n_112_custom.py --gpus=1 --cfg-options total_epochs=50 load_from=./work_dirs/pretrain/pfld_mv2n_112.pth 
 ```
 
 ## Convert the model
@@ -129,19 +139,25 @@ Convert models to TensorFlow Lite.
 ```bash
 cd EdgeLab
 conda activate edgelab
-python tools/export.py configs/pfld/pfld_mv2n_112.py --weights work_dirs/pfld_mv2n_112/exp1/latest.pth --data ~/datasets/meter/train/images
-```
-
-## Deploy the model
-Convert the model to a C file and put it in the `components/modules/model` directory of `edgelab-example-esp32`.
-```bash
-cd edgelab-example-esp32
-conda activate edgelab
 python tools/torch2tflite.py mmpose  configs/pfld/pfld_mv2n_112_custom.py --weights work_dirs/pfld_mv2n_112_custom/exp1/latest.pth --tflite_type int8 
 ```
+
 ```{note}
 Note: The exp1 in the path is generated in the first training. If you train multiple times, expx will be added one by one.
 ```
+
+## Deploy the model
+
+Convert the model to a C file and put it in the `components/modules/model` directory of `edgelab-example-esp32`.
+
+```bash
+cd edgelab-example-esp32
+conda activate edgelab
+python tools/tflite2c.py --input work_dirs/pfld_mv2n_112/exp1/latest.tflite --model_name pfld_meter --output_dir ./components/modules/model
+```
+
+```{note}
+Note: The exp1 in the path is generated in the first training. If you train multiple times, expx will be added one by one.
 ```
 
 Compile and flash the program to the ESP32-S3 development board.

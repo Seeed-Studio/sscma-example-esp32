@@ -117,14 +117,14 @@ find_unused_parameters = True
 
 ### 训练模型
 
-获取预训练模型
+#### 获取预训练模型
 ```bash
 cd EdgeLab
 mkdir -p work_dirs/pretrain/ && cd work_dirs/pretrain
 wget  https://github.com/Seeed-Studio/EdgeLab/releases/download/model_zoo/pfld_mv2n_112.pth 
 ```
 
-训练表记模型模型
+##### 训练表记模型模型
 
 ```bash
 cd EdgeLab
@@ -133,7 +133,7 @@ python tools/train.py mmpose configs/pfld/pfld_mv2n_112_custom.py --gpus=1 --cfg
 ```
 训练完成的模型会存储到 **exp**`<x>`目录下，x是训练的工作目录
 
-### 模型转换
+## 模型转换
 将模型转换为TensorFlow Lite。
 ```bash
 cd EdgeLab

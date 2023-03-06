@@ -1,6 +1,7 @@
 set(src_dirs    
                 camera
                 lcd
+                imu
                 model
                 algorithm
                 utils)
@@ -8,6 +9,7 @@ set(src_dirs
 set(include_dirs    
                     camera
                     lcd
+                    imu
                     model
                     algorithm
                     utils)

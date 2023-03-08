@@ -150,7 +150,7 @@ python tools/torch2tflite.py mmpose  configs/pfld/pfld_mv2n_112_custom.py --weig
 ```bash
 cd edgelab-example-esp32
 conda activate edgelab
-python tools/tflite2c.py --input work_dirs/pfld_mv2n_112/exp1/latest.tflite --model_name pfld_meter --output_dir ./components/modules/model
+python tools/tflite2c.py --input work_dirs/pfld_mv2n_112/exp1/latest.tflite --name pfld_meter --output_dir ./components/modules/model
 ```
 
 编译并烧录程序到ESP32-S3开发板。

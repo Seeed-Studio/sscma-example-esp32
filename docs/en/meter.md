@@ -153,7 +153,7 @@ Convert the model to a C file and put it in the `components/modules/model` direc
 ```bash
 cd edgelab-example-esp32
 conda activate edgelab
-python tools/tflite2c.py --input work_dirs/pfld_mv2n_112/exp1/latest.tflite --model_name pfld_meter --output_dir ./components/modules/model
+python tools/tflite2c.py --input work_dirs/pfld_mv2n_112/exp1/latest.tflite --name pfld_meter --output_dir ./components/modules/model
 ```
 
 ```{note}

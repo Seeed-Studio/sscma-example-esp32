@@ -154,7 +154,7 @@ python tools/torch2tflite.py mmdet  configs/fomo/fomo_mobnetv2_x8_custom.py --we
 ```bash
 cd edgelab-example-esp32
 conda activate edgelab
-python tools/tflite2c.py --input work_dirs/fomo_mobnetv2_x8_custom/exp1/latest.tflite --model_name fomo --output_dir ./components/modules/model
+python tools/tflite2c.py --input work_dirs/fomo_mobnetv2_x8_custom/exp1/latest.tflite --name fomo --output_dir ./components/modules/model --classes='("unmask", "mask")'
 ```
 
 编译并烧录程序到ESP32-S3开发板。

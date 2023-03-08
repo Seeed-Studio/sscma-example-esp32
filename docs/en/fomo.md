@@ -154,7 +154,7 @@ Convert the model to a C file and put it in the `components/modules/model` direc
 ```bash
 cd edgelab-example-esp32
 conda activate edgelab
-python tools/tflite2c.py --input work_dirs/fomo_mobnetv2_x8_custom/exp1/latest.tflite --model_name fomo --output_dir ./components/modules/model
+python tools/tflite2c.py --input work_dirs/fomo_mobnetv2_x8_custom/exp1/latest.tflite --name fomo --output_dir ./components/modules/model --classes='("unmask", "mask")'
 ```
 
 Compile and flash the program to the ESP32-S3 development board.

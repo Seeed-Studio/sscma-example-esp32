@@ -79,6 +79,7 @@ def show(ser):
     channel = 0
     model = ''
 
+    # inspried by edgeimpulse
     while True:
         rev_num = ser.inWaiting()
         if rev_num:

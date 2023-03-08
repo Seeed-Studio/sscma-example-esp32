@@ -33,6 +33,7 @@ static bool gEvent = true;
 static bool gReturnFB = true;
 static bool debug_mode = false;
 
+
 // Globals, used for compatibility with Arduino-style sketches.
 namespace
 {
@@ -73,7 +74,7 @@ static void task_process_handler(void *arg)
             {
 
                 int dsp_start_time = esp_timer_get_time() / 1000;
-                c = 1;
+        
                 if (c == 1)
                     rgb565_to_gray(input->data.uint8, frame->buf, frame->height, frame->width, h, w, ROTATION_UP);
                 else if (c == 3)

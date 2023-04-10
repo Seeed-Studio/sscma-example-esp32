@@ -103,7 +103,7 @@ data = dict(samples_per_gpu=batch_size,
 
 # optimizer
 lr=0.001
-epochs=300
+epochs=70
 optimizer = dict(type='Adam', lr=lr, weight_decay=0.0005)
 
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
@@ -133,7 +133,7 @@ wget  https://github.com/Seeed-Studio/EdgeLab/releases/download/model_zoo/fomo_m
 ```bash
 cd EdgeLab
 conda activate edgelab
-python tools/train.py mmdet configs/fomo/fomo_mobnetv2_x8_custom.py --cfg-options total_epochs=50 load_from=./work_dirs/pretrain/fomo_mv2n_96.pth 
+python tools/train.py mmdet configs/fomo/fomo_mobnetv2_x8_custom.py --cfg-options load_from=./work_dirs/pretrain/fomo_mv2n_96.pth 
 ```
 
 ## Convert the model

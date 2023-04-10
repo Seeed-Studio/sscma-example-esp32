@@ -43,7 +43,7 @@ esp_err_t register_lcd(const QueueHandle_t frame_i, const QueueHandle_t frame_o,
         .miso_io_num = BOARD_LCD_MISO,
         .mosi_io_num = BOARD_LCD_MOSI,
         .sclk_io_num = BOARD_LCD_SCK,
-        .max_transfer_sz = 2 * 240 * 240 + 10,
+        .max_transfer_sz = 2 * BOARD_LCD_H_RES * BOARD_LCD_V_RES + 10,
     };
     spi_bus_handle_t spi_bus = spi_bus_create(LCD_HOST, &bus_conf);
 
@@ -76,8 +76,8 @@ esp_err_t register_lcd(const QueueHandle_t frame_i, const QueueHandle_t frame_o,
         .bckl_active_level = 0,
         .offset_hor = 0,
         .offset_ver = 0,
-        .width = 240,
-        .height = 240,
+        .width = BOARD_LCD_H_RES,
+        .height = BOARD_LCD_V_RES,
         .rotate = 0,
     };
     ret = g_lcd.init(&lcd_cfg);

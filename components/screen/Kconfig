@@ -31,6 +31,9 @@ menu "LCD Drivers"
         config LCD_DRIVER_SCREEN_CONTROLLER_ST7796
             bool "ST7796"
             default n
+        config LCD_DRIVER_SCREEN_CONTROLLER_GC9A01
+            bool "GC9A01"
+            default n
 
         config LCD_DRIVER_SCREEN_CONTROLLER_SSD1306
             bool "SSD1306"
@@ -41,6 +44,7 @@ menu "LCD Drivers"
         config LCD_DRIVER_SCREEN_CONTROLLER_SSD1322
             bool "SSD1322"
             default n
+
     endmenu
 
 endmenu

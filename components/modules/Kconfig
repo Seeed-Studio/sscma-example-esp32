@@ -158,5 +158,21 @@ menu "Edgelab  Configuration"
             help
                 Select Camera Y9 pin.
     endmenu
+    menu "LCD Configuration"
+
+        choice LCD_MODULE
+            bool "Select LCD Pinout"
+            default LCD_MODULE_ESP_S3_EYE
+            help
+                Select LCD Pinout.
+
+            config LCD_MODULE_ESP_S3_EYE
+                bool "ESP-S3-EYE DevKit"
+            config LCD_MODULE_XIAO_S3
+                bool "Seeeduino XIAO S3"
+        endchoice
+        
+    endmenu
+
 
 endmenu

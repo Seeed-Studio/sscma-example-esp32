@@ -45,19 +45,23 @@ esp_err_t register_lcd(const QueueHandle_t frame_i, const QueueHandle_t frame_o,
         .sclk_io_num = BOARD_LCD_SCK,
         .max_transfer_sz = 2 * 240 * 240 + 10,
     };
-    spi_bus_handle_t spi_bus = spi_bus_create(SPI2_HOST, &bus_conf);
+    spi_bus_handle_t spi_bus = spi_bus_create(LCD_HOST, &bus_conf);
 
     scr_interface_spi_config_t spi_lcd_cfg = {
         .spi_bus = spi_bus,
         .pin_num_cs = BOARD_LCD_CS,
         .pin_num_dc = BOARD_LCD_DC,
-        .clk_freq = 40 * 1000000,
+        .clk_freq = BOARD_LCD_PIXEL_CLOCK_HZ,
         .swap_data = 0,
     };
 
     scr_interface_driver_t *iface_drv;
     scr_interface_create(SCREEN_IFACE_SPI, &spi_lcd_cfg, &iface_drv);
+#if CONFIG_LCD_MODULE_ESP_S3_EYE
     esp_err_t ret = scr_find_driver(SCREEN_CONTROLLER_ST7789, &g_lcd);
+#elif CONFIG_LCD_MODULE_XIAO_S3
+    esp_err_t ret = scr_find_driver(SCREEN_CONTROLLER_GC9A01, &g_lcd);
+#endif
     if (ESP_OK != ret)
     {
         return ret;

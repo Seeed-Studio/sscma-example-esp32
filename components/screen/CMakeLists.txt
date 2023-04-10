@@ -12,6 +12,7 @@ set(SCREEN_DIR "controller_driver/ili9341"
             "controller_driver/ssd1307"
             "controller_driver/ssd1322"
             "controller_driver/ssd1963"
+            "controller_driver/gc9a01"
             )
 
 # include component requirements for IDF version > 4.2

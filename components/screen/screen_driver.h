@@ -15,7 +15,10 @@
 #ifndef _IOT_SCREEN_DRIVER_H_
 #define _IOT_SCREEN_DRIVER_H_
 
+#include "sdkconfig.h"
 #include "scr_interface_driver.h"
+
+
 
 #ifdef __cplusplus
 extern "C"
@@ -112,6 +115,7 @@ extern "C"
         SCREEN_CONTROLLER_ST7796,
         SCREEN_CONTROLLER_SSD1351,
         SCREEN_CONTROLLER_SSD1963,
+        SCREEN_CONTROLLER_GC9A01,
 
         /* monochrome screen */
         SCREEN_CONTROLLER_SSD1306,

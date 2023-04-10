@@ -13,6 +13,8 @@ def parse_args():
 
     parser.add_argument('--port', help='COM port')
     parser.add_argument('--baudrate', help='baudrate')
+    
+    args = parser.parse_args()
 
     return args
 
@@ -105,7 +107,7 @@ def show(ser):
                     if line[i].find('Framebuffer: ') > -1:
                         fb = line[i].split('Framebuffer: ')[
                             1].replace('\r', '')
-                        img = base64img(240, 240, 1, fb)
+                        img = base64img(width, height, channel, fb)
 
                     if line[i].find('Predictions ') > -1:
                         print(line[i].split('Predictions ')

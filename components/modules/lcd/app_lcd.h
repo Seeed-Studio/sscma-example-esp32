@@ -19,6 +19,7 @@
 #define BOARD_LCD_V_RES 240
 #define BOARD_LCD_CMD_BITS 8
 #define BOARD_LCD_PARAM_BITS 8
+#define BOARD_LCD_ROTATE 0
 #define LCD_HOST SPI2_HOST
 #elif CONFIG_LCD_MODULE_XIAO_S3
 #define BOARD_LCD_MOSI 9
@@ -35,6 +36,7 @@
 #define BOARD_LCD_V_RES 240
 #define BOARD_LCD_CMD_BITS 8
 #define BOARD_LCD_PARAM_BITS 8
+#define BOARD_LCD_ROTATE SCR_DIR_TBRL
 #define LCD_HOST SPI2_HOST
 #else
 #error "No LCD module selected"

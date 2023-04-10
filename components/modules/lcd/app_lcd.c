@@ -78,7 +78,7 @@ esp_err_t register_lcd(const QueueHandle_t frame_i, const QueueHandle_t frame_o,
         .offset_ver = 0,
         .width = BOARD_LCD_H_RES,
         .height = BOARD_LCD_V_RES,
-        .rotate = 0,
+        .rotate = BOARD_LCD_ROTATE,
     };
     ret = g_lcd.init(&lcd_cfg);
     if (ESP_OK != ret)

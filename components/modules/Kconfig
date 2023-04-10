@@ -24,6 +24,8 @@ menu "Edgelab  Configuration"
                 bool "M5Stack Camera F (Wide)"
             config CAMERA_MODULE_AI_THINKER
                 bool "ESP32-CAM by AI-Thinker"
+            config CAMERA_MODULE_XIAO_S3
+                bool "ESP32 XIAO S3"
             config CAMERA_MODULE_CUSTOM
                 bool "Custom Camera Pinout"
         endchoice

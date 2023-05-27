@@ -36,7 +36,7 @@
 #define BOARD_LCD_V_RES 240
 #define BOARD_LCD_CMD_BITS 8
 #define BOARD_LCD_PARAM_BITS 8
-#define BOARD_LCD_ROTATE SCR_DIR_TBRL
+#define BOARD_LCD_ROTATE SCR_DIR_LRTB
 #define LCD_HOST SPI2_HOST
 #else
 #error "No LCD module selected"

@@ -33,8 +33,8 @@ static bool gEvent = true;
 static bool gReturnFB = true;
 static bool debug_mode = false;
 
-#define CONFIDENCE 50
-#define IOU 40
+#define CONFIDENCE 40
+#define IOU 30
 
 std::forward_list<yolo_t> nms_get_obeject_topn(int8_t *dataset, uint16_t top_n, uint8_t threshold, uint8_t nms, uint16_t width, uint16_t height, int num_record, int8_t num_class, float scale, int zero_point);
 
@@ -86,6 +86,11 @@ static void task_process_handler(void *arg)
                 else if (c == 3)
                     rgb565_to_rgb888(input->data.uint8, frame->buf, frame->height, frame->width, h, w, ROTATION_UP);
 
+                // for (int i = 0; i < input->bytes; i++)
+                // {
+                //     frame->buf[i] = input->data.uint8[i];
+                // }
+
                 int dsp_end_time = esp_timer_get_time() / 1000;
 
                 if (debug_mode)
@@ -133,7 +138,7 @@ static void task_process_handler(void *arg)
     for (int i = 0; i < records; i++)
     {
         float confidence = float(output->data.int8[i * num_element + OBJECT_C_INDEX] - zero_point) * scale;
-        if (confidence > .50)
+        if (confidence > .40)
         {
             int8_t max = -128;
             int target = 0;
@@ -163,7 +168,7 @@ static void task_process_handler(void *arg)
                     printf("    [\n");
                     for (auto &yolo : _yolo_list)
                     {
-                        fb_gfx_drawRect(frame, yolo.x - yolo.w / 2, yolo.y - yolo.h/2, yolo.w, yolo.h, 0xFF00);
+                        fb_gfx_drawRect(frame, yolo.x - yolo.w / 2, yolo.y - yolo.h/2, yolo.w, yolo.h, 0x1FE0);
                         printf("        {\"class\": \"%d\", \"x\": %d, \"y\": %d, \"w\": %d, \"h\": %d, \"confidence\": %d},\n", yolo.target, yolo.x, yolo.y, yolo.w, yolo.h, yolo.confidence);
                     }
                     printf("    ]\n");

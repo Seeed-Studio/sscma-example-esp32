@@ -169,7 +169,8 @@ static void task_process_handler(void *arg)
                     for (auto &yolo : _yolo_list)
                     {
                         fb_gfx_drawRect(frame, yolo.x - yolo.w / 2, yolo.y - yolo.h/2, yolo.w, yolo.h, 0x1FE0);
-                        printf("        {\"class\": \"%d\", \"x\": %d, \"y\": %d, \"w\": %d, \"h\": %d, \"confidence\": %d},\n", yolo.target, yolo.x, yolo.y, yolo.w, yolo.h, yolo.confidence);
+                        fb_gfx_printf(frame, yolo.x - yolo.w / 2, yolo.y - yolo.h/2 - 5, 0x1FE0, 0x0000, "%s", g_yolo_model_classes[yolo.target]);
+                        printf("        {\"class\": \"%s\", \"x\": %d, \"y\": %d, \"w\": %d, \"h\": %d, \"confidence\": %d},\n", g_yolo_model_classes[yolo.target], yolo.x, yolo.y, yolo.w, yolo.h, yolo.confidence);
                     }
                     printf("    ]\n");
                 }

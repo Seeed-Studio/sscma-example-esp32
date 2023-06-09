@@ -139,9 +139,9 @@ void rgb565_to_rgb888(uint8_t *pdst, const uint8_t *psrc, int h, int w, int th, 
             index = i * tw + j;
             init_index = tmph * w + tmpw; // ou
 
-            b = _RGB565_TO_RGB_888_TABLE_5[((psrc[init_index * 2] & 0xF8) >> 3)];
+            r = _RGB565_TO_RGB_888_TABLE_5[((psrc[init_index * 2] & 0xF8) >> 3)];
             g = _RGB565_TO_RGB_888_TABLE_6[((psrc[init_index * 2] & 0x07) << 3) | ((psrc[init_index * 2 + 1] & 0xE0) >> 5)];
-            r = _RGB565_TO_RGB_888_TABLE_5[(psrc[init_index * 2 + 1] & 0x1F)];
+            b = _RGB565_TO_RGB_888_TABLE_5[(psrc[init_index * 2 + 1] & 0x1F)];
 
             switch (rotation)
             {

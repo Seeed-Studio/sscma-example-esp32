@@ -68,6 +68,12 @@ def base64img(width, height, channel, img):
         img = Image.frombytes(format, (width, height), imgdata)
         img = np.array(img)
         img = np.fliplr(img)
+        if channel == 3:
+            format = 'RGB'
+            img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+        elif channel == 1:
+            format = 'L'
+            img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
         return img
     except:
         return None

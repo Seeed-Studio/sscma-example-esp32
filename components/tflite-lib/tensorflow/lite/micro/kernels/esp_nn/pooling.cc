@@ -168,8 +168,13 @@ TfLiteStatus AverageEval(TfLiteContext* context, TfLiteNode* node) {
 #if ESP_NN
       AverageEvalQuantized(context, node, params, data, input, output);
 #else
-      AveragePoolingEvalQuantized(context, node, params, data, input, output);
+      AveragePoolingEvalQuantized<int8_t>(context, node, params, data, input,
+                                          output);
 #endif
+      break;
+    case kTfLiteInt16:
+      AveragePoolingEvalQuantized<int16_t>(context, node, params, data, input,
+                                           output);
       break;
     default:
       TF_LITE_KERNEL_LOG(context, "Input type %s is not currently supported",
@@ -202,8 +207,13 @@ TfLiteStatus MaxEval(TfLiteContext* context, TfLiteNode* node) {
 #if ESP_NN
       MaxEvalQuantized(context, node, params, data, input, output);
 #else
-      MaxPoolingEvalQuantized(context, node, params, data, input, output);
+      MaxPoolingEvalQuantized<int8_t>(context, node, params, data, input,
+                                      output);
 #endif
+      break;
+    case kTfLiteInt16:
+      MaxPoolingEvalQuantized<int16_t>(context, node, params, data, input,
+                                       output);
       break;
     default:
       TF_LITE_KERNEL_LOG(context, "Type %s not currently supported.",
@@ -221,11 +231,11 @@ void* Init(TfLiteContext* context, const char* buffer, size_t length) {
 
 }  // namespace
 
-TfLiteRegistration Register_AVERAGE_POOL_2D() {
+TFLMRegistration Register_AVERAGE_POOL_2D() {
   return tflite::micro::RegisterOp(Init, PoolingPrepare, AverageEval);
 }
 
-TfLiteRegistration Register_MAX_POOL_2D() {
+TFLMRegistration Register_MAX_POOL_2D() {
   return tflite::micro::RegisterOp(Init, PoolingPrepare, MaxEval);
 }
 

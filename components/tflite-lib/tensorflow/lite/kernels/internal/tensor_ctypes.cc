@@ -1,4 +1,4 @@
-/* Copyright 2022 The TensorFlow Authors. All Rights Reserved.
+/* Copyright 2023 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -13,20 +13,25 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#include "tensorflow/lite/micro/tflite_bridge/op_resolver_bridge.h"
+#include "tensorflow/lite/kernels/internal/tensor_ctypes.h"
 
-#include "tensorflow/lite/c/common.h"
-#include "tensorflow/lite/core/api/error_reporter.h"
-#include "tensorflow/lite/core/api/op_resolver.h"
-#include "tensorflow/lite/micro/tflite_bridge/micro_error_reporter.h"
-#include "tensorflow/lite/schema/schema_utils.h"
+#include <vector>
 
 namespace tflite {
 
-TfLiteStatus GetRegistrationFromOpCode(
-    const OperatorCode* opcode, const OpResolver& op_resolver,
-    const TfLiteRegistration** registration) {
-  return GetRegistrationFromOpCode(
-      opcode, op_resolver, tflite::GetMicroErrorReporter(), registration);
+RuntimeShape GetTensorShape(const TfLiteTensor* tensor) {
+  if (tensor == nullptr) {
+    return RuntimeShape();
+  }
+
+  TfLiteIntArray* dims = tensor->dims;
+  const int dims_size = dims->size;
+  const int32_t* dims_data = reinterpret_cast<const int32_t*>(dims->data);
+  return RuntimeShape(dims_size, dims_data);
 }
+
+RuntimeShape GetTensorShape(std::vector<int32_t> data) {
+  return RuntimeShape(data.size(), data.data());
+}
+
 }  // namespace tflite

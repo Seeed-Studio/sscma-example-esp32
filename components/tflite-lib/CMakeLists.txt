@@ -54,10 +54,13 @@ set(lib_srcs
           "${tflite_dir}/core/api/flatbuffer_conversions.cc"
           "${tflite_dir}/core/api/op_resolver.cc"
           "${tflite_dir}/core/api/tensor_utils.cc"
+          "${tflite_dir}/kernels/internal/common.cc"
           "${tflite_dir}/kernels/internal/quantization_util.cc"
           "${tflite_dir}/kernels/internal/portable_tensor_utils.cc"
           "${tflite_dir}/kernels/internal/tensor_utils.cc"
+          "${tflite_dir}/kernels/internal/tensor_ctypes.cc"
           "${tflite_dir}/kernels/internal/reference/portable_tensor_utils.cc"
+          "${tflite_dir}/kernels/internal/reference/comparisons.cc"
           "${tflite_dir}/schema/schema_utils.cc")
 
 set(priv_req esp-nn)
@@ -78,6 +81,7 @@ idf_component_register(
 
 # Reduce the level of paranoia to be able to compile TF sources
 target_compile_options(${COMPONENT_LIB} PRIVATE
+  -Wno-error=attributes
   -Wno-maybe-uninitialized
   -Wno-missing-field-initializers
   -Wno-error=sign-compare
@@ -88,10 +92,24 @@ if("${IDF_VERSION_MAJOR}.${IDF_VERSION_MINOR}" VERSION_GREATER_EQUAL "5.0")
   target_compile_options(${COMPONENT_LIB} PRIVATE -Wno-error=stringop-overread)
 endif()
 
- # enable ESP-NN optimizations by Espressif
+# enable ESP-NN optimizations by Espressif
 target_compile_options(${COMPONENT_LIB} PRIVATE -DESP_NN)
 
-target_compile_options(${COMPONENT_LIB} PRIVATE -fno-unwind-tables -ffunction-sections -fdata-sections -fmessage-length=0 -DTF_LITE_STATIC_MEMORY -DTF_LITE_DISABLE_X86_NEON -O3 -Wsign-compare -Wdouble-promotion -Wshadow -Wunused-variable -Wmissing-field-initializers -Wunused-function -Wswitch -Wvla -Wall -Wextra -Wstrict-aliasing -Wno-unused-parameter -Wno-nonnull)
-target_compile_options(${COMPONENT_LIB} PRIVATE $<$<COMPILE_LANGUAGE:CXX>: -std=c++11 -fno-rtti -fno-exceptions -fno-threadsafe-statics -fno-unwind-tables -ffunction-sections -fdata-sections -fmessage-length=0 -DTF_LITE_STATIC_MEMORY -DTF_LITE_DISABLE_X86_NEON -O3 -Werror -Wsign-compare -Wdouble-promotion -Wshadow -Wunused-variable -Wmissing-field-initializers -Wunused-function -Wswitch -Wvla -Wall -Wextra -Wstrict-aliasing -Wno-unused-parameter -Wno-return-type -Wno-strict-aliasing -std=gnu++14 >)
-target_compile_options(${COMPONENT_LIB} INTERFACE $<$<IN_LIST:-DTF_LITE_STATIC_MEMORY,$<TARGET_PROPERTY:${COMPONENT_LIB},COMPILE_OPTIONS>>:-DTF_LITE_STATIC_MEMORY>)
+set(common_flags -DTF_LITE_STATIC_MEMORY -DTF_LITE_DISABLE_X86_NEON -O3
+                 -Wstrict-aliasing -Wno-unused-parameter -Wall -Wextra -Wvla
+                 -Wsign-compare -Wdouble-promotion -Wswitch -Wunused-function
+                 -Wmissing-field-initializers -ffunction-sections -fdata-sections
+                 -Wshadow -Wunused-variable -fno-unwind-tables -fmessage-length=0)
+
+target_compile_options(${COMPONENT_LIB} PRIVATE ${common_flags} -fmessage-length=0 -Wno-nonnull)
+target_compile_options(${COMPONENT_LIB} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:
+                                      ${common_flags} -std=c++11 -fno-rtti -fno-exceptions
+                                      -fno-threadsafe-statics -Werror -Wno-return-type
+                                      -Wno-strict-aliasing -std=gnu++14 >)
+
+# avoid issue of compiler internal error caused in `depthwise_conv_flaot.h
+set_source_files_properties(${tfmicro_kernels_dir}/esp_nn/depthwise_conv.cc
+                            PROPERTIES COMPILE_FLAGS -O2)
+
+target_compile_options(${COMPONENT_LIB} INTERFACE -DTF_LITE_STATIC_MEMORY)
 target_link_libraries(${COMPONENT_LIB} PRIVATE -lm)

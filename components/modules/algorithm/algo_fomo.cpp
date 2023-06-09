@@ -72,7 +72,6 @@ static void task_process_handler(void *arg)
         {
             if (xQueueReceive(xQueueFrameI, &frame, portMAX_DELAY))
             {
-
                 int dsp_start_time = esp_timer_get_time() / 1000;
         
                 if (c == 1)
@@ -98,12 +97,12 @@ static void task_process_handler(void *arg)
 
                 // Run the model on this input and make sure it succeeds.
                 int start_time = esp_timer_get_time() / 1000;
-
+                printf("Invoke\n");
                 if (kTfLiteOk != interpreter->Invoke())
                 {
                     MicroPrintf("Invoke failed.");
                 }
-
+                printf("Invoke done\n");
                 int end_time = esp_timer_get_time() / 1000;
 
                 vTaskDelay(10 / portTICK_PERIOD_MS);
@@ -132,7 +131,7 @@ static void task_process_handler(void *arg)
                                 max_target = t;
                             }
                         }
-                        if (max_conf > 80 && max_target != 0)
+                        if (max_conf >50 && max_target != 0)
                         {
                             found = true;
                             fomo_t obj;
@@ -221,24 +220,13 @@ int register_algo_fomo(const QueueHandle_t frame_i,
         return -1;
     }
 
-    static tflite::MicroMutableOpResolver<16> micro_op_resolver;
+    static tflite::MicroMutableOpResolver<6> micro_op_resolver;
     micro_op_resolver.AddPad();
     micro_op_resolver.AddAdd();
     micro_op_resolver.AddRelu();
-    micro_op_resolver.AddMean();
-    micro_op_resolver.AddPack();
-    micro_op_resolver.AddShape();
     micro_op_resolver.AddConv2D();
-    micro_op_resolver.AddReshape();
     micro_op_resolver.AddSoftmax();
-    micro_op_resolver.AddQuantize();
-    micro_op_resolver.AddMaxPool2D();
-    micro_op_resolver.AddStridedSlice();
-    micro_op_resolver.AddConcatenation();
-    micro_op_resolver.AddAveragePool2D();
     micro_op_resolver.AddDepthwiseConv2D();
-    micro_op_resolver.AddFullyConnected();
-
     // Build an interpreter to run the model with.
     // NOLINTNEXTLINE(runtime-global-variables)
     static tflite::MicroInterpreter static_interpreter(
@@ -256,9 +244,9 @@ int register_algo_fomo(const QueueHandle_t frame_i,
     // Get information about the memory area to use for the model's input.
     input = interpreter->input(0);
 
-    xTaskCreatePinnedToCore(task_process_handler, TAG, 4 * 1024, NULL, 5, NULL, 0);
+    xTaskCreatePinnedToCore(task_process_handler, TAG, 8 * 1024, NULL, 5, NULL, 0);
     if (xQueueEvent)
-        xTaskCreatePinnedToCore(task_event_handler, TAG, 4 * 1024, NULL, 5, NULL, 1);
+        xTaskCreatePinnedToCore(task_event_handler, TAG, 8 * 1024, NULL, 5, NULL, 1);
 
     return 0;
 }

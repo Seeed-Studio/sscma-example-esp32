@@ -129,7 +129,7 @@ static void task_process_handler(void *arg)
                 uint32_t num_class = output->dims->data[2] - OBJECT_T_INDEX;
                 int16_t num_element = num_class + OBJECT_T_INDEX;
 
-                _yolo_list = nms_get_obeject_topn(output->data.int8, records, CONFIDENCE, IOU, frame->width, frame->height, records, num_class, scale, zero_point);
+                _yolo_list = nms_get_obeject_topn(output->data.int8, records, CONFIDENCE, IOU, w, h, records, num_class, scale, zero_point);
 
                 printf("Predictions (DSP: %d ms., Classification: %d ms., Anomaly: %d ms.): \n", (dsp_end_time - dsp_start_time), (end_time - start_time), 0);
                 bool found = false;
@@ -168,9 +168,13 @@ static void task_process_handler(void *arg)
                     printf("    [\n");
                     for (auto &yolo : _yolo_list)
                     {
-                        fb_gfx_drawRect(frame, yolo.x - yolo.w / 2, yolo.y - yolo.h/2, yolo.w, yolo.h, 0x1FE0);
-                        fb_gfx_printf(frame, yolo.x - yolo.w / 2, yolo.y - yolo.h/2 - 5, 0x1FE0, 0x0000, "%s", g_yolo_model_classes[yolo.target]);
-                        printf("        {\"class\": \"%s\", \"x\": %d, \"y\": %d, \"w\": %d, \"h\": %d, \"confidence\": %d},\n", g_yolo_model_classes[yolo.target], yolo.x, yolo.y, yolo.w, yolo.h, yolo.confidence);
+                        yolo.x = uint16_t(float(yolo.x) / float(w) * float(frame->width));
+                        yolo.y = uint16_t(float(yolo.y) / float(h) * float(frame->height));
+                        yolo.w = uint16_t(float(yolo.w) / float(w) * float(frame->width));
+                        yolo.h = uint16_t(float(yolo.h) / float(h) * float(frame->height));
+                        fb_gfx_drawRect(frame, yolo.x - yolo.w / 2, yolo.y - yolo.h / 2, yolo.w, yolo.h, 0x1FE0);
+                        // fb_gfx_printf(frame, yolo.x - yolo.w / 2, yolo.y - yolo.h/2 - 5, 0x1FE0, 0x0000, "%s", g_yolo_model_classes[yolo.target]);
+                        printf("        {\"class\": \"%d\", \"x\": %d, \"y\": %d, \"w\": %d, \"h\": %d, \"confidence\": %d},\n", yolo.target, yolo.x, yolo.y, yolo.w, yolo.h, yolo.confidence);
                     }
                     printf("    ]\n");
                 }
@@ -246,10 +250,12 @@ int register_algo_yolo(const QueueHandle_t frame_i,
         return -1;
     }
 
-    static tflite::MicroMutableOpResolver<14> micro_op_resolver;
+    static tflite::MicroMutableOpResolver<17> micro_op_resolver;
     micro_op_resolver.AddConv2D();
+    micro_op_resolver.AddDepthwiseConv2D();
     micro_op_resolver.AddReshape();
     micro_op_resolver.AddPad();
+    micro_op_resolver.AddPadV2();
     micro_op_resolver.AddAdd();
     micro_op_resolver.AddSub();
     micro_op_resolver.AddRelu();
@@ -259,6 +265,7 @@ int register_algo_yolo(const QueueHandle_t frame_i,
     micro_op_resolver.AddTranspose();
     micro_op_resolver.AddLogistic();
     micro_op_resolver.AddMul();
+    micro_op_resolver.AddSplitV();
     micro_op_resolver.AddStridedSlice();
     micro_op_resolver.AddResizeNearestNeighbor();
 
@@ -388,13 +395,15 @@ void _hard_nms_obeject_count(std::forward_list<yolo_t> &yolo_obj_list, uint8_t n
 
 std::forward_list<yolo_t> nms_get_obeject_topn(int8_t *dataset, uint16_t top_n, uint8_t threshold, uint8_t nms, uint16_t width, uint16_t height, int num_record, int8_t num_class, float scale, int zero_point)
 {
+    bool rescale = scale < 0.1 ? true : false;
     std::forward_list<yolo_t> yolo_obj_list[num_class];
     int16_t num_obj[num_class] = {0};
     int16_t num_element = num_class + OBJECT_T_INDEX;
     for (int i = 0; i < num_record; i++)
     {
         float confidence = float(dataset[i * num_element + OBJECT_C_INDEX] - zero_point) * scale;
-        if (int(float(confidence) * 100) >= threshold)
+        confidence = rescale ? confidence * 100 : confidence;
+        if (int(float(confidence)) >= threshold)
         {
             yolo_t obj;
             int8_t max = -128;
@@ -409,17 +418,28 @@ std::forward_list<yolo_t> nms_get_obeject_topn(int8_t *dataset, uint16_t top_n, 
                 }
             }
 
-            
-            int x = int(float(float(dataset[i * num_element + OBJECT_X_INDEX] - zero_point) * scale) * width);
-            int y = int(float(float(dataset[i * num_element + OBJECT_Y_INDEX] - zero_point) * scale) * height);
-            int w = int(float(float(dataset[i * num_element + OBJECT_W_INDEX] - zero_point) * scale) * width);
-            int h = int(float(float(dataset[i * num_element + OBJECT_H_INDEX] - zero_point) * scale) * height);
 
-            obj.x = CLIP(x, 0, width);
-            obj.y = CLIP(y, 0, height);
-            obj.w = CLIP(w, 0, width);
-            obj.h = CLIP(h, 0, height);
-            obj.confidence = int(float(confidence) * 100);
+
+            float x = float(dataset[i * num_element + OBJECT_X_INDEX] - zero_point) * scale;
+            float y = float(dataset[i * num_element + OBJECT_Y_INDEX] - zero_point) * scale;
+            float w = float(dataset[i * num_element + OBJECT_W_INDEX] - zero_point) * scale;
+            float h = float(dataset[i * num_element + OBJECT_H_INDEX] - zero_point) * scale;
+
+            if (rescale)
+            {
+                obj.x = CLIP(int(x * width), 0, width);
+                obj.y = CLIP(int(y * height), 0, height);
+                obj.w = CLIP(int(w * width), 0, width);
+                obj.h = CLIP(int(h * height), 0, height);
+            }
+            else
+            {
+                obj.x = CLIP(int(x), 0, width);
+                obj.y = CLIP(int(y), 0, height);
+                obj.w = CLIP(int(w), 0, width);
+                obj.h = CLIP(int(h), 0, height);
+            }
+            obj.confidence = confidence;
             if (num_obj[obj.target] >= top_n)
             {
                 yolo_obj_list[obj.target].sort(_object_comparator_reverse);

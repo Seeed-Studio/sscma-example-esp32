@@ -36,6 +36,8 @@ static bool debug_mode = false;
 #define CONFIDENCE 40
 #define IOU 30
 
+const uint16_t box_color[]={0x1FE0, 0x07E0, 0x001F, 0xF800, 0xF81F, 0xFFE0};
+
 std::forward_list<yolo_t> nms_get_obeject_topn(int8_t *dataset, uint16_t top_n, uint8_t threshold, uint8_t nms, uint16_t width, uint16_t height, int num_record, int8_t num_class, float scale, int zero_point);
 
 // Globals, used for compatibility with Arduino-style sketches.
@@ -172,7 +174,7 @@ static void task_process_handler(void *arg)
                         yolo.y = uint16_t(float(yolo.y) / float(h) * float(frame->height));
                         yolo.w = uint16_t(float(yolo.w) / float(w) * float(frame->width));
                         yolo.h = uint16_t(float(yolo.h) / float(h) * float(frame->height));
-                        fb_gfx_drawRect(frame, yolo.x - yolo.w / 2, yolo.y - yolo.h / 2, yolo.w, yolo.h, 0x1FE0);
+                        fb_gfx_drawRect(frame, yolo.x - yolo.w / 2, yolo.y - yolo.h / 2, yolo.w, yolo.h, box_color[yolo.target % (sizeof(box_color) / sizeof(box_color[0]))]);
                         // fb_gfx_printf(frame, yolo.x - yolo.w / 2, yolo.y - yolo.h/2 - 5, 0x1FE0, 0x0000, "%s", g_yolo_model_classes[yolo.target]);
                         printf("        {\"class\": \"%d\", \"x\": %d, \"y\": %d, \"w\": %d, \"h\": %d, \"confidence\": %d},\n", yolo.target, yolo.x, yolo.y, yolo.w, yolo.h, yolo.confidence);
                     }
@@ -250,7 +252,7 @@ int register_algo_yolo(const QueueHandle_t frame_i,
         return -1;
     }
 
-    static tflite::MicroMutableOpResolver<17> micro_op_resolver;
+    static tflite::MicroMutableOpResolver<18> micro_op_resolver;
     micro_op_resolver.AddConv2D();
     micro_op_resolver.AddDepthwiseConv2D();
     micro_op_resolver.AddReshape();
@@ -259,6 +261,7 @@ int register_algo_yolo(const QueueHandle_t frame_i,
     micro_op_resolver.AddAdd();
     micro_op_resolver.AddSub();
     micro_op_resolver.AddRelu();
+    micro_op_resolver.AddMean();
     micro_op_resolver.AddMaxPool2D();
     micro_op_resolver.AddConcatenation();
     micro_op_resolver.AddQuantize();

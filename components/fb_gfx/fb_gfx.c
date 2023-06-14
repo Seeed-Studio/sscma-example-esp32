@@ -19,7 +19,6 @@
 #include "stdlib.h"
 #include "fb_gfx.h"
 
-
 typedef struct
 {                            // Data stored PER GLYPH
     uint16_t bitmapOffset;   // Pointer into GFXfont->bitmap
@@ -105,8 +104,12 @@ void fb_gfx_fillRect(camera_fb_t *fb, int32_t x, int32_t y, int32_t w, int32_t h
 
     for (int i = 0; i < h; i++)
     {
+        if (y + i >= fb->height)
+            break;
         for (int j = 0; j < w; j++)
         {
+            if (x + j >= fb->width)
+                break;
             switch (bytes_per_pixel)
             {
             case 1:

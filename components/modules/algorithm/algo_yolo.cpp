@@ -33,10 +33,10 @@ static bool gEvent = true;
 static bool gReturnFB = true;
 static bool debug_mode = false;
 
-#define CONFIDENCE 40
-#define IOU 30
+#define CONFIDENCE 25
+#define IOU 45
 
-const uint16_t box_color[]={0x1FE0, 0x07E0, 0x001F, 0xF800, 0xF81F, 0xFFE0};
+const uint16_t box_color[] = {0x0000, 0xFFFF, 0x07E0, 0x001F, 0xF800, 0xF81F, 0xFFE0, 0x07FF, 0x07FF, 0x07FF, 0x07FF};
 
 std::forward_list<yolo_t> nms_get_obeject_topn(int8_t *dataset, uint16_t top_n, uint8_t threshold, uint8_t nms, uint16_t width, uint16_t height, int num_record, int8_t num_class, float scale, int zero_point);
 
@@ -129,7 +129,6 @@ static void task_process_handler(void *arg)
 
                 uint32_t records = output->dims->data[1];
                 uint32_t num_class = output->dims->data[2] - OBJECT_T_INDEX;
-                int16_t num_element = num_class + OBJECT_T_INDEX;
 
                 _yolo_list = nms_get_obeject_topn(output->data.int8, records, CONFIDENCE, IOU, w, h, records, num_class, scale, zero_point);
 
@@ -164,6 +163,7 @@ static void task_process_handler(void *arg)
 
                 if (std::distance(_yolo_list.begin(), _yolo_list.end()) > 0)
                 {
+                    int index = 0;
                     found = true;
                     printf("    Objects found: %d\n", std::distance(_yolo_list.begin(), _yolo_list.end()));
                     printf("    Objects:\n");
@@ -174,9 +174,10 @@ static void task_process_handler(void *arg)
                         yolo.y = uint16_t(float(yolo.y) / float(h) * float(frame->height));
                         yolo.w = uint16_t(float(yolo.w) / float(w) * float(frame->width));
                         yolo.h = uint16_t(float(yolo.h) / float(h) * float(frame->height));
-                        fb_gfx_drawRect(frame, yolo.x - yolo.w / 2, yolo.y - yolo.h / 2, yolo.w, yolo.h, box_color[yolo.target % (sizeof(box_color) / sizeof(box_color[0]))]);
+                        fb_gfx_drawRect2(frame, yolo.x - yolo.w / 2, yolo.y - yolo.h / 2, yolo.w, yolo.h, box_color[index % (sizeof(box_color) / sizeof(box_color[0]))], 4);
                         // fb_gfx_printf(frame, yolo.x - yolo.w / 2, yolo.y - yolo.h/2 - 5, 0x1FE0, 0x0000, "%s", g_yolo_model_classes[yolo.target]);
                         printf("        {\"class\": \"%d\", \"x\": %d, \"y\": %d, \"w\": %d, \"h\": %d, \"confidence\": %d},\n", yolo.target, yolo.x, yolo.y, yolo.w, yolo.h, yolo.confidence);
+                        index++;
                     }
                     printf("    ]\n");
                 }
@@ -310,7 +311,7 @@ static bool _object_nms_comparator(yolo_t &oa, yolo_t &ob)
 
 static bool _object_comparator(yolo_t &oa, yolo_t &ob)
 {
-    return oa.x < ob.x;
+    return oa.x > ob.x;
 }
 
 bool _object_remove(yolo_t &obj)
@@ -365,7 +366,7 @@ void _soft_nms_obeject_detection(std::forward_list<yolo_t> &yolo_obj_list, uint8
 void _hard_nms_obeject_count(std::forward_list<yolo_t> &yolo_obj_list, uint8_t nms)
 {
     std::forward_list<yolo_t>::iterator max_box_obj;
-    yolo_obj_list.sort(_object_nms_comparator); 
+    yolo_obj_list.sort(_object_nms_comparator);
     for (std::forward_list<yolo_t>::iterator it = yolo_obj_list.begin(); it != yolo_obj_list.end(); ++it)
     {
         uint16_t area = it->w * it->h;
@@ -421,8 +422,6 @@ std::forward_list<yolo_t> nms_get_obeject_topn(int8_t *dataset, uint16_t top_n, 
                 }
             }
 
-
-
             float x = float(dataset[i * num_element + OBJECT_X_INDEX] - zero_point) * scale;
             float y = float(dataset[i * num_element + OBJECT_Y_INDEX] - zero_point) * scale;
             float w = float(dataset[i * num_element + OBJECT_W_INDEX] - zero_point) * scale;
@@ -442,6 +441,8 @@ std::forward_list<yolo_t> nms_get_obeject_topn(int8_t *dataset, uint16_t top_n, 
                 obj.w = CLIP(int(w), 0, width);
                 obj.h = CLIP(int(h), 0, height);
             }
+            obj.w = (obj.x + obj.w) > width ? (width - obj.x) : obj.w;
+            obj.h = (obj.y + obj.h) > height ? (height - obj.y) : obj.h;
             obj.confidence = confidence;
             if (num_obj[obj.target] >= top_n)
             {

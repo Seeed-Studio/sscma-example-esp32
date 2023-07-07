@@ -34,6 +34,7 @@ extern "C"
     void fb_gfx_drawPixel(camera_fb_t *fb, int32_t x, int32_t y, uint32_t color);
     void fb_gfx_fillRect(camera_fb_t *fb, int32_t x, int32_t y, int32_t w, int32_t h, uint32_t color);
     void fb_gfx_drawRect(camera_fb_t *fb, int32_t x, int32_t y, int32_t w, int32_t h, uint32_t color);
+    void fb_gfx_drawRect2(camera_fb_t *fb, int32_t x, int32_t y, int32_t w, int32_t h, uint32_t color, int32_t weight);
     void fb_gfx_drawCicle(camera_fb_t *fb, int32_t x0, int32_t y0, int32_t r, uint32_t color);
     void fb_gfx_drawFastHLine(camera_fb_t *fb, int32_t x, int32_t y, int32_t w, uint32_t color);
     void fb_gfx_drawFastVLine(camera_fb_t *fb, int32_t x, int32_t y, int32_t h, uint32_t color);

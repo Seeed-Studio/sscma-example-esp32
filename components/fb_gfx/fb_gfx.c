@@ -95,7 +95,13 @@ void fb_gfx_fillRect(camera_fb_t *fb, int32_t x, int32_t y, int32_t w, int32_t h
     default:
         break;
     }
+    if (x > fb->width || y > fb->height)
+    {
+        return;
+    }
 
+    w = (x + w > fb->width - 1) ? (fb->width - x - 1) : w;
+    h = (y + h > fb->height - 1) ? (fb->height - y - 1) : h;
     int32_t line_step = (fb->width - w) * bytes_per_pixel;
     uint8_t *data = fb->buf + ((x + (y * fb->width)) * bytes_per_pixel);
     uint8_t c0 = color >> 16;
@@ -104,12 +110,8 @@ void fb_gfx_fillRect(camera_fb_t *fb, int32_t x, int32_t y, int32_t w, int32_t h
 
     for (int i = 0; i < h; i++)
     {
-        if (y + i >= fb->height)
-            break;
         for (int j = 0; j < w; j++)
         {
-            if (x + j >= fb->width)
-                break;
             switch (bytes_per_pixel)
             {
             case 1:
@@ -262,6 +264,14 @@ void fb_gfx_drawRect(camera_fb_t *fb, int32_t x, int32_t y, int32_t w, int32_t h
     fb_gfx_drawFastHLine(fb, x, y + h - 1, w, color);
     fb_gfx_drawFastVLine(fb, x, y, h, color);
     fb_gfx_drawFastVLine(fb, x + w - 1, y, h, color);
+}
+
+void fb_gfx_drawRect2(camera_fb_t *fb, int32_t x, int32_t y, int32_t w, int32_t h, uint32_t color, int32_t weight)
+{
+    for (int i = 0; i < weight; i++)
+    {
+        fb_gfx_drawRect(fb, x + i, y + i, w - i * 2, h - i * 2, color);
+    }
 }
 
 void fb_gfx_drawCicle(camera_fb_t *fb, int32_t x0, int32_t y0, int32_t r, uint32_t color)

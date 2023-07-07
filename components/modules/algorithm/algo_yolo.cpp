@@ -332,7 +332,7 @@ static uint16_t _overlap(float x1, float w1, float x2, float w2)
 void _soft_nms_obeject_detection(std::forward_list<yolo_t> &yolo_obj_list, uint8_t nms)
 {
     std::forward_list<yolo_t>::iterator max_box_obj;
-    yolo_obj_list.sort(_object_comparator);
+    yolo_obj_list.sort(_object_nms_comparator);
     for (std::forward_list<yolo_t>::iterator it = yolo_obj_list.begin(); it != yolo_obj_list.end(); ++it)
     {
         uint16_t area = it->w * it->h;
@@ -365,7 +365,7 @@ void _soft_nms_obeject_detection(std::forward_list<yolo_t> &yolo_obj_list, uint8
 void _hard_nms_obeject_count(std::forward_list<yolo_t> &yolo_obj_list, uint8_t nms)
 {
     std::forward_list<yolo_t>::iterator max_box_obj;
-    yolo_obj_list.sort(_object_nms_comparator);
+    yolo_obj_list.sort(_object_nms_comparator); 
     for (std::forward_list<yolo_t>::iterator it = yolo_obj_list.begin(); it != yolo_obj_list.end(); ++it)
     {
         uint16_t area = it->w * it->h;

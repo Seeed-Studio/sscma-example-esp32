@@ -1,33 +1,71 @@
-/* Copyright 2019 The TensorFlow Authors. All Rights Reserved.
+#include <inttypes.h>
+#include <stdio.h>
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+#include "edgelab.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "meter.h"
+#include "yolo_model_data.h"
 
-    http://www.apache.org/licenses/LICENSE-2.0
+#define kTensorArenaSize (1024 * 1024)
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-==============================================================================*/
+uint16_t color[] = {
+    0x0000,
+    0x001F,
+    0x03E0,
+    0x7FE0,
+    0xFFFF,
+};
 
-#include "app_lcd.h"
-#include "app_camera.h"
-#include "algo_yolo.hpp"
-
-static QueueHandle_t xQueueAIFrame = NULL;
-static QueueHandle_t xQueueLCDFrame = NULL;
-
-extern "C" void app_main()
+extern "C" void app_main(void)
 {
+    Device *device = Device::get_device();
+    Display *display = device->get_display();
+    Camera *camera = device->get_camera();
 
-  xQueueAIFrame = xQueueCreate(2, sizeof(camera_fb_t *));
-  xQueueLCDFrame = xQueueCreate(2, sizeof(camera_fb_t *));
+    camera->init(240, 240);
+    display->init();
 
-  register_camera(PIXFORMAT_RGB565, FRAMESIZE_240X240, 2, xQueueAIFrame);
-  register_algo_yolo(xQueueAIFrame, NULL, NULL, xQueueLCDFrame, false);
-  register_lcd(xQueueLCDFrame, NULL, true);
+    InferenceEngine *engine = new TFLiteEngine();
+    uint8_t *tensor_arena =
+        (uint8_t *)heap_caps_malloc(kTensorArenaSize, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    engine->init(tensor_arena, kTensorArenaSize);
+    engine->load_model(g_yolo_model_data, g_yolo_model_data_len);
+    Algorithm *algorithm = new Yolo(*engine);
 
+    algorithm->init();
+
+    EL_LOGI("done");
+    while (1) {
+        el_img_t img;
+        camera->start_stream();
+        camera->get_frame(&img);
+        // algorithm->run(&img);
+        // uint32_t preprocess_time = algorithm->get_preprocess_time();
+        // uint32_t run_time = algorithm->get_run_time();
+        // uint32_t postprocess_time = algorithm->get_postprocess_time();
+
+        // for (int i = 0; i < algorithm->get_result_size(); i++) {
+        //     const el_box_t *box = static_cast<const el_box_t *>(algorithm->get_result(i));
+        //     EL_LOGI("box: %d, %d, %d, %d, %d, %d",
+        //             box->x,
+        //             box->y,
+        //             box->w,
+        //             box->h,
+        //             box->target,
+        //             box->score);
+        //     uint16_t x = box->x - box->w / 2;
+        //     uint16_t y = box->y - box->h / 2;
+        //     el_draw_rect(&img, x, y, box->w, box->h, color[i % 5], 4);
+        // }
+        // // EL_LOGI("draw done");
+        // EL_LOGI("preprocess: %d, run: %d, postprocess: %d",
+        //         preprocess_time,
+        //         run_time,
+        //         postprocess_time);
+        display->show(&img);
+        camera->stop_stream();
+        EL_LOGI(".");
+        // vTaskDelay(1000 / portTICK_PERIOD_MS);
+    }
 }

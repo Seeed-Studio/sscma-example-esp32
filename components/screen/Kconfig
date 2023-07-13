@@ -33,8 +33,7 @@ menu "LCD Drivers"
             default n
         config LCD_DRIVER_SCREEN_CONTROLLER_GC9A01
             bool "GC9A01"
-            default n
-
+            default y
         config LCD_DRIVER_SCREEN_CONTROLLER_SSD1306
             bool "SSD1306"
             default n

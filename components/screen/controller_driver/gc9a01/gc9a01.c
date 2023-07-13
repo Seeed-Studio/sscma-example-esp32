@@ -497,7 +497,7 @@ static esp_err_t lcd_gc9a01_init_reg(void)
     LCD_WRITE_CMD(0x21);
 
     LCD_WRITE_CMD(0x11);
-    vTaskDelay(120 / portTICK_RATE_MS);
+    vTaskDelay(120 / portTICK_PERIOD_MS);
     LCD_WRITE_CMD(0x29);
 
     return ESP_OK;

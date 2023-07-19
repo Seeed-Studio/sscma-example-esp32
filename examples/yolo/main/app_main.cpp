@@ -5,6 +5,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "meter.h"
+#include "person.h"
 #include "yolo_model_data.h"
 
 #define kTensorArenaSize (1024 * 1024)
@@ -40,29 +41,23 @@ extern "C" void app_main(void)
         el_img_t img;
         camera->start_stream();
         camera->get_frame(&img);
-        // algorithm->run(&img);
-        // uint32_t preprocess_time = algorithm->get_preprocess_time();
-        // uint32_t run_time = algorithm->get_run_time();
-        // uint32_t postprocess_time = algorithm->get_postprocess_time();
+        //img.data = static_cast<uint8_t *>(gImage_person);
+        algorithm->run(&img);
+        uint32_t preprocess_time = algorithm->get_preprocess_time();
+        uint32_t run_time = algorithm->get_run_time();
+        uint32_t postprocess_time = algorithm->get_postprocess_time();
 
-        // for (int i = 0; i < algorithm->get_result_size(); i++) {
-        //     const el_box_t *box = static_cast<const el_box_t *>(algorithm->get_result(i));
-        //     EL_LOGI("box: %d, %d, %d, %d, %d, %d",
-        //             box->x,
-        //             box->y,
-        //             box->w,
-        //             box->h,
-        //             box->target,
-        //             box->score);
-        //     uint16_t x = box->x - box->w / 2;
-        //     uint16_t y = box->y - box->h / 2;
-        //     el_draw_rect(&img, x, y, box->w, box->h, color[i % 5], 4);
-        // }
-        // // EL_LOGI("draw done");
-        // EL_LOGI("preprocess: %d, run: %d, postprocess: %d",
-        //         preprocess_time,
-        //         run_time,
-        //         postprocess_time);
+        if(algorithm->get_result_size() > 0) {
+            EL_LOGI("%d person detected", algorithm->get_result_size());
+        }else{
+            EL_LOGI("no person detected");
+        }
+        
+        // EL_LOGI("draw done");
+        EL_LOGI("preprocess: %d, run: %d, postprocess: %d",
+                preprocess_time,
+                run_time,
+                postprocess_time);
         display->show(&img);
         camera->stop_stream();
         EL_LOGI(".");

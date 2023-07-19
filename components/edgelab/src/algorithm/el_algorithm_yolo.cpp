@@ -166,6 +166,11 @@ EL_ERR Yolo::postprocess()
         box.y = box.y * h_scale;
         box.w = box.w * w_scale;
         box.h = box.h * h_scale;
+
+        el_img_t *i_img = static_cast<el_img_t *>(this->input);
+        uint16_t x = box.x - box.w / 2;
+        uint16_t y = box.y - box.h / 2;
+        el_draw_rect(i_img, x, y, box.w, box.h, 0x1F * box.x, 3);
     }
 
     return EL_OK;

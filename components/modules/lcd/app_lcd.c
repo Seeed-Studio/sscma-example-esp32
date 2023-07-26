@@ -111,7 +111,7 @@ void app_lcd_set_color(int color)
         ESP_LOGE(TAG, "Memory for bitmap is not enough");
     }
     else
-    {
+    { 
         for (size_t i = 0; i < lcd_info.width; i++)
         {
             buffer[i] = color;

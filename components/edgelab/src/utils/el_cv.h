@@ -40,9 +40,9 @@ namespace edgelab {
  *
  * @param src
  * @param dst
- * @return EL_ERR
+ * @return el_err_code_t
  */
-EL_ERR el_img_convert(const el_img_t* src, el_img_t* dst);
+el_err_code_t el_img_convert(const el_img_t* src, el_img_t* dst);
 
 /**
  * @brief Crop image
@@ -64,11 +64,8 @@ void el_crop_image(const el_img_t* src, el_img_t* dst, const el_box_t* box);
  * @param keep_ratio
  * @return void
  */
-void el_resize_image(const el_img_t* src,
-                     el_img_t* dst,
-                     uint32_t dst_width,
-                     uint32_t dst_height,
-                     bool keep_ratio = false);
+void el_resize_image(
+  const el_img_t* src, el_img_t* dst, uint32_t dst_width, uint32_t dst_height, bool keep_ratio = false);
 
 /**
  * @brief draw box
@@ -91,19 +88,15 @@ void el_draw_box(el_img_t* img, const el_box_t* box, bool show_text = false);
  * @param color
  * @return void
  */
-void el_draw_rect(el_img_t* img,
-                  uint16_t x,
-                  uint16_t y,
-                  uint16_t w,
-                  uint16_t h,
-                  uint32_t color,
-                  uint16_t thickness = 1);
+void el_draw_rect(
+  el_img_t* img, uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint32_t color, uint16_t thickness = 1);
 
+el_err_code_t rgb_to_rgb(const el_img_t* src, el_img_t* dst);
 
-
+el_err_code_t rgb_to_jpeg(const el_img_t* src, el_img_t* dst);
 
 #ifdef __cplusplus
-} // namespace edgelab
+}  // namespace edgelab
 }
 #endif
 

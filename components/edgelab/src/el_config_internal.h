@@ -26,22 +26,34 @@
 #ifndef _EL_CONFIG_INTERNAL_H
 #define _EL_CONFIG_INTERNAL_H
 
-#include "el_config.h"
 #include "el_board_config.h"
+#include "el_config.h"
 
 /* debug config check */
 #ifndef CONFIG_EL_DEBUG
-#define CONFIG_EL_DEBUG 0
+    #define CONFIG_EL_DEBUG 4
 #endif
 
 /* porting config check */
 #ifndef CONFIG_EL_PORTING_POSIX
-#if defined(__unix__) || defined(__APPLE__)
-#define CONFIG_EL_PORTING_POSIX 1
-#else
-#define CONFIG_EL_PORTING_POSIX 0
-#endif
+    #if defined(__unix__) || defined(__APPLE__)
+        #define CONFIG_EL_PORTING_POSIX 1
+    #else
+        #define CONFIG_EL_PORTING_POSIX 0
+    #endif
 #endif
 
+/* model related config */
+#define CONFIG_EL_MODEL_HEADER_MAGIC   0x4C4854
+#define CONFIG_EL_MODEL_PARTITION_NAME "models"
+
+/* storage related config */
+#define CONFIG_EL_STORAGE_NAME                  "edgelab_db"
+#define CONFIG_EL_STORAGE_PATH                  "kvdb0"
+#define CONFIG_EL_STORAGE_PARTITION_NAME        "db"
+#define CONFIG_EL_STORAGE_PARTITION_MOUNT_POINT "nor_flash0"
+#define CONFIG_EL_STORAGE_PARTITION_FS_NAME_0   "kvdb0"
+#define CONFIG_EL_STORAGE_PARTITION_FS_SIZE_0   (64 * 1024)
+#define CONFIG_EL_STORAGE_KEY_SIZE_MAX          (64)
 
 #endif /* EL_CONFIG_INTERNAL_H */

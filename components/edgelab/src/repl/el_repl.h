@@ -39,96 +39,93 @@
 
 namespace edgelab {
 
-typedef std::function<EL_ERR(void)> el_repl_cmd_exec_cb_t;
-typedef std::function<EL_ERR(void)> el_repl_cmd_read_cb_t;
-typedef std::function<EL_ERR(int, char **)> el_repl_cmd_write_cb_t;
+typedef std::function<el_err_code_t(void)>        el_repl_cmd_exec_cb_t;
+typedef std::function<el_err_code_t(void)>        el_repl_cmd_read_cb_t;
+typedef std::function<el_err_code_t(int, char**)> el_repl_cmd_write_cb_t;
 
 typedef enum {
-    EL_REPL_CMD_NONE = 0x00,
-    EL_REPL_CMD_EXEC = EL_BIT(0),
-    EL_REPL_CMD_READ = EL_BIT(1),
+    EL_REPL_CMD_NONE  = 0x00,
+    EL_REPL_CMD_EXEC  = EL_BIT(0),
+    EL_REPL_CMD_READ  = EL_BIT(1),
     EL_REPL_CMD_WRITE = EL_BIT(2),
 } el_repl_cmd_type_t;
 
 typedef struct {
-    std::string cmd;
-    std::string desc;
-    std::string arg;
-    el_repl_cmd_exec_cb_t exec_cb;
-    el_repl_cmd_read_cb_t read_cb;
+    std::string            cmd;
+    std::string            desc;
+    std::string            arg;
+    el_repl_cmd_exec_cb_t  exec_cb;
+    el_repl_cmd_read_cb_t  read_cb;
     el_repl_cmd_write_cb_t write_cb;
 } el_repl_cmd_t;
 
 class ReplHistory {
    private:
     std::deque<std::string> _history;
-    int _history_index;
-    int _max_size;
+    int                     _history_index;
+    int                     _max_size;
 
    public:
     ReplHistory(int max_size = 10) : _max_size(max_size) { _history_index = -1; };
     ~ReplHistory(){};
 
-    EL_ERR add(std::string &line);
-    EL_ERR add(const char *line)
-    {
+    el_err_code_t add(std::string& line);
+    el_err_code_t add(const char* line) {
         std::string str(line);
         return add(str);
     }
 
-    EL_ERR get(std::string &line, int index);
-    EL_ERR next(std::string &line);
-    EL_ERR prev(std::string &line);
-    EL_ERR clear();
-    int size() { return _history.size(); };
-    void print();
+    el_err_code_t get(std::string& line, int index);
+    el_err_code_t next(std::string& line);
+    el_err_code_t prev(std::string& line);
+    el_err_code_t clear();
+    int    size() { return _history.size(); };
+    void   print();
 };
 
 class ReplServer {
    private:
     std::vector<el_repl_cmd_t> _cmd_list;
-    ReplHistory _history;
-    bool _is_ctrl;
-    std::string _line;
-    int _line_index;
-    std::string _ctrl_line;
-    static ReplServer *_instance;
+    ReplHistory                _history;
+    bool                       _is_ctrl;
+    std::string                _line;
+    int                        _line_index;
+    std::string                _ctrl_line;
+    static ReplServer*         _instance;
 
    public:
     ReplServer() { _line_index = -1; };
     ~ReplServer(){};
 
-    static ReplServer &get_instance()
-    {
-        if (!_instance)
-            _instance = new ReplServer();
-        return *_instance;
+    static ReplServer* get_instance() {
+        if (!_instance) _instance = new ReplServer();
+        return _instance;
     }
 
-    ReplServer(ReplServer const &) = delete;
-    ReplServer &operator=(ReplServer const &) = delete;
+    ReplServer(ReplServer const&)            = delete;
+    ReplServer& operator=(ReplServer const&) = delete;
 
     void init();
-    void loop(std::string &line);
-    void loop(const char *line, size_t len);
+    void loop(std::string& line);
+    void loop(const char* line, size_t len);
     void loop(char c);
 
-    EL_ERR register_cmd(el_repl_cmd_t &cmd);
-    EL_ERR register_cmd(const char *cmd,
-                        const char *desc,
-                        const char *arg,
-                        el_repl_cmd_exec_cb_t exec_cb,
-                        el_repl_cmd_read_cb_t read_cb,
+    el_err_code_t register_cmd(el_repl_cmd_t& cmd);
+    el_err_code_t register_cmd(const char*            cmd,
+                        const char*            desc,
+                        const char*            arg,
+                        el_repl_cmd_exec_cb_t  exec_cb,
+                        el_repl_cmd_read_cb_t  read_cb,
                         el_repl_cmd_write_cb_t write_cb);
-    EL_ERR register_cmds(std::vector<el_repl_cmd_t> &cmd_list);
-    EL_ERR register_cmds(el_repl_cmd_t *cmd_list, int size);
-    EL_ERR unregister_cmd(std::string &cmd);
-    EL_ERR print_help();
+    el_err_code_t register_cmds(std::vector<el_repl_cmd_t>& cmd_list);
+    el_err_code_t register_cmds(el_repl_cmd_t* cmd_list, int size);
+    el_err_code_t unregister_cmd(std::string& cmd);
+    el_err_code_t print_help();
 
    private:
-    EL_ERR _exec_cmd(std::string &line);
+    el_err_code_t _exec_cmd(std::string& line);
 };
 
-} // namespace edgelab
+}  // namespace edgelab
 
 #endif /* _EL_REPL_H_ */

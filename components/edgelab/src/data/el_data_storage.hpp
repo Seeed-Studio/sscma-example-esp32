@@ -319,8 +319,8 @@ class Storage {
    public:
     Iterator begin() { return Iterator(this); }
     Iterator end() { return Iterator(nullptr); }
-    Iterator cbegin() { return Iterator(this); }
-    Iterator cend() { return Iterator(nullptr); }
+    Iterator cbegin() const { return Iterator(this); }
+    Iterator cend() const { return Iterator(nullptr); }
 
    private:
     mutable SemaphoreHandle_t __lock;

@@ -26,65 +26,20 @@
 #ifndef _EL_INFERENCE_H_
 #define _EL_INFERENCE_H_
 
-#include <stdio.h>
+#include <type_traits>
 
-#include "el_common.h"
-#include "el_compiler.h"
-#include "el_debug.h"
-#include "el_types.h"
-
-#ifdef CONFIG_EL_FILESYSTEM
-#include <fstream>
-#include <iostream>
+#ifdef CONFIG_EL_TFLITE
+    #include "el_inference_tflite.h"
 #endif
 
 namespace edgelab {
+namespace inference {
+enum struct EngineName { TFLite };
+}
 
-class InferenceEngine {
-   public:
-    InferenceEngine(){};
-    virtual ~InferenceEngine(){}; // Virtual destructor for polymorphism
+using EngineName = edgelab::inference::EngineName;
 
-    virtual EL_ERR init() = 0;            // Initialize Inference Engine without memory pool
-    virtual EL_ERR init(size_t size) = 0; // Initialize Inference Engine with memory pool
-    virtual EL_ERR init(void* pool,
-                        size_t size) = 0; // Initialize Inference Engine with memory pool
-
-    virtual EL_ERR run() = 0; // Run inference
-
-#ifdef CONFIG_EL_FILESYSTEM
-    virtual EL_ERR load_model(const char* model_path) = 0; // Load model from file
+template <EngineName EN, typename = typename std::enable_if<EN == EngineName::TFLite>::type>
+using InferenceEngine = typename edgelab::inference::TFLiteEngine;
+}  // namespace edgelab
 #endif
-    virtual EL_ERR load_model(const void* model_data,
-                              size_t model_size) = 0; // Load model from memory
-
-    virtual EL_ERR set_input(size_t index,
-                             const void* input_data,
-                             size_t input_size) = 0; // Set input data
-    virtual void* get_input(size_t index) = 0;       // Get input data
-
-    virtual void* get_output(size_t index) = 0;                        // Get output data
-    virtual el_shape_t get_input_shape(size_t index) = 0;              // Get input shape
-    virtual el_shape_t get_output_shape(size_t index) = 0;             // Get output shape
-    virtual el_quant_param_t get_input_quant_param(size_t index) = 0;  // Get input quant param
-    virtual el_quant_param_t get_output_quant_param(size_t index) = 0; // Get output quant param
-#ifdef CONFIG_EL_INFERENCER_TENSOR_NAME
-    virtual size_t get_input_index(const char* input_name) = 0;   // Get input index
-    virtual size_t get_output_index(const char* output_name) = 0; // Get output index
-    virtual void* get_input(const char* input_name) = 0;          // Get input data
-    virtual EL_ERR set_input(const char* input_name,
-                             const void* input_data,
-                             size_t input_size) = 0;                  // Set input data
-    virtual void* get_output(const char* output_name) = 0;            // Get output data
-    virtual el_shape_t get_input_shape(const char* input_name) = 0;   // Get input shape
-    virtual el_shape_t get_output_shape(const char* output_name) = 0; // Get output shape
-    virtual el_quant_param_t get_input_quant_param(
-        const char* input_name) = 0; // Get input quant param
-    virtual el_quant_param_t get_output_quant_param(
-        const char* output_name) = 0; // Get output quant param
-#endif
-};
-
-} // namespace edgelab
-
-#endif // _EL_PORTING_H_

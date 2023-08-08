@@ -1,7 +1,7 @@
 /*
  * The MIT License (MIT)
  *
- * Copyright (c) 2023 Hongtai Liu (Seeed Technology Inc.)
+ * Copyright (c) 2023 Seeed Technology Co.,Ltd
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -26,42 +26,35 @@
 #ifndef _EL_ALGORITHM_H_
 #define _EL_ALGORITHM_H_
 
-#include "el_common.h"
-#include "el_inference.h"
+#include "el_algorithm_fomo.hpp"
+#include "el_algorithm_pfld.hpp"
+#include "el_algorithm_yolo.hpp"
+#include "el_inference_base.h"
+#include "el_types.h"
 
 namespace edgelab {
 
-class Algorithm {
-   private:
-    uint32_t preprocess_time;  // ms
-    uint32_t run_time;         // ms
-    uint32_t postprocess_time; // ms
+using FOMO = typename edgelab::algorithm::FOMO<edgelab::inference::base::Engine, el_img_t, el_box_t>;
+using PFLD = typename edgelab::algorithm::PFLD<edgelab::inference::base::Engine, el_img_t, el_point_t>;
+using YOLO = typename edgelab::algorithm::YOLO<edgelab::inference::base::Engine, el_img_t, el_box_t>;
 
-   protected:
-    InferenceEngine *engine;
-    uint8_t score_threshold;
-    uint8_t nms_threshold;
-    void *input;
-    virtual EL_ERR preprocess() = 0;
-    virtual EL_ERR postprocess() = 0;
+static void register_algorithms() noexcept {
+    using namespace edgelab::algorithm::types;
+    using namespace edgelab::algorithm::data;
 
-   public:
-    Algorithm(InferenceEngine &engine);
-    virtual ~Algorithm();
-    virtual EL_ERR init() = 0;
-    virtual EL_ERR deinit() = 0;
-    EL_ERR run(void *input);
-    uint32_t get_preprocess_time();
-    uint32_t get_run_time();
-    uint32_t get_postprocess_time();
-    uint8_t set_score_threshold(uint8_t threshold);
-    uint8_t set_nms_threshold(uint8_t threshold);
-    uint8_t get_score_threshold();
-    uint8_t get_nms_threshold();
-    virtual const void *get_result(size_t index) = 0;
-    virtual size_t get_result_size() = 0;
-};
+    el_registered_algorithms.emplace(
+      0u, el_algorithm_t{.id = 0, .type = 0, .categroy = 0, .input_type = 0, .parameters = {50, 45, 0, 0}});  // YOLO
+    el_registered_algorithms.emplace(
+      2u, el_algorithm_t{.id = 2, .type = 2, .categroy = 0, .input_type = 0, .parameters = {80, 0, 0, 0}});   // PFLD
+    el_registered_algorithms.emplace(
+      1u, el_algorithm_t{.id = 1, .type = 1, .categroy = 0, .input_type = 0, .parameters = {0, 0, 0, 0}});    // FOMO
+}
 
-} // namespace edgelab
+}  // namespace edgelab
 
-#endif /* _EL_ALGO_H_ */
+// TODO: avoid expose this name space globally
+using namespace edgelab::algorithm::types;
+using namespace edgelab::algorithm::data;
+using namespace edgelab::algorithm::utility;
+
+#endif

@@ -23,16 +23,12 @@
  *
  */
 
+// #ifdef CONFIG_EL_TFLITE
 #include "el_inference_tflite.h"
-
-#ifdef CONFIG_EL_TFLITE
-
-#ifdef CONFIG_EL_TFLITE_OP_RESOLVER_SIZE
 
 namespace tflite {
 
-OpsResolver::OpsResolver()
-{
+OpsResolver::OpsResolver() {
 #ifdef CONFIG_EL_TFLITE_OP_ABS
     AddAbs();
 #endif
@@ -324,18 +320,16 @@ OpsResolver::OpsResolver()
 #endif
 }
 
-} // namespace tflite
-
-#endif
+}  // namespace tflite
 
 namespace edgelab {
+namespace inference {
 
 tflite::OpsResolver TFLiteEngine::resolver;
 
-TFLiteEngine::TFLiteEngine()
-{
-    interpreter = nullptr;
-    model = nullptr;
+TFLiteEngine::TFLiteEngine() {
+    interpreter      = nullptr;
+    model            = nullptr;
     memory_pool.pool = nullptr;
     memory_pool.size = 0;
 #ifdef CONFIG_EL_FILESYSTEM
@@ -343,8 +337,7 @@ TFLiteEngine::TFLiteEngine()
 #endif
 }
 
-TFLiteEngine::~TFLiteEngine()
-{
+TFLiteEngine::~TFLiteEngine() {
     if (interpreter != nullptr) {
         delete interpreter;
         interpreter = nullptr;
@@ -361,13 +354,9 @@ TFLiteEngine::~TFLiteEngine()
 #endif
 }
 
-EL_ERR TFLiteEngine::init()
-{
-    return EL_OK;
-}
+el_err_code_t TFLiteEngine::init() { return EL_OK; }
 
-EL_ERR TFLiteEngine::init(size_t size)
-{
+el_err_code_t TFLiteEngine::init(size_t size) {
     void* pool = new uint8_t[size];
     if (pool == nullptr) {
         return EL_ENOMEM;
@@ -376,44 +365,40 @@ EL_ERR TFLiteEngine::init(size_t size)
     memory_pool.size = size;
     return init();
 }
-EL_ERR TFLiteEngine::init(void* pool, size_t size)
-{
+el_err_code_t TFLiteEngine::init(void* pool, size_t size) {
     memory_pool.pool = pool;
     memory_pool.size = size;
     return init();
 }
 
-EL_ERR TFLiteEngine::run()
-{
+el_err_code_t TFLiteEngine::run() {
     EL_ASSERT(interpreter != nullptr);
 
     if (kTfLiteOk != interpreter->Invoke()) {
-        return EL_LOGE;
+        return EL_ELOG;
     }
     return EL_OK;
 }
 
-EL_ERR TFLiteEngine::load_model(const void* model_data, size_t model_size)
-{
+el_err_code_t TFLiteEngine::load_model(const void* model_data, size_t model_size) {
     model = tflite::GetModel(model_data);
     if (model == nullptr) {
         return EL_EINVAL;
     }
 
-    interpreter = new tflite::MicroInterpreter(
-        model, resolver, static_cast<uint8_t*>(memory_pool.pool), memory_pool.size);
+    interpreter =
+      new tflite::MicroInterpreter(model, resolver, static_cast<uint8_t*>(memory_pool.pool), memory_pool.size);
     if (interpreter == nullptr) {
         return EL_ENOMEM;
     }
     if (kTfLiteOk != interpreter->AllocateTensors()) {
         delete interpreter;
         interpreter = nullptr;
-        return EL_LOGE;
+        return EL_ELOG;
     }
     return EL_OK;
 }
-EL_ERR TFLiteEngine::set_input(size_t index, const void* input_data, size_t input_size)
-{
+el_err_code_t TFLiteEngine::set_input(size_t index, const void* input_data, size_t input_size) {
     EL_ASSERT(interpreter != nullptr);
 
     if (index >= interpreter->inputs().size()) {
@@ -429,8 +414,7 @@ EL_ERR TFLiteEngine::set_input(size_t index, const void* input_data, size_t inpu
     memcpy(input->data.data, input_data, input_size);
     return EL_OK;
 }
-void* TFLiteEngine::get_input(size_t index)
-{
+void* TFLiteEngine::get_input(size_t index) {
     EL_ASSERT(interpreter != nullptr);
 
     if (index >= interpreter->inputs().size()) {
@@ -442,8 +426,7 @@ void* TFLiteEngine::get_input(size_t index)
     }
     return input->data.data;
 }
-void* TFLiteEngine::get_output(size_t index)
-{
+void* TFLiteEngine::get_output(size_t index) {
     EL_ASSERT(interpreter != nullptr);
 
     if (index >= interpreter->outputs().size()) {
@@ -455,8 +438,7 @@ void* TFLiteEngine::get_output(size_t index)
     }
     return output->data.data;
 }
-el_shape_t TFLiteEngine::get_input_shape(size_t index)
-{
+el_shape_t TFLiteEngine::get_input_shape(size_t index) {
     el_shape_t shape;
 
     EL_ASSERT(interpreter != nullptr);
@@ -473,8 +455,7 @@ el_shape_t TFLiteEngine::get_input_shape(size_t index)
     shape.dims = input->dims->data;
     return shape;
 }
-el_shape_t TFLiteEngine::get_output_shape(size_t index)
-{
+el_shape_t TFLiteEngine::get_output_shape(size_t index) {
     el_shape_t shape;
     shape.size = 0;
 
@@ -491,10 +472,9 @@ el_shape_t TFLiteEngine::get_output_shape(size_t index)
     shape.dims = output->dims->data;
     return shape;
 }
-el_quant_param_t TFLiteEngine::get_input_quant_param(size_t index)
-{
+el_quant_param_t TFLiteEngine::get_input_quant_param(size_t index) {
     el_quant_param_t quant_param;
-    quant_param.scale = 0;
+    quant_param.scale      = 0;
     quant_param.zero_point = 0;
 
     EL_ASSERT(interpreter != nullptr);
@@ -506,14 +486,13 @@ el_quant_param_t TFLiteEngine::get_input_quant_param(size_t index)
     if (input == nullptr) {
         return quant_param;
     }
-    quant_param.scale = input->params.scale;
+    quant_param.scale      = input->params.scale;
     quant_param.zero_point = input->params.zero_point;
     return quant_param;
 }
-el_quant_param_t TFLiteEngine::get_output_quant_param(size_t index)
-{
+el_quant_param_t TFLiteEngine::get_output_quant_param(size_t index) {
     el_quant_param_t quant_param;
-    quant_param.scale = 0;
+    quant_param.scale      = 0;
     quant_param.zero_point = 0;
 
     EL_ASSERT(interpreter != nullptr);
@@ -525,21 +504,20 @@ el_quant_param_t TFLiteEngine::get_output_quant_param(size_t index)
     if (output == nullptr) {
         return quant_param;
     }
-    quant_param.scale = output->params.scale;
+    quant_param.scale      = output->params.scale;
     quant_param.zero_point = output->params.zero_point;
     return quant_param;
 }
 
 #ifdef CONFIG_EL_FILESYSTEM
-EL_ERR TFLiteEngine::load_model(const char* model_path)
-{
-    EL_ERR ret = EL_OK;
-    size_t size = 0;
+el_err_code_t TFLiteEngine::load_model(const char* model_path) {
+    el_err_code_t        ret  = EL_OK;
+    size_t        size = 0;
     std::ifstream file(model_path, std::ios::binary | std::ios::ate);
     if (!file.is_open()) {
-        return EL_LOGE;
+        return EL_ELOG;
     }
-    size = file.tellg();
+    size       = file.tellg();
     model_file = new char[size];
     if (model_file == nullptr) {
         return EL_ENOMEM;
@@ -556,7 +534,7 @@ EL_ERR TFLiteEngine::load_model(const char* model_path)
     return ret;
 }
 #endif /* CONFIG_EL_FILESYSTEM */
+}  // namespace inference
+}  // namespace edgelab
 
-} // namespace edgelab
-
-#endif /* CONFIG_EL_TFLITE */
+// #endif /* CONFIG_EL_TFLITE */

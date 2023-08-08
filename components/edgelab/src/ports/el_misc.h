@@ -31,7 +31,7 @@
 #ifdef __cplusplus
 extern "C" {
 namespace edgelab {
-#endif // defined(__cplusplus)
+#endif  // defined(__cplusplus)
 
 /*
  * @brief: sleep for ms
@@ -59,7 +59,7 @@ uint64_t el_get_time_us(void);
  * @param: size
  * @return: void*
  */
-void *el_malloc(size_t size);
+void* el_malloc(size_t size);
 
 /*
  * @brief: wrapper of calloc
@@ -67,14 +67,14 @@ void *el_malloc(size_t size);
  * @param: size
  * @return: void*
  */
-void *el_calloc(size_t nmemb, size_t size);
+void* el_calloc(size_t nmemb, size_t size);
 
 /*
  * @brief: free memory
  * @param: ptr
  * @return: void
  */
-void el_free(void *ptr);
+void el_free(void* ptr);
 
 /*
  * @brief: wrapper of printf
@@ -82,7 +82,7 @@ void el_free(void *ptr);
  * @param: ...
  * @return: int
  */
-int el_printf(const char *format, ...);
+int el_printf(const char* format, ...);
 
 /*
  * @brief: wrapper of putchar
@@ -99,7 +99,7 @@ int el_putchar(char c);
  * @return: size_t
  * @note: this function is not thread safe
  */
-size_t el_getline(char **lineptr, size_t *n, FILE *stream);
+size_t el_getline(char** lineptr, size_t* n, FILE* stream);
 
 /*
  * @brief: reset the system
@@ -109,8 +109,8 @@ size_t el_getline(char **lineptr, size_t *n, FILE *stream);
 void el_reset(void);
 
 #if defined(__cplusplus) == 1
-} // namespace edgelab
+}  // namespace edgelab
 }
-#endif // defined(__cplusplus)
+#endif  // defined(__cplusplus)
 
-#endif // _EL_MISC_H_
+#endif  // _EL_MISC_H_

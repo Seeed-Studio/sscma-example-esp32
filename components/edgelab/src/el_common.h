@@ -26,15 +26,14 @@
 #ifndef _EL_COMMON_H_
 #define _EL_COMMON_H_
 
-#include "el_config_internal.h"
-#include "el_misc.h"
 #include "el_compiler.h"
+#include "el_config_internal.h"
 #include "el_debug.h"
+#include "el_misc.h"
 #include "el_types.h"
 
 #ifdef __cplusplus
-namespace edgelab {
-}
+namespace edgelab {}
 #endif
 
 #define EL_VERSION "0.0.1"

@@ -43,98 +43,99 @@ extern "C" {
 // 2 : print warning
 // 3 : print info
 // 4 : print verbose
+// #define CONFIG_EL_DEBUG 0
 #if CONFIG_EL_DEBUG
 
-#if CONFIG_EL_DEBUG_COLOR
-#define EL_DEBUG_COLOR_RED "\033[31m"
-#define EL_DEBUG_COLOR_GREEN "\033[32m"
-#define EL_DEBUG_COLOR_YELLOW "\033[33m"
-#define EL_DEBUG_COLOR_BLUE "\033[34m"
-#define EL_DEBUG_COLOR_MAGENTA "\033[35m"
-#define EL_DEBUG_COLOR_CYAN "\033[36m"
-#define EL_DEBUG_COLOR_RESET "\033[0m"
-#else
-#define EL_DEBUG_COLOR_RED
-#define EL_DEBUG_COLOR_GREEN
-#define EL_DEBUG_COLOR_YELLOW
-#define EL_DEBUG_COLOR_BLUE
-#define EL_DEBUG_COLOR_MAGENTA
-#define EL_DEBUG_COLOR_CYAN
-#define EL_DEBUG_COLOR_RESET
-#endif
+    #if CONFIG_EL_DEBUG_COLOR
+        #define EL_DEBUG_COLOR_RED "\033[31m"
+        #define EL_DEBUG_COLOR_GREEN "\033[32m"
+        #define EL_DEBUG_COLOR_YELLOW "\033[33m"
+        #define EL_DEBUG_COLOR_BLUE "\033[34m"
+        #define EL_DEBUG_COLOR_MAGENTA "\033[35m"
+        #define EL_DEBUG_COLOR_CYAN "\033[36m"
+        #define EL_DEBUG_COLOR_RESET "\033[0m"
+    #else
+        #define EL_DEBUG_COLOR_RED
+        #define EL_DEBUG_COLOR_GREEN
+        #define EL_DEBUG_COLOR_YELLOW
+        #define EL_DEBUG_COLOR_BLUE
+        #define EL_DEBUG_COLOR_MAGENTA
+        #define EL_DEBUG_COLOR_CYAN
+        #define EL_DEBUG_COLOR_RESET
+    #endif
 
-#if CONFIG_EL_DEBUG_MORE_INFO
-#define EL_DEBUG_MORE_INFO() el_printf("(%llu) %s: ", el_get_time_ms(), __func__);
-#else
-#define EL_DEBUG_MORE_INFO()
-#endif
+    #if CONFIG_EL_DEBUG_MORE_INFO
+        #define EL_DEBUG_MORE_INFO() el_printf("(%llu) %s: ", el_get_time_ms(), __func__);
+    #else
+        #define EL_DEBUG_MORE_INFO()
+    #endif
 
-#if CONFIG_EL_DEBUG >= 1
-#define EL_LOGE(...)                            \
-    do {                                        \
-        el_printf(EL_DEBUG_COLOR_RED "E ");     \
-        EL_DEBUG_MORE_INFO();                   \
-        el_printf(__VA_ARGS__);                 \
-        el_printf(EL_DEBUG_COLOR_RESET "\r\n"); \
-    } while (0)
-#else
-#define EL_LOGE(...)
-#endif
+    #if CONFIG_EL_DEBUG >= 1
+        #define EL_ELOG(...)                            \
+            do {                                        \
+                el_printf(EL_DEBUG_COLOR_RED "E ");     \
+                EL_DEBUG_MORE_INFO();                   \
+                el_printf(__VA_ARGS__);                 \
+                el_printf(EL_DEBUG_COLOR_RESET "\r\n"); \
+            } while (0)
+    #else
+        #define EL_ELOG(...)
+    #endif
 
-#if CONFIG_EL_DEBUG >= 2
-#define EL_LOGW(...)                            \
-    do {                                        \
-        el_printf(EL_DEBUG_COLOR_YELLOW "W ");  \
-        EL_DEBUG_MORE_INFO();                   \
-        el_printf(__VA_ARGS__);                 \
-        el_printf(EL_DEBUG_COLOR_RESET "\r\n"); \
-    } while (0)
+    #if CONFIG_EL_DEBUG >= 2
+        #define EL_LOGW(...)                            \
+            do {                                        \
+                el_printf(EL_DEBUG_COLOR_YELLOW "W ");  \
+                EL_DEBUG_MORE_INFO();                   \
+                el_printf(__VA_ARGS__);                 \
+                el_printf(EL_DEBUG_COLOR_RESET "\r\n"); \
+            } while (0)
+    #else
+        #define EL_LOGW(...)
+    #endif
+    #if CONFIG_EL_DEBUG >= 3
+        #define EL_LOGI(...)            \
+            do {                        \
+                el_printf("I ");        \
+                EL_DEBUG_MORE_INFO();   \
+                el_printf(__VA_ARGS__); \
+                el_printf("\r\n");      \
+            } while (0)
+    #else
+        #define EL_LOGI(...)
+    #endif
+    #if CONFIG_EL_DEBUG >= 4
+        #define LOG_D(...)                              \
+            do {                                        \
+                el_printf(EL_DEBUG_COLOR_GREEN "V ");   \
+                EL_DEBUG_MORE_INFO();                   \
+                el_printf(__VA_ARGS__);                 \
+                el_printf(EL_DEBUG_COLOR_RESET "\r\n"); \
+            } while (0)
+    #else
+        #define LOG_D(...)
+    #endif
 #else
-#define EL_LOGW(...)
-#endif
-#if CONFIG_EL_DEBUG >= 3
-#define EL_LOGI(...)            \
-    do {                        \
-        el_printf("I ");        \
-        EL_DEBUG_MORE_INFO();   \
-        el_printf(__VA_ARGS__); \
-        el_printf("\r\n");      \
-    } while (0)
-#else
-#define EL_LOGI(...)
-#endif
-#if CONFIG_EL_DEBUG >= 4
-#define LOG_D(...)                              \
-    do {                                        \
-        el_printf(EL_DEBUG_COLOR_GREEN "V ");   \
-        EL_DEBUG_MORE_INFO();                   \
-        el_printf(__VA_ARGS__);                 \
-        el_printf(EL_DEBUG_COLOR_RESET "\r\n"); \
-    } while (0)
-#else
-#define LOG_D(...)
-#endif
-#else
-#define EL_LOGE(...)
-#define EL_LOGW(...)
-#define EL_LOGI(...)
-#define LOG_D(...)
+    #define EL_ELOG(...)
+    #define EL_LOGW(...)
+    #define EL_LOGI(...)
+    #define LOG_D(...)
 #endif
 
 #if CONFIG_EL_ASSERT
-#define EL_ASSERT(expr)                                    \
-    do {                                                   \
-        if (!(expr)) {                                     \
-            el_printf(EL_DEBUG_COLOR_RED "[ASSERT]");      \
-            EL_DEBUG_MORE_INFO();                          \
-            el_printf("Failed assertion `%s'\r\n", #expr); \
-            el_printf(EL_DEBUG_COLOR_RESET);               \
-            while (1) {                                    \
-            }                                              \
-        }                                                  \
-    } while (0)
+    #define EL_ASSERT(expr)                                    \
+        do {                                                   \
+            if (!(expr)) {                                     \
+                el_printf(EL_DEBUG_COLOR_RED "[ASSERT]");      \
+                EL_DEBUG_MORE_INFO();                          \
+                el_printf("Failed assertion `%s'\r\n", #expr); \
+                el_printf(EL_DEBUG_COLOR_RESET);               \
+                while (1) {                                    \
+                }                                              \
+            }                                                  \
+        } while (0)
 #else
-#define EL_ASSERT(expr)
+    #define EL_ASSERT(expr)
 #endif
 
 #ifdef __cplusplus

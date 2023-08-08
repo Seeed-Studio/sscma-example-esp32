@@ -23,12 +23,13 @@
  *
  */
 
+#include "el_base64.h"
+
 namespace edgelab {
 
-static const char *base64_chars =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    "abcdefghijklmnopqrstuvwxyz"
-    "0123456789+/";
+static const char* base64_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                                  "abcdefghijklmnopqrstuvwxyz"
+                                  "0123456789+/";
 
 /**
  * @brief Base64 encode and write to a putc function
@@ -38,10 +39,9 @@ static const char *base64_chars =
  * @param putc_func
  * @return void
  */
-void el_base64_encode_output(const unsigned char *in, int in_len, int (*putc_func)(int))
-{
-    int i = 0;
-    int j = 0;
+void el_base64_encode_output(const unsigned char* in, int in_len, int (*putc_func)(int)) {
+    int           i = 0;
+    int           j = 0;
     unsigned char char_array_3[3];
     unsigned char char_array_4[4];
 
@@ -88,10 +88,9 @@ void el_base64_encode_output(const unsigned char *in, int in_len, int (*putc_fun
  * @param out
  * @return void
  */
-void el_base64_encode(const unsigned char *in, int in_len, char *out)
-{
-    int i = 0;
-    int j = 0;
+void el_base64_encode(const unsigned char* in, int in_len, char* out) {
+    int           i = 0;
+    int           j = 0;
     unsigned char char_array_3[3];
     unsigned char char_array_4[4];
 
@@ -130,4 +129,4 @@ void el_base64_encode(const unsigned char *in, int in_len, char *out)
     }
 }
 
-} // namespace edgelab
+}  // namespace edgelab

@@ -26,5 +26,4 @@
 #ifndef _EL_CONFIG_H_
 #define _EL_CONFIG_H_
 
-
 #endif /* _EL_CONFIG_H_ */

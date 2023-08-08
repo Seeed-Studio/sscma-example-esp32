@@ -33,23 +33,23 @@ namespace edgelab {
 
 class Camera {
    protected:
-    el_img_t _src_img;  // source image
-    el_img_t _jpeg_img; // jpeg image
-    size_t _width, _height;
-    bool _is_present;
-    bool _is_streaming;
+    el_img_t        _src_img;   // source image
+    el_img_t        _jpeg_img;  // jpeg image
+    size_t          _width, _height;
+    bool            _is_present;
+    bool            _is_streaming;
     static el_res_t _available_res[];
 
    public:
     Camera(/* args */){};
     virtual ~Camera(){};
-    virtual EL_ERR init(size_t width, size_t height) = 0;
-    virtual EL_ERR deinit() = 0;
-    virtual EL_ERR start_stream() = 0;
-    virtual EL_ERR stop_stream() = 0;
-    virtual EL_ERR get_frame(el_img_t* img) = 0;
-    virtual EL_ERR get_jpeg(el_img_t* img) = 0;
-    virtual EL_ERR get_resolutions(el_res_t** res, size_t* res_count) = 0;
+    virtual el_err_code_t init(size_t width, size_t height)                  = 0;
+    virtual el_err_code_t deinit()                                           = 0;
+    virtual el_err_code_t start_stream()                                     = 0;
+    virtual el_err_code_t stop_stream()                                      = 0;
+    virtual el_err_code_t get_frame(el_img_t* img)                           = 0;
+    virtual el_err_code_t get_jpeg(el_img_t* img)                            = 0;
+    virtual el_err_code_t get_resolutions(el_res_t** res, size_t* res_count) = 0;
 
     bool is_present() { return _is_streaming; }
     operator bool() { return _is_present; }
@@ -58,6 +58,6 @@ class Camera {
     size_t height() { return _height; }
 };
 
-} // namespace edgelab
+}  // namespace edgelab
 
-#endif // _EL_CAMERA_H
+#endif  // _EL_CAMERA_H

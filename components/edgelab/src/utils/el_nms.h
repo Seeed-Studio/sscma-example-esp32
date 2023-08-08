@@ -48,13 +48,13 @@ namespace edgelab {
  * @return int
  */
 int el_nms(std::forward_list<el_box_t>& boxes,
-           uint8_t nms_iou_thresh,
-           uint8_t nms_score_thresh,
-           bool soft_nms = false,
-           bool multi_target = false);
+           uint8_t                      nms_iou_thresh,
+           uint8_t                      nms_score_thresh,
+           bool                         soft_nms     = false,
+           bool                         multi_target = false);
 
 #ifdef __cplusplus
-} // namespace edgelab
+}  // namespace edgelab
 }
 #endif
 

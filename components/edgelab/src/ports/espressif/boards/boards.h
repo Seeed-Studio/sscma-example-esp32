@@ -42,4 +42,4 @@ extern "C" {
 }
 #endif
 
-#endif /* _BOARD_H_ */
+#endif

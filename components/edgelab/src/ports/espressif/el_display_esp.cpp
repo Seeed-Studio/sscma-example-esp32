@@ -25,6 +25,7 @@
 
 #include "el_display_esp.h"
 
+
 namespace edgelab {
 
 DisplayEsp::DisplayEsp()
@@ -35,7 +36,7 @@ DisplayEsp::~DisplayEsp()
 {
 }
 
-EL_ERR DisplayEsp::init()
+el_err_code_t DisplayEsp::init()
 {
     spi_config_t bus_conf = {
         .miso_io_num = static_cast<gpio_num_t>(BOARD_LCD_MISO),
@@ -61,7 +62,7 @@ EL_ERR DisplayEsp::init()
 
     if (ESP_OK != ret) {
         return EL_EIO;
-        EL_LOGE("screen find failed");
+        EL_ELOG("screen find failed");
     }
 
     scr_controller_config_t lcd_cfg = {
@@ -81,7 +82,7 @@ EL_ERR DisplayEsp::init()
 
     if (ESP_OK != ret) {
         return EL_EIO;
-        EL_LOGE("screen initialize failed");
+        EL_ELOG("screen initialize failed");
     }
 
     _lcd.get_info(&_lcd_info);
@@ -93,22 +94,22 @@ EL_ERR DisplayEsp::init()
     return EL_OK;
 }
 
-EL_ERR DisplayEsp::show(const el_img_t *img)
+el_err_code_t DisplayEsp::show(const el_img_t *img)
 {
     esp_err_t ret = _lcd.draw_bitmap(0, 0, img->width, img->height, (uint16_t *)(img->data));
     if (ESP_OK != ret) {
         return EL_EIO;
-        EL_LOGE("screen show failed");
+        EL_ELOG("screen show failed");
     }
     return EL_OK;
 }
 
-EL_ERR DisplayEsp::deinit()
+el_err_code_t DisplayEsp::deinit()
 {
     esp_err_t ret = _lcd.deinit();
     if (ESP_OK != ret) {
         return EL_EIO;
-        EL_LOGE("screen deinitialize failed");
+        EL_ELOG("screen deinitialize failed");
     }
     this->_is_present = false;
     return EL_OK;

@@ -27,54 +27,29 @@
 
 namespace edgelab {
 
-EL_ATTR_WEAK void el_sleep(uint32_t ms)
-{
-    vTaskDelay(ms / portTICK_PERIOD_MS);
-}
+EL_ATTR_WEAK void el_sleep(uint32_t ms) { vTaskDelay(ms / portTICK_PERIOD_MS); }
 
-EL_ATTR_WEAK uint64_t el_get_time_ms(void)
-{
-    return (uint64_t)esp_timer_get_time() / 1000;
-}
+EL_ATTR_WEAK uint64_t el_get_time_ms(void) { return (uint64_t)esp_timer_get_time() / 1000; }
 
-EL_ATTR_WEAK uint64_t el_get_time_us(void)
-{
-    return (uint64_t)esp_timer_get_time();
-}
+EL_ATTR_WEAK uint64_t el_get_time_us(void) { return (uint64_t)esp_timer_get_time(); }
 
-EL_ATTR_WEAK int el_printf(const char *fmt, ...)
-{
+EL_ATTR_WEAK int el_printf(const char* fmt, ...) {
     va_list args;
-    int n;
+    int     n;
     va_start(args, fmt);
     n = vprintf(fmt, args);
     va_end(args);
     return n;
 }
 
-EL_ATTR_WEAK int el_putchar(char c)
-{
-    return putchar(c);
-}
+EL_ATTR_WEAK int el_putchar(char c) { return putchar(c); }
 
-EL_ATTR_WEAK void *el_malloc(size_t size)
-{
-    return malloc(size);
-}
+EL_ATTR_WEAK void* el_malloc(size_t size) { return malloc(size); }
 
-EL_ATTR_WEAK void *el_calloc(size_t nmemb, size_t size)
-{
-    return calloc(nmemb, size);
-}
+EL_ATTR_WEAK void* el_calloc(size_t nmemb, size_t size) { return calloc(nmemb, size); }
 
-EL_ATTR_WEAK void el_free(void *ptr)
-{
-    free(ptr);
-}
+EL_ATTR_WEAK void el_free(void* ptr) { free(ptr); }
 
-EL_ATTR_WEAK void el_reset(void)
-{
-    exit(0);
-}
+EL_ATTR_WEAK void el_reset(void) { exit(0); }
 
-} // namespace edgelab
+}  // namespace edgelab

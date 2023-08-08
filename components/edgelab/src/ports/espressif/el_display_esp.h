@@ -43,9 +43,9 @@ class DisplayEsp : public Display {
    public:
     DisplayEsp();
     ~DisplayEsp();
-    EL_ERR init() override;
-    EL_ERR deinit() override;
-    EL_ERR show(const el_img_t *img) override;
+    el_err_code_t init() override;
+    el_err_code_t deinit() override;
+    el_err_code_t show(const el_img_t *img) override;
 };
 
 } // namespace edgelab

@@ -28,43 +28,43 @@
 
 /* CAMERA */
 #define CAMERA_MODULE_NAME "XIAO-S3"
-#define CAMERA_PIN_PWDN -1
-#define CAMERA_PIN_RESET -1
+#define CAMERA_PIN_PWDN    -1
+#define CAMERA_PIN_RESET   -1
 
-#define CAMERA_PIN_VSYNC 38
-#define CAMERA_PIN_HREF 47
-#define CAMERA_PIN_PCLK 13
-#define CAMERA_PIN_XCLK 10
+#define CAMERA_PIN_VSYNC   38
+#define CAMERA_PIN_HREF    47
+#define CAMERA_PIN_PCLK    13
+#define CAMERA_PIN_XCLK    10
 
-#define CAMERA_PIN_SIOD 40
-#define CAMERA_PIN_SIOC 39
+#define CAMERA_PIN_SIOD    40
+#define CAMERA_PIN_SIOC    39
 
-#define CAMERA_PIN_D0 15
-#define CAMERA_PIN_D1 17
-#define CAMERA_PIN_D2 18
-#define CAMERA_PIN_D3 16
-#define CAMERA_PIN_D4 14
-#define CAMERA_PIN_D5 12
-#define CAMERA_PIN_D6 11
-#define CAMERA_PIN_D7 48
+#define CAMERA_PIN_D0      15
+#define CAMERA_PIN_D1      17
+#define CAMERA_PIN_D2      18
+#define CAMERA_PIN_D3      16
+#define CAMERA_PIN_D4      14
+#define CAMERA_PIN_D5      12
+#define CAMERA_PIN_D6      11
+#define CAMERA_PIN_D7      48
 
 /* LCD */
-#define BOARD_LCD_MOSI 9
-#define BOARD_LCD_MISO 8
-#define BOARD_LCD_SCK 7
-#define BOARD_LCD_CS 2
-#define BOARD_LCD_DC 4
-#define BOARD_LCD_RST -1
-#define BOARD_LCD_BL -1
-#define BOARD_LCD_PIXEL_CLOCK_HZ (40 * 1000 * 1000)
-#define BOARD_LCD_BK_LIGHT_ON_LEVEL 0
+#define BOARD_LCD_MOSI               9
+#define BOARD_LCD_MISO               8
+#define BOARD_LCD_SCK                7
+#define BOARD_LCD_CS                 2
+#define BOARD_LCD_DC                 4
+#define BOARD_LCD_RST                -1
+#define BOARD_LCD_BL                 -1
+#define BOARD_LCD_PIXEL_CLOCK_HZ     (40 * 1000 * 1000)
+#define BOARD_LCD_BK_LIGHT_ON_LEVEL  0
 #define BOARD_LCD_BK_LIGHT_OFF_LEVEL !BOARD_LCD_BK_LIGHT_ON_LEVEL
-#define BOARD_LCD_H_RES 240
-#define BOARD_LCD_V_RES 240
-#define BOARD_LCD_CMD_BITS 8
-#define BOARD_LCD_PARAM_BITS 8
-#define BOARD_LCD_ROTATE SCR_DIR_TBRL
-#define LCD_HOST SPI2_HOST
-#define BOARD_LCD_CONTROLLER SCREEN_CONTROLLER_GC9A01
+#define BOARD_LCD_H_RES              240
+#define BOARD_LCD_V_RES              240
+#define BOARD_LCD_CMD_BITS           8
+#define BOARD_LCD_PARAM_BITS         8
+#define BOARD_LCD_ROTATE             SCR_DIR_BTRL
+#define LCD_HOST                     SPI2_HOST
+#define BOARD_LCD_CONTROLLER         SCREEN_CONTROLLER_GC9A01
 
 #endif /* _SEEED_XIAO_ESP32S3_BOARD_H_ */

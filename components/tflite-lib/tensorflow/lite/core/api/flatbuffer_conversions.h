@@ -43,7 +43,7 @@ class BuiltinDataAllocator {
   T* AllocatePOD() {
     // TODO(b/154346074): Change this to is_trivially_destructible when all
     // platform targets support that properly.
-    static_assert(std::is_pod<T>::value, "Builtin data structure must be POD.");
+    static_assert(std::is_standard_layout<T>::value && std::is_trivial<T>::value, "Builtin data structure must be POD.");
     void* allocated_memory = this->Allocate(sizeof(T), alignof(T));
     return new (allocated_memory) T();
   }

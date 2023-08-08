@@ -1,6 +1,6 @@
 [submodule "components/esp-nn"]
 	path = components/esp-nn
-	url = https://github.com/espressif/esp-nn
+	url = https://github.com/iChizer0/esp-nn
 [submodule "components/esp32-camera"]
 	path = components/esp32-camera
 	url = https://github.com/espressif/esp32-camera

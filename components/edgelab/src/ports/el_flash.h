@@ -23,24 +23,14 @@
  *
  */
 
-#ifndef _EDGELAB_H
-#define _EDGELAB_H
+#ifndef _EL_FLASH_H_
+#define _EL_FLASH_H_
 
-#include "el_algorithm.h"
-#include "el_base64.h"
-#include "el_camera.h"
-#include "el_common.h"
-#include "el_cv.h"
-#include "el_data.h"
-#include "el_device.h"
-#include "el_display.h"
-#include "el_inference.h"
-#include "el_misc.h"
-#include "el_nms.h"
-#include "el_repl.h"
+#include "el_types.h"
 
-#ifdef __cplusplus
-using namespace edgelab;
+#ifdef CONFIG_EL_TARGET_ESPPRESSIF
+    #include "el_flash_esp.h"
 #endif
 
-#endif /* EDGELAB_H */
+#endif
+

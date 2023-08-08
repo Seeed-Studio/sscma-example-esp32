@@ -34,7 +34,6 @@ menu "Edgelab Configuration"
 
 
     rsource "src/inference/Kconfig"
-    rsource "src/algorithm/Kconfig"
     rsource "third_party/Kconfig"
 
 endmenu

@@ -81,11 +81,11 @@ void Models::m_seek_packed_models_from_flash() {
     for (size_t it = 0u; it < __partition_size; it += sizeof(el_model_header_t)) {
         mem_addr = __flash_2_memory_map + it;
         header   = reinterpret_cast<const el_model_header_t*>(mem_addr);
-        if ((el_ntohl(header->b4[0]) & 0xFFFFFF00) != (CONFIG_EL_MODEL_HEADER_MAGIC << 8)) continue;
+        if ((el_ntohl(header->b4[0]) & 0xFFFFFF00) != (CONFIG_EL_MODEL_HEADER_MAGIC << 8u)) continue;
 
-        uint8_t  model_id   = header->b1[3] >> 4;
+        uint8_t  model_id   = header->b1[3] >> 4u;
         uint8_t  model_type = header->b1[3] & 0x0F;
-        uint32_t model_size = (el_ntohl(header->b4[1]) & 0xFFFFFF00) >> 8;
+        uint32_t model_size = (el_ntohl(header->b4[1]) & 0xFFFFFF00) >> 8u;
         if (!model_id || !model_type || !model_size || model_size > (__partition_size - it)) [[unlikely]]
             continue;
 
@@ -104,20 +104,23 @@ void Models::m_seek_packed_models_from_flash() {
 void Models::m_seek_plain_models_from_flash() {
     const uint8_t*           mem_addr = nullptr;
     const el_model_header_t* header   = nullptr;
-    uint8_t                  model_id = (std::distance(__model_info.begin(), __model_info.end()) >> 1) << 1;
+    uint8_t                  model_id = 1u;
     for (size_t it = 0u; it < __partition_size; it += sizeof(el_model_header_t)) {
         mem_addr = __flash_2_memory_map + it;
         header   = reinterpret_cast<const el_model_header_t*>(mem_addr);
-        if (el_ntohl(header->b4[1]) != CONFIG_EL_MODEL_TFLITE_MAGIC) continue;
+        if (el_ntohl(header->b4[1]) != CONFIG_EL_MODEL_TFLITE_MAGIC) [[likely]]
+            continue;
 
-        if (~__model_id_mask & (1u << ++model_id)) {
-            __model_info.emplace_front(el_model_info_t{.id          = model_id,
-                                                       .type        = el_algorithm_type_t::UNDEFINED_ALGORITHM_TYPE,
-                                                       .addr_flash  = __partition_start_addr + it,
-                                                       .size        = 0u,
-                                                       .addr_memory = mem_addr});
-            __model_id_mask |= (1u << model_id);
-        }
+        while (__model_id_mask & (1u << model_id))
+            if (++model_id >= (sizeof(__model_id_mask) << 3u)) [[unlikely]]
+                return;
+
+        __model_info.emplace_front(el_model_info_t{.id          = model_id,
+                                                   .type        = el_algorithm_type_t::UNDEFINED_ALGORITHM_TYPE,
+                                                   .addr_flash  = __partition_start_addr + it,
+                                                   .size        = 0u,
+                                                   .addr_memory = mem_addr});
+        __model_id_mask |= (1u << model_id);
     }
 }
 

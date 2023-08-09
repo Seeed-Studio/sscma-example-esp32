@@ -37,11 +37,11 @@ Models::Models()
 
 Models::~Models() { deinit(); }
 
-el_err_code_t Models::init(const char* partition_name) {
+el_err_code_t Models::init(const char* partition_name, const el_model_format& model_format) {
     el_err_code_t ret = el_model_partition_mmap_init(
       partition_name, &__partition_start_addr, &__partition_size, &__flash_2_memory_map, &__mmap_handler);
     if (ret != EL_OK) return ret;
-    seek_models_from_flash();
+    seek_models_from_flash(model_format);
     return ret;
 }
 
@@ -52,24 +52,40 @@ void Models::deinit() {
     __model_info.clear();
 }
 
-size_t Models::seek_models_from_flash() {
+size_t Models::seek_models_from_flash(const el_model_format& model_format) {
     if (!__flash_2_memory_map) [[unlikely]]
         return 0u;
 
     __model_id_mask = 0u;
     __model_info.clear();
 
-    static size_t            header_size = sizeof(el_model_header_t);
-    const uint8_t*           mem_addr    = nullptr;
-    const el_model_header_t* header      = nullptr;
-    for (size_t it = 0u; it < __partition_size; it += header_size) {
+    switch (static_cast<int>(model_format)) {
+    case el_model_format_t::PACKED_TFLITE:
+        m_seek_packed_models_from_flash();
+        return std::distance(__model_info.begin(), __model_info.end());
+    case el_model_format_t::PLAIN_TFLITE:
+        m_seek_plain_models_from_flash();
+        return std::distance(__model_info.begin(), __model_info.end());
+    case el_model_format_t::PACKED_TFLITE | el_model_format_t::PLAIN_TFLITE:
+        m_seek_packed_models_from_flash();
+        m_seek_plain_models_from_flash();
+        return std::distance(__model_info.begin(), __model_info.end());
+    default:
+        return 0u;
+    }
+}
+
+void Models::m_seek_packed_models_from_flash() {
+    const uint8_t*           mem_addr = nullptr;
+    const el_model_header_t* header   = nullptr;
+    for (size_t it = 0u; it < __partition_size; it += sizeof(el_model_header_t)) {
         mem_addr = __flash_2_memory_map + it;
         header   = reinterpret_cast<const el_model_header_t*>(mem_addr);
-        if (!verify_header_magic(header)) continue;
+        if ((el_ntohl(header->b4[0]) & 0xFFFFFF00) != (CONFIG_EL_MODEL_HEADER_MAGIC << 8)) continue;
 
-        uint8_t  model_id   = parse_model_id(header);
-        uint8_t  model_type = parse_model_type(header);
-        uint32_t model_size = parse_model_size(header);
+        uint8_t  model_id   = header->b1[3] >> 4;
+        uint8_t  model_type = header->b1[3] & 0x0F;
+        uint32_t model_size = (el_ntohl(header->b4[1]) & 0xFFFFFF00) >> 8;
         if (!model_id || !model_type || !model_size || model_size > (__partition_size - it)) [[unlikely]]
             continue;
 
@@ -78,20 +94,37 @@ size_t Models::seek_models_from_flash() {
                                                        .type        = static_cast<el_algorithm_type_t>(model_type),
                                                        .addr_flash  = __partition_start_addr + it,
                                                        .size        = model_size,
-                                                       .addr_memory = mem_addr + header_size});
+                                                       .addr_memory = mem_addr + sizeof(el_model_header_t)});
             __model_id_mask |= (1u << model_id);
         }
         it += model_size;
     }
-
-    return std::distance(__model_info.begin(), __model_info.end());
 }
 
-bool Models::has_model(el_model_id_t model_id) { return __model_id_mask & (1u << model_id); }
+void Models::m_seek_plain_models_from_flash() {
+    const uint8_t*           mem_addr = nullptr;
+    const el_model_header_t* header   = nullptr;
+    uint8_t                  model_id = (std::distance(__model_info.begin(), __model_info.end()) >> 1) << 1;
+    for (size_t it = 0u; it < __partition_size; it += sizeof(el_model_header_t)) {
+        mem_addr = __flash_2_memory_map + it;
+        header   = reinterpret_cast<const el_model_header_t*>(mem_addr);
+        if (el_ntohl(header->b4[1]) != CONFIG_EL_MODEL_TFLITE_MAGIC) continue;
 
-el_err_code_t Models::get(el_model_id_t model_id, el_model_info_t& model_info) {
-    auto it{std::find_if(
-      __model_info.begin(), __model_info.end(), [&](const auto& v) { return v.id == model_id; })};
+        if (~__model_id_mask & (1u << ++model_id)) {
+            __model_info.emplace_front(el_model_info_t{.id          = model_id,
+                                                       .type        = el_algorithm_type_t::UNDEFINED_ALGORITHM_TYPE,
+                                                       .addr_flash  = __partition_start_addr + it,
+                                                       .size        = 0u,
+                                                       .addr_memory = mem_addr});
+            __model_id_mask |= (1u << model_id);
+        }
+    }
+}
+
+bool Models::has_model(el_model_id_t model_id) const { return __model_id_mask & (1u << model_id); }
+
+el_err_code_t Models::get(el_model_id_t model_id, el_model_info_t& model_info) const {
+    auto it{std::find_if(__model_info.begin(), __model_info.end(), [&](const auto& v) { return v.id == model_id; })};
     if (it != __model_info.end()) [[likely]] {
         model_info = *it;
         return EL_OK;
@@ -99,27 +132,14 @@ el_err_code_t Models::get(el_model_id_t model_id, el_model_info_t& model_info) {
     return EL_EINVAL;
 }
 
-el_model_info_t Models::get_model_info(el_model_id_t model_id) {
-    auto it{std::find_if(
-      __model_info.begin(), __model_info.end(), [&](const auto& v) { return v.id == model_id; })};
+el_model_info_t Models::get_model_info(el_model_id_t model_id) const {
+    auto it{std::find_if(__model_info.begin(), __model_info.end(), [&](const auto& v) { return v.id == model_id; })};
     if (it != __model_info.end()) [[likely]] {
         return *it;
     }
     return el_model_info_t{};
 }
 
-std::forward_list<el_model_info_t> Models::get_all_model_info() { return __model_info; }
-
-inline bool Models::verify_header_magic(const el_model_header_t* header) {
-    return (el_ntohl(header->b4[0]) & 0xFFFFFF00) == (CONFIG_EL_MODEL_HEADER_MAGIC << 8);
-}
-
-inline uint8_t Models::parse_model_id(const el_model_header_t* header) { return header->b1[3] >> 4; }
-
-inline uint8_t Models::parse_model_type(const el_model_header_t* header) { return header->b1[3] & 0x0F; }
-
-inline uint32_t Models::parse_model_size(const el_model_header_t* header) {
-    return ((el_ntohl(header->b4[1]) & 0xFFFFFF00) >> 8);
-}
+std::forward_list<el_model_info_t> Models::get_all_model_info() const { return __model_info; }
 
 }  // namespace edgelab::data

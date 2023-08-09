@@ -44,6 +44,7 @@
 #endif
 
 /* model related config */
+#define CONFIG_EL_MODEL_TFLITE_MAGIC   0x54464C33
 #define CONFIG_EL_MODEL_HEADER_MAGIC   0x4C4854
 #define CONFIG_EL_MODEL_PARTITION_NAME "models"
 

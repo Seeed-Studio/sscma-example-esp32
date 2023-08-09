@@ -46,20 +46,19 @@ class Models {
     Models(const Models&)            = delete;
     Models& operator=(const Models&) = delete;
 
-    el_err_code_t init(const char* partition_name = CONFIG_EL_MODEL_PARTITION_NAME);
+    el_err_code_t init(const char*            partition_name = CONFIG_EL_MODEL_PARTITION_NAME,
+                       const el_model_format& model_format   = el_model_format_t::PACKED_TFLITE);
     void          deinit();
 
-    size_t                             seek_models_from_flash();
-    bool                               has_model(el_model_id_t model_id);
-    el_err_code_t                      get(el_model_id_t model_id, el_model_info_t& model_info);
-    el_model_info_t                    get_model_info(el_model_id_t model_id);
-    std::forward_list<el_model_info_t> get_all_model_info();
+    size_t                             seek_models_from_flash(const el_model_format& model_format);
+    bool                               has_model(el_model_id_t model_id) const;
+    el_err_code_t                      get(el_model_id_t model_id, el_model_info_t& model_info) const;
+    el_model_info_t                    get_model_info(el_model_id_t model_id) const;
+    std::forward_list<el_model_info_t> get_all_model_info() const;
 
    protected:
-    bool     verify_header_magic(const el_model_header_t* header);
-    uint8_t  parse_model_id(const el_model_header_t* header);
-    uint8_t  parse_model_type(const el_model_header_t* header);
-    uint32_t parse_model_size(const el_model_header_t* header);
+    void m_seek_packed_models_from_flash();
+    void m_seek_plain_models_from_flash();
 
    private:
     uint32_t                           __partition_start_addr;

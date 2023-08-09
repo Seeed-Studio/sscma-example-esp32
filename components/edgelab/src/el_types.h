@@ -142,10 +142,14 @@ typedef struct EL_ATTR_PACKED {
     uint8_t parameters[6];
 } el_sensor_t;
 
+typedef enum { UNDEFINED_MODEL_FORMAT = 0u, PACKED_TFLITE = 1u, PLAIN_TFLITE = 2u } el_model_format_t;
+
+typedef int el_model_format;
+
 /**
  * @brief Algorithm Types
  */
-typedef enum { UNDEFINED = 0u, FOMO = 1u, PFLD = 2u, YOLO = 3u } el_algorithm_type_t;
+typedef enum { UNDEFINED_ALGORITHM_TYPE = 0u, FOMO = 1u, PFLD = 2u, YOLO = 3u } el_algorithm_type_t;
 
 /**
  * @brief Model Header Specification

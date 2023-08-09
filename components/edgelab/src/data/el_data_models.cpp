@@ -74,7 +74,7 @@ size_t Models::seek_models_from_flash() {
             continue;
 
         if (~__model_id_mask & (1u << model_id)) {
-            __model_info.emplace_after(el_model_info_t{.id          = model_id,
+            __model_info.emplace_front(el_model_info_t{.id          = model_id,
                                                        .type        = static_cast<el_algorithm_type_t>(model_type),
                                                        .addr_flash  = __partition_start_addr + it,
                                                        .size        = model_size,
@@ -84,14 +84,14 @@ size_t Models::seek_models_from_flash() {
         it += model_size;
     }
 
-    return __model_info.size();
+    return std::distance(__model_info.begin(), __model_info.end());
 }
 
 bool Models::has_model(el_model_id_t model_id) { return __model_id_mask & (1u << model_id); }
 
 el_err_code_t Models::get(el_model_id_t model_id, el_model_info_t& model_info) {
     auto it{std::find_if(
-      __model_info.begin(), __model_info.end(), [&](const auto& v) { return __model_info.id == model_id; })};
+      __model_info.begin(), __model_info.end(), [&](const auto& v) { return v.id == model_id; })};
     if (it != __model_info.end()) [[likely]] {
         model_info = *it;
         return EL_OK;
@@ -101,7 +101,7 @@ el_err_code_t Models::get(el_model_id_t model_id, el_model_info_t& model_info) {
 
 el_model_info_t Models::get_model_info(el_model_id_t model_id) {
     auto it{std::find_if(
-      __model_info.begin(), __model_info.end(), [&](const auto& v) { return __model_info.id == model_id; })};
+      __model_info.begin(), __model_info.end(), [&](const auto& v) { return v.id == model_id; })};
     if (it != __model_info.end()) [[likely]] {
         return *it;
     }

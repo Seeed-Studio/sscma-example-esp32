@@ -82,7 +82,7 @@ extern "C" void app_main()
             i.size,
             i.addr_memory);
 
-    printf("Seek all model info again from flash and print (may have duplicate models) ->\n");
+    printf("Seek all model info again from flash and print (all models have a unique memory address) ->\n");
     models->seek_models_from_flash(el_model_format_t::PACKED_TFLITE |
                                    el_model_format_t::PLAIN_TFLITE);
     all_model_info = models->get_all_model_info();

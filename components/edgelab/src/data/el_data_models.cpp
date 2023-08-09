@@ -111,6 +111,11 @@ void Models::m_seek_plain_models_from_flash() {
         if (el_ntohl(header->b4[1]) != CONFIG_EL_MODEL_TFLITE_MAGIC) [[likely]]
             continue;
 
+        if (std::find_if(__model_info.begin(), __model_info.end(), [&](const auto& v) {
+                return v.addr_memory == mem_addr;
+            }) != __model_info.end())
+            break;
+
         while (__model_id_mask & (1u << model_id))
             if (++model_id >= (sizeof(__model_id_mask) << 3u)) [[unlikely]]
                 return;

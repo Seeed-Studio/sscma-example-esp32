@@ -28,18 +28,6 @@ extern "C" void app_main()
             i.size,
             i.addr_memory);
 
-    printf("Seek all model info again from flash and print ->\n");
-    models->seek_models_from_flash();
-    all_model_info = models->get_all_model_info();
-    for (const auto& i : all_model_info)
-        printf(
-            "\tmodel: {id: %d, type: %d, flash_address: 0x%.8lX, size: %ld, memory_address: %p}\n",
-            i.id,
-            i.type,
-            i.addr_flash,
-            i.size,
-            i.addr_memory);
-
     printf("Check if has a specified models on the flash ->\n");
     bool has_model = models->has_model(1u);
     if (has_model) {
@@ -65,6 +53,47 @@ extern "C" void app_main()
             model_info.size,
             model_info.addr_memory);
     }
+
+    printf(
+        "Seek all plain TFLite model info again from flash and print (default is packed TFLite "
+        "mode) ->\n");
+    models->seek_models_from_flash(el_model_format_t::PLAIN_TFLITE);
+    all_model_info = models->get_all_model_info();
+    for (const auto& i : all_model_info)
+        printf(
+            "\tmodel: {id: %d, type: %d, flash_address: 0x%.8lX, size: %ld, memory_address: %p}\n",
+            i.id,
+            i.type,
+            i.addr_flash,
+            i.size,
+            i.addr_memory);
+
+    printf(
+        "Seek all packed TFLite model info again from flash and print (faster than plain TFLite "
+        "mode) ->\n");
+    models->seek_models_from_flash(el_model_format_t::PACKED_TFLITE);
+    all_model_info = models->get_all_model_info();
+    for (const auto& i : all_model_info)
+        printf(
+            "\tmodel: {id: %d, type: %d, flash_address: 0x%.8lX, size: %ld, memory_address: %p}\n",
+            i.id,
+            i.type,
+            i.addr_flash,
+            i.size,
+            i.addr_memory);
+
+    printf("Seek all model info again from flash and print (may have duplicate models) ->\n");
+    models->seek_models_from_flash(el_model_format_t::PACKED_TFLITE |
+                                   el_model_format_t::PLAIN_TFLITE);
+    all_model_info = models->get_all_model_info();
+    for (const auto& i : all_model_info)
+        printf(
+            "\tmodel: {id: %d, type: %d, flash_address: 0x%.8lX, size: %ld, memory_address: %p}\n",
+            i.id,
+            i.type,
+            i.addr_flash,
+            i.size,
+            i.addr_memory);
 
     // TODO: move freeRTOS, ESP related function call to EdgeLab
     for (int i = 1000; i >= 0; --i) {

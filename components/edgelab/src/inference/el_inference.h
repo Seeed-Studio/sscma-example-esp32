@@ -26,20 +26,30 @@
 #ifndef _EL_INFERENCE_H_
 #define _EL_INFERENCE_H_
 
-#include <type_traits>
-
 #ifdef CONFIG_EL_TFLITE
     #include "el_inference_tflite.h"
 #endif
 
+#ifdef __cplusplus
+
+    #include <type_traits>
+
 namespace edgelab {
+ 
 namespace inference {
+
 enum struct EngineName { TFLite };
+
 }
 
 using EngineName = edgelab::inference::EngineName;
 
-template <EngineName EN, typename = typename std::enable_if<EN == EngineName::TFLite>::type>
+    #ifdef CONFIG_EL_TFLITE
+template <EngineName EN, typename std::enable_if<EN == EngineName::TFLite>::type* = nullptr>
 using InferenceEngine = typename edgelab::inference::TFLiteEngine;
+    #endif
+
 }  // namespace edgelab
+
+#endif
 #endif

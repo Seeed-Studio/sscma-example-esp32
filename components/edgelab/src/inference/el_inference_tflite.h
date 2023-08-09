@@ -35,8 +35,6 @@
 #include "tensorflow/lite/micro/system_setup.h"
 #include "tensorflow/lite/schema/schema_generated.h"
 
-#define CONFIG_EL_TFLITE_OP_DEPTHWISE_CONV_2D
-
 namespace tflite {
 
 enum OpsCount : unsigned int {
@@ -343,8 +341,7 @@ class OpsResolver : public MicroMutableOpResolver<OpsCount::OpsTail - OpsCount::
 
 }  // namespace tflite
 
-namespace edgelab {
-namespace inference {
+namespace edgelab::inference {
 
 class TFLiteEngine : public edgelab::inference::base::Engine {
    private:
@@ -369,8 +366,8 @@ class TFLiteEngine : public edgelab::inference::base::Engine {
 #ifdef CONFIG_EL_FILESYSTEM
     el_err_code_t load_model(const char* model_path) override;
 #endif
-    el_err_code_t           load_model(const void* model_data, size_t model_size) override;
-    el_err_code_t           set_input(size_t index, const void* input_data, size_t input_size) override;
+    el_err_code_t    load_model(const void* model_data, size_t model_size) override;
+    el_err_code_t    set_input(size_t index, const void* input_data, size_t input_size) override;
     void*            get_input(size_t index) override;
     void*            get_output(size_t index) override;
     el_shape_t       get_input_shape(size_t index) override;
@@ -380,7 +377,7 @@ class TFLiteEngine : public edgelab::inference::base::Engine {
 #ifdef CONFIG_EL_INFERENCER_TENSOR_NAME
     size_t           get_input_index(const char* input_name) override;
     size_t           get_output_index(const char* output_name) override;
-    el_err_code_t           set_input(const char* input_name, const void* input_data, size_t input_size) override;
+    el_err_code_t    set_input(const char* input_name, const void* input_data, size_t input_size) override;
     void*            get_input(const char* input_name) override;
     void*            get_output(const char* output_name) override;
     el_shape_t       get_input_shape(const char* input_name) override;
@@ -390,7 +387,6 @@ class TFLiteEngine : public edgelab::inference::base::Engine {
 #endif
 };
 
-}  // namespace inference
-}  // namespace edgelab
+}  // namespace edgelab::inference
 
 #endif

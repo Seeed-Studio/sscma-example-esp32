@@ -59,7 +59,7 @@ size_t Models::seek_models_from_flash(const el_model_format& model_format) {
     __model_id_mask = 0u;
     __model_info.clear();
 
-    switch (static_cast<int>(model_format)) {
+    switch (model_format) {
     case el_model_format_t::PACKED_TFLITE:
         m_seek_packed_models_from_flash();
         return std::distance(__model_info.begin(), __model_info.end());

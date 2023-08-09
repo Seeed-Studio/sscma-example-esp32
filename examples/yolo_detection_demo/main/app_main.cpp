@@ -21,16 +21,16 @@ extern "C" void app_main(void) {
     Display* display = device->get_display();
     Camera*  camera  = device->get_camera();
 
-    camera->init(240, 240);
     display->init();
+    camera->init(240, 240);
+
     auto* engine       = new InferenceEngine<EngineName::TFLite>();
     auto* tensor_arena = heap_caps_malloc(kTensorArenaSize, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     engine->init(tensor_arena, kTensorArenaSize);
+    engine->load_model(g_yolo_model_data, g_yolo_model_data_len);
+    auto* algorithm = new AlgorithmYOLO(engine);
 
-    auto* algorithm = new YOLO(engine);
-    algorithm->init();
-
-    while (1) {
+    while (true) {
         el_img_t img;
         camera->start_stream();
         camera->get_frame(&img);
@@ -38,7 +38,6 @@ extern "C" void app_main(void) {
         uint32_t preprocess_time  = algorithm->get_preprocess_time();
         uint32_t run_time         = algorithm->get_run_time();
         uint32_t postprocess_time = algorithm->get_postprocess_time();
-        uint8_t  i                = 0;
         for (const auto box : algorithm->get_results()) {
             el_printf("\tbox -> cx_cy_w_h: [%d, %d, %d, %d] t: [%d] s: [%d]\n",
                       box.x,
@@ -57,11 +56,6 @@ extern "C" void app_main(void) {
         camera->stop_stream();
     }
 
-    for (int i = 1000; i >= 0; i--) {
-        printf("Restarting in %d seconds...\n", i);
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-    }
-    printf("Restarting now.\n");
-    fflush(stdout);
-    esp_restart();
+    delete algorithm;
+    delete engine;
 }

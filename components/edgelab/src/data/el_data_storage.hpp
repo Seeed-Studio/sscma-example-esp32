@@ -30,7 +30,6 @@
 #include <freertos/semphr.h>
 
 #include <algorithm>
-#include <cassert>
 #include <cstddef>
 #include <cstring>
 #include <forward_list>
@@ -39,8 +38,8 @@
 #include <utility>
 
 #include "el_config_internal.h"
+#include "el_debug.h"
 
-#define CONFIG_EL_LIB_FLASHDB
 #ifdef CONFIG_EL_LIB_FLASHDB
 
     #include <flashdb.h>
@@ -97,7 +96,7 @@ static inline constexpr edgelab::data::types::el_storage_kv_t<ValueTypeNoCV> el_
     const char*          type_name     = get_type_name<VarTypeNoCVRef>();
     unsigned long        hash          = djb2_hash(reinterpret_cast<const unsigned char*>(type_name));
     char*                static_buffer = nullptr;
-    static const char*   format_str    = "edgelab#type_name#%.8X";
+    static const char*   format_str    = "edgelab#type_name#%.8lX";
     static const uint8_t buffer_size   = [&]() -> uint8_t {
         // 1 for terminator, -4 for formatter, 8 for hash hex (unsigned long), -1 for bit hacks (remove last 1 in binary)
         uint8_t len = static_cast<uint8_t>(std::strlen(format_str) + 1u - 4u + 8u - 1u);
@@ -107,15 +106,13 @@ static inline constexpr edgelab::data::types::el_storage_kv_t<ValueTypeNoCV> el_
         return ++len;  // the nearest power of 2 value to key length
     }();
     static std::forward_list<std::pair<unsigned long, char*>> hash_list{};
-    auto it {std::find_if(hash_list.begin(), hash_list.end(), [&](const auto& pair) {
-        return pair.first == hash;
-    })};
+    auto it{std::find_if(hash_list.begin(), hash_list.end(), [&](const auto& pair) { return pair.first == hash; })};
     if (it != hash_list.end())
         static_buffer = it->second;
     else {
         static_buffer = new char[buffer_size]{};  // we're not going to delete it
         std::sprintf(static_buffer, format_str, hash);
-        hash_list.emplace_after(std::make_pair(hash, static_buffer));
+        hash_list.emplace_front(hash, static_buffer);
     }
 
     return el_make_storage_kv(static_buffer, std::forward<VarType>(data));
@@ -126,30 +123,14 @@ static inline constexpr edgelab::data::types::el_storage_kv_t<ValueTypeNoCV> el_
 class Storage {
    public:
     // currently the consistent of Storage is only ensured on a single instance if there're multiple instances that has same name and save path
-    Storage() noexcept : __lock(xSemaphoreCreateCounting(1, 1)), __kvdb(new fdb_kvdb{}) {
-        EL_ASSERT(__lock);
-        EL_ASSERT(__kvdb);
-    }
-
-    ~Storage() { deinit(); };
+    Storage();
+    ~Storage();
 
     Storage(const Storage&)            = delete;
     Storage& operator=(const Storage&) = delete;
 
-    el_err_code_t init(fdb_default_kv* default_kv = nullptr,
-                       const char*     name       = CONFIG_EL_STORAGE_NAME,
-                       const char*     path       = CONFIG_EL_STORAGE_PATH) {
-        volatile const Guard guard(this);
-        return fdb_kvdb_init(__kvdb, name, path, default_kv, nullptr) == FDB_NO_ERR ? EL_OK : EL_EINVAL;
-    }
-
-    void deinit() {
-        volatile const Guard guard(this);
-        if (__kvdb && (fdb_kvdb_deinit(__kvdb) == FDB_NO_ERR)) [[likely]] {
-            delete __kvdb;
-            __kvdb = nullptr;
-        }
-    }
+    el_err_code_t init(const char* name = CONFIG_EL_STORAGE_NAME, const char* path = CONFIG_EL_STORAGE_PATH);
+    void          deinit();
 
     // size of the buffer should be equal to handler->value_len
     template <typename ValueType, typename std::enable_if<!std::is_const<ValueType>::value>::type* = nullptr>
@@ -180,17 +161,7 @@ class Storage {
         return get(static_cast<types::el_storage_kv_t<ValueType>&>(kv));
     }
 
-    size_t get_value_size(const char* key) const {
-        volatile const Guard guard(this);
-        if (!key || !__kvdb) [[unlikely]]
-            return 0u;
-        fdb_kv   handler{};
-        fdb_kv_t p_handler = fdb_kv_get_obj(__kvdb, key, &handler);
-        if (!p_handler || !p_handler->value_len) [[unlikely]]
-            return 0u;
-
-        return p_handler->value_len;
-    }
+    size_t get_value_size(const char* key) const;
 
     template <
       typename ValueType,
@@ -229,42 +200,6 @@ class Storage {
 
         return *this;
     }
-
-    bool erase(const char* key) {
-        volatile const Guard guard(this);
-        if (!__kvdb) [[unlikely]]
-            return false;
-
-        return fdb_kv_del(__kvdb, key) == FDB_NO_ERR;
-    }
-
-    void clear() {
-        volatile const Guard guard(this);
-        if (!__kvdb) [[unlikely]]
-            return;
-        struct fdb_kv_iterator iterator;
-        fdb_kv_iterator_init(__kvdb, &iterator);
-        while (fdb_kv_iterate(__kvdb, &iterator)) fdb_kv_del(__kvdb, iterator.curr_kv.name);
-    }
-
-    bool reset() {
-        volatile const Guard guard(this);
-        return __kvdb ? fdb_kv_set_default(__kvdb) == FDB_NO_ERR : false;
-    }
-
-   protected:
-    inline void m_lock() const noexcept { xSemaphoreTake(__lock, portMAX_DELAY); }
-    inline void m_unlock() const noexcept { xSemaphoreGive(__lock); }
-
-    struct Guard {
-        Guard(const Storage* const storage) noexcept : ___storage(storage) { ___storage->m_lock(); }
-        ~Guard() noexcept { ___storage->m_unlock(); }
-        Guard(const Guard&)            = delete;
-        Guard& operator=(const Guard&) = delete;
-
-       private:
-        const Storage* const ___storage;
-    };
 
     struct Iterator {
         using iterator_category = std::forward_iterator_tag;
@@ -316,11 +251,28 @@ class Storage {
         volatile bool        ___reach_end;
     };
 
-   public:
     Iterator begin() { return Iterator(this); }
     Iterator end() { return Iterator(nullptr); }
     Iterator cbegin() const { return Iterator(this); }
     Iterator cend() const { return Iterator(nullptr); }
+
+    bool erase(const char* key);
+    void clear();
+    bool reset();
+
+   protected:
+    inline void m_lock() const noexcept { xSemaphoreTake(__lock, portMAX_DELAY); }
+    inline void m_unlock() const noexcept { xSemaphoreGive(__lock); }
+
+    struct Guard {
+        Guard(const Storage* const storage) noexcept : ___storage(storage) { ___storage->m_lock(); }
+        ~Guard() noexcept { ___storage->m_unlock(); }
+        Guard(const Guard&)            = delete;
+        Guard& operator=(const Guard&) = delete;
+
+       private:
+        const Storage* const ___storage;
+    };
 
    private:
     mutable SemaphoreHandle_t __lock;

@@ -26,35 +26,80 @@
 #ifndef _EL_ALGORITHM_H_
 #define _EL_ALGORITHM_H_
 
-#include "el_algorithm_fomo.hpp"
-#include "el_algorithm_pfld.hpp"
-#include "el_algorithm_yolo.hpp"
-#include "el_inference_base.h"
-#include "el_types.h"
+#ifdef __cplusplus
+
+    #include <forward_list>
+
+    #include "el_algorithm_fomo.hpp"
+    #include "el_algorithm_pfld.hpp"
+    #include "el_algorithm_yolo.hpp"
+    #include "el_inference_base.h"
+    #include "el_types.h"
 
 namespace edgelab {
 
-using FOMO = typename edgelab::algorithm::FOMO<edgelab::inference::base::Engine, el_img_t, el_box_t>;
-using PFLD = typename edgelab::algorithm::PFLD<edgelab::inference::base::Engine, el_img_t, el_point_t>;
-using YOLO = typename edgelab::algorithm::YOLO<edgelab::inference::base::Engine, el_img_t, el_box_t>;
+using namespace edgelab::algorithm;
 
-static void register_algorithms() noexcept {
-    using namespace edgelab::algorithm::types;
-    using namespace edgelab::algorithm::data;
+using AlgorithmFOMO = class FOMO;
+using AlgorithmPFLD = class PFLD;
+using AlgorithmYOLO = class YOLO;
 
-    el_registered_algorithms.emplace(
-      0u, el_algorithm_t{.id = 0, .type = 0, .categroy = 0, .input_type = 0, .parameters = {50, 45, 0, 0}});  // YOLO
-    el_registered_algorithms.emplace(
-      2u, el_algorithm_t{.id = 2, .type = 2, .categroy = 0, .input_type = 0, .parameters = {80, 0, 0, 0}});   // PFLD
-    el_registered_algorithms.emplace(
-      1u, el_algorithm_t{.id = 1, .type = 1, .categroy = 0, .input_type = 0, .parameters = {0, 0, 0, 0}});    // FOMO
-}
+class AlgorithmDelegate {
+   public:
+    ~AlgorithmDelegate() = default;
+
+    static AlgorithmDelegate* get() {
+        static AlgorithmDelegate data_delegate = AlgorithmDelegate();
+        return &data_delegate;
+    }
+
+    const std::forward_list<types::el_algorithm_info_t>& get_registered_algorithms() const {
+        return _registered_algorithms;
+    }
+
+    // TODO: add singleton algorithm handler
+
+   private:
+    AlgorithmDelegate() {
+        static uint8_t i = 0u;
+
+    #ifdef _EL_ALGORITHM_FOMO_HPP_
+        _registered_algorithms.emplace_front(types::el_algorithm_info_t{
+          .id         = ++i,
+          .type       = el_algorithm_type_t::ALGORITHM_FOMO,
+          .categroy   = 1u,
+          .input_type = 1u,
+        });
+    #endif
+
+    #ifdef _EL_ALGORITHM_PFLD_HPP_
+        _registered_algorithms.emplace_front(types::el_algorithm_info_t{
+          .id         = ++i,
+          .type       = el_algorithm_type_t::ALGORITHM_PFLD,
+          .categroy   = 1u,
+          .input_type = 1u,
+        });
+    #endif
+
+    #ifdef _EL_ALGORITHM_YOLO_HPP_
+        _registered_algorithms.emplace_front(types::el_algorithm_info_t{
+          .id         = ++i,
+          .type       = el_algorithm_type_t::ALGORITHM_YOLO,
+          .categroy   = 1u,
+          .input_type = 1u,
+        });
+    #endif
+        }
+
+    std::forward_list<types::el_algorithm_info_t> _registered_algorithms;
+};
 
 }  // namespace edgelab
 
 // TODO: avoid expose this name space globally
 using namespace edgelab::algorithm::types;
-using namespace edgelab::algorithm::data;
 using namespace edgelab::algorithm::utility;
+
+#endif
 
 #endif

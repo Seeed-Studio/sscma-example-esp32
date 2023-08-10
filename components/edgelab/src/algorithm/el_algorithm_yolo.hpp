@@ -23,10 +23,11 @@
  *
  */
 
-#ifndef _EL_ALGORITHM_YOLO_H_
-#define _EL_ALGORITHM_YOLO_H_
+#ifndef _EL_ALGORITHM_YOLO_HPP_
+#define _EL_ALGORITHM_YOLO_HPP_
 
 #include <cstdint>
+#include <type_traits>
 #include <utility>
 
 #include "el_algorithm_base.hpp"
@@ -35,20 +36,44 @@
 #include "el_nms.h"
 #include "el_types.h"
 
-namespace edgelab {
-namespace algorithm {
+namespace edgelab::algorithm {
 
-template <typename InferenceEngine, typename ImageType, typename BoxType>
-class YOLO : public edgelab::algorithm::base::Algorithm<InferenceEngine, ImageType, BoxType> {
-    using ScoreType        = edgelab::algorithm::base::Algorithm<InferenceEngine, ImageType, BoxType>::ScoreType;
-    using NMSThresholdType = ScoreType;
+namespace types {
+
+// we're not using inheritance since it not standard layout
+struct el_algorithm_yolo_config_t {
+    el_algorithm_info_t info;
+    uint8_t             score_threshold;
+    uint8_t             nms_threshold;
+};
+
+}  // namespace types
+
+class YOLO : public edgelab::algorithm::base::Algorithm {
+    using ImageType        = el_img_t;
+    using BoxType          = el_box_t;
+    using ScoreType        = uint8_t;
+    using NMSThresholdType = uint8_t;
+
+   public:
+    template <typename InferenceEngine>
+    YOLO(InferenceEngine* engine, ScoreType score_threshold = 50, NMSThresholdType nms_threshold = 45);
+    ~YOLO();
+
+    template <typename InputType> el_err_code_t run(InputType* input);
+    const std::forward_list<BoxType>&           get_results() const;
+
+    el_err_code_t set_score_threshold(ScoreType threshold);
+    ScoreType     get_score_threshold() const;
+
+    el_err_code_t    set_nms_threshold(ScoreType threshold);
+    NMSThresholdType get_nms_threshold() const;
+
+   protected:
+    el_err_code_t preprocess() override;
+    el_err_code_t postprocess() override;
 
    private:
-    ImageType        _input_img;
-    float            _w_scale;
-    float            _h_scale;
-    NMSThresholdType _nms_threshold;
-
     enum {
         INDEX_X = 0,
         INDEX_Y = 1,
@@ -58,25 +83,21 @@ class YOLO : public edgelab::algorithm::base::Algorithm<InferenceEngine, ImageTy
         INDEX_T = 5,
     };
 
-   protected:
-    el_err_code_t preprocess() override;
-    el_err_code_t postprocess() override;
+    ImageType        _input_img;
+    float            _w_scale;
+    float            _h_scale;
+    uint8_t          _score_threshold;
+    NMSThresholdType _nms_threshold;
 
-   public:
-    YOLO(InferenceEngine* engine, ScoreType score_threshold = 50, NMSThresholdType nms_threshold = 45);
-    ~YOLO();
-
-    el_err_code_t           set_nms_threshold(ScoreType threshold);
-    NMSThresholdType get_nms_threshold() const;
+    std::forward_list<BoxType> _results;
 };
 
-template <typename InferenceEngine, typename ImageType, typename BoxType>
-YOLO<InferenceEngine, ImageType, BoxType>::YOLO(InferenceEngine* engine,
-                                                ScoreType        score_threshold,
-                                                NMSThresholdType nms_threshold)
-    : edgelab::algorithm::base::Algorithm<InferenceEngine, ImageType, BoxType>(engine, score_threshold),
+template <typename InferenceEngine>
+YOLO::YOLO(InferenceEngine* engine, ScoreType score_threshold, NMSThresholdType nms_threshold)
+    : edgelab::algorithm::base::Algorithm(engine),
       _w_scale(1.f),
       _h_scale(1.f),
+      _score_threshold(score_threshold),
       _nms_threshold(nms_threshold) {
     _input_img.data   = static_cast<decltype(ImageType::data)>(engine->get_input(0));
     _input_img.width  = static_cast<decltype(ImageType::width)>(this->__input_shape.dims[1]),
@@ -94,20 +115,21 @@ YOLO<InferenceEngine, ImageType, BoxType>::YOLO(InferenceEngine* engine,
 
     EL_ASSERT(_input_img.format != EL_PIXEL_FORMAT_UNKNOWN);
     EL_ASSERT(_input_img.rotate != EL_PIXEL_ROTATE_UNKNOWN);
-
-    // el_registered_algorithms.emplace(
-    //   0u, el_algorithm_t{.id = 0, .type = 0, .categroy = 0, .input_type = 0, .parameters = {50, 45, 0, 0}});  // YOLO
 }
 
-template <typename InferenceEngine, typename ImageType, typename BoxType>
-YOLO<InferenceEngine, ImageType, BoxType>::~YOLO() {
-    this->__results.clear();
+YOLO::~YOLO() {
+    _results.clear();
+    this->__p_engine = nullptr;
 }
 
-template <typename InferenceEngine, typename ImageType, typename BoxType>
-el_err_code_t YOLO<InferenceEngine, ImageType, BoxType>::preprocess() {
+template <typename InputType> el_err_code_t YOLO::run(InputType* input) {
+    // TODO: image type conversion before underlying_run, because underlying_run doing a type erasure
+    return underlying_run(input);
+};
+
+el_err_code_t YOLO::preprocess() {
     el_err_code_t ret{EL_OK};
-    auto*  i_img{this->__p_input};
+    auto*         i_img{static_cast<ImageType*>(this->__p_input)};
 
     // convert image
     ret = rgb_to_rgb(i_img, &_input_img);
@@ -126,9 +148,8 @@ el_err_code_t YOLO<InferenceEngine, ImageType, BoxType>::preprocess() {
     return EL_OK;
 }
 
-template <typename InferenceEngine, typename ImageType, typename BoxType>
-el_err_code_t YOLO<InferenceEngine, ImageType, BoxType>::postprocess() {
-    this->__results.clear();
+el_err_code_t YOLO::postprocess() {
+    _results.clear();
 
     // get output
     auto*   data{static_cast<int8_t*>(this->__p_engine->get_output(0))};
@@ -146,7 +167,7 @@ el_err_code_t YOLO<InferenceEngine, ImageType, BoxType>::postprocess() {
         auto idx{i * num_element};
         auto score{static_cast<decltype(scale)>(data[idx + INDEX_S] - zero_point) * scale};
         score = rescale ? score * 100.f : score;
-        if (score > this->__score_threshold) {
+        if (score > _score_threshold) {
             BoxType box{
               .x      = 0,
               .y      = 0,
@@ -176,29 +197,32 @@ el_err_code_t YOLO<InferenceEngine, ImageType, BoxType>::postprocess() {
             box.w = EL_CLIP(w, 0, width) * _w_scale;
             box.h = EL_CLIP(h, 0, height) * _h_scale;
 
-            this->__results.emplace_front(std::move(box));
+            _results.emplace_front(std::move(box));
         }
     }
-    el_nms(this->__results, _nms_threshold, this->__score_threshold, false, true);
+    el_nms(_results, _nms_threshold, _score_threshold, false, true);
 
-    this->__results.sort([](const BoxType& a, const BoxType& b) { return a.x < b.x; });
+    _results.sort([](const BoxType& a, const BoxType& b) { return a.x < b.x; });
 
     return EL_OK;
 }
 
-template <typename InferenceEngine, typename ImageType, typename BoxType>
-el_err_code_t YOLO<InferenceEngine, ImageType, BoxType>::set_nms_threshold(NMSThresholdType threshold) {
+const std::forward_list<YOLO::BoxType>& YOLO::get_results() const { return _results; }
+
+el_err_code_t YOLO::set_score_threshold(ScoreType threshold) {
+    _score_threshold = threshold;
+    return EL_OK;
+}
+
+YOLO::ScoreType YOLO::get_score_threshold() const { return _score_threshold; }
+
+el_err_code_t YOLO::set_nms_threshold(NMSThresholdType threshold) {
     _nms_threshold = threshold;
     return EL_OK;
 }
 
-template <typename InferenceEngine, typename ImageType, typename BoxType>
-YOLO<InferenceEngine, ImageType, BoxType>::NMSThresholdType
-  YOLO<InferenceEngine, ImageType, BoxType>::get_nms_threshold() const {
-    return _nms_threshold;
-}
+YOLO::NMSThresholdType YOLO::get_nms_threshold() const { return _nms_threshold; }
 
-}  // namespace algorithm
-}  // namespace edgelab
+}  // namespace edgelab::algorithm
 
 #endif

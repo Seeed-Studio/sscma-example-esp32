@@ -28,92 +28,67 @@
 
 #include <cstdint>
 #include <forward_list>
+#include <functional>
 #include <sstream>
 #include <string>
 #include <type_traits>
-#include <unordered_map>
 
 #include "el_debug.h"
+#include "el_inference_base.h"
 #include "el_types.h"
 
-namespace edgelab {
-namespace algorithm {
+namespace edgelab::algorithm {
 
 namespace types {
 
-struct el_algorithm_t {
-    uint8_t id;
-    uint8_t type;
-    uint8_t categroy;
-    uint8_t input_type;
-    uint8_t parameters[4];
+struct el_algorithm_info_t {
+    uint8_t             id;
+    el_algorithm_type_t type;
+    uint8_t             categroy;
+    uint8_t             input_type;
 };
 
 }  // namespace types
 
-namespace data {
-
-// later we can use reflection for that
-static std::unordered_map<uint8_t, edgelab::algorithm::types::el_algorithm_t> el_registered_algorithms;
-
-}  // namespace data
-
 namespace base {
 
-template <typename InferenceEngine, typename InputType, typename OutputType> class Algorithm {
-   protected:
-    using ScoreType = decltype(OutputType::score);
-
-   private:
-    uint32_t __preprocess_time;   // ms
-    uint32_t __run_time;          // ms
-    uint32_t __postprocess_time;  // ms
-
-   protected:
-    InferenceEngine*              __p_engine;
-    InputType*                    __p_input;
-    el_shape_t                    __input_shape;
-    el_shape_t                    __output_shape;
-    el_quant_param_t              __input_quant;
-    el_quant_param_t              __output_quant;
-    ScoreType                     __score_threshold;
-    std::forward_list<OutputType> __results;
-
-    virtual el_err_code_t preprocess()  = 0;
-    virtual el_err_code_t postprocess() = 0;
-
+class Algorithm {
    public:
-    Algorithm(InferenceEngine* engine, ScoreType score_threshold = 40);
+    Algorithm(edgelab::inference::base::Engine* engine);
     virtual ~Algorithm();
-
-    el_err_code_t run(InputType* input);
 
     uint32_t get_preprocess_time() const;
     uint32_t get_run_time() const;
     uint32_t get_postprocess_time() const;
 
-    el_err_code_t    set_score_threshold(ScoreType threshold);
-    ScoreType get_score_threshold() const;
+   protected:
+    el_err_code_t underlying_run(void* input);
 
-    const std::forward_list<OutputType>& get_results() const;
+    virtual el_err_code_t preprocess()  = 0;
+    virtual el_err_code_t postprocess() = 0;
+
+    edgelab::inference::base::Engine* __p_engine;
+    void*                             __p_input;
+    el_shape_t                        __input_shape;
+    el_shape_t                        __output_shape;
+    el_quant_param_t                  __input_quant;
+    el_quant_param_t                  __output_quant;
+
+   private:
+    uint32_t __preprocess_time;   // ms
+    uint32_t __run_time;          // ms
+    uint32_t __postprocess_time;  // ms
 };
 
-template <typename InferenceEngine, typename InputType, typename OutputType>
-Algorithm<InferenceEngine, InputType, OutputType>::Algorithm(InferenceEngine* engine, ScoreType score_threshold)
-    : __preprocess_time(0),
-      __run_time(0),
-      __postprocess_time(0),
-      __p_engine(engine),
-      __p_input(nullptr),
-      __score_threshold(score_threshold) {
+Algorithm::Algorithm(edgelab::inference::base::Engine* engine)
+    : __p_engine(engine), __p_input(nullptr), __preprocess_time(0), __run_time(0), __postprocess_time(0) {
     __input_shape  = engine->get_input_shape(0);
     __output_shape = engine->get_output_shape(0);
     __input_quant  = engine->get_input_quant_param(0);
     __output_quant = engine->get_output_quant_param(0);
 }
 
-template <typename InferenceEngine, typename InputType, typename OutputType>
-Algorithm<InferenceEngine, InputType, OutputType>::~Algorithm() {
+Algorithm::~Algorithm() {
     __preprocess_time  = 0;
     __run_time         = 0;
     __postprocess_time = 0;
@@ -121,11 +96,10 @@ Algorithm<InferenceEngine, InputType, OutputType>::~Algorithm() {
     __p_input          = nullptr;
 }
 
-template <typename InferenceEngine, typename InputType, typename OutputType>
-el_err_code_t Algorithm<InferenceEngine, InputType, OutputType>::run(InputType* input) {
-    el_err_code_t   ret{EL_OK};
-    uint32_t start_time{0};
-    uint32_t end_time{0};
+el_err_code_t Algorithm::underlying_run(void* input) {
+    el_err_code_t ret{EL_OK};
+    uint32_t      start_time{0};
+    uint32_t      end_time{0};
 
     EL_ASSERT(__p_engine != nullptr);
 
@@ -160,64 +134,44 @@ el_err_code_t Algorithm<InferenceEngine, InputType, OutputType>::run(InputType* 
     return ret;
 }
 
-template <typename InferenceEngine, typename InputType, typename OutputType>
-uint32_t Algorithm<InferenceEngine, InputType, OutputType>::get_preprocess_time() const {
-    return __preprocess_time;
-}
+uint32_t Algorithm::get_preprocess_time() const { return __preprocess_time; }
 
-template <typename InferenceEngine, typename InputType, typename OutputType>
-uint32_t Algorithm<InferenceEngine, InputType, OutputType>::get_run_time() const {
-    return __run_time;
-}
+uint32_t Algorithm::get_run_time() const { return __run_time; }
 
-template <typename InferenceEngine, typename InputType, typename OutputType>
-uint32_t Algorithm<InferenceEngine, InputType, OutputType>::get_postprocess_time() const {
-    return __postprocess_time;
-}
-
-template <typename InferenceEngine, typename InputType, typename OutputType>
-el_err_code_t Algorithm<InferenceEngine, InputType, OutputType>::set_score_threshold(ScoreType threshold) {
-    __score_threshold = threshold;
-    return EL_OK;
-}
-
-template <typename InferenceEngine, typename InputType, typename OutputType>
-Algorithm<InferenceEngine, InputType, OutputType>::ScoreType
-  Algorithm<InferenceEngine, InputType, OutputType>::get_score_threshold() const {
-    return __score_threshold;
-}
-
-template <typename InferenceEngine, typename InputType, typename OutputType>
-const std::forward_list<OutputType>& Algorithm<InferenceEngine, InputType, OutputType>::get_results() const {
-    return __results;
-}
+uint32_t Algorithm::get_postprocess_time() const { return __postprocess_time; }
 
 }  // namespace base
 
 namespace utility {
 
-template <typename T, typename std::enable_if<std::is_same<T, el_box_t>::value>::type* = nullptr>
-std::string el_results_2_string(const std::forward_list<T>& results) {
+template <typename T> std::string el_results_2_json(const std::forward_list<T>& results) {
     auto os{std::ostringstream(std::ios_base::ate)};
-    for (const auto& box : results)
-        os << "{\"x\": " << unsigned(box.x) << ", \"y\": " << unsigned(box.y) << ", \"w\": " << unsigned(box.w)
-           << ", \"h\": " << unsigned(box.h) << ", \"target\": " << unsigned(box.target)
-           << ", \"score\": " << unsigned(box.score) << "}, ";
-    return os.str();
-}
-
-template <typename T, typename std::enable_if<std::is_same<T, el_point_t>::value>::type* = nullptr>
-std::string el_results_2_string(const std::forward_list<T>& results) {
-    auto os{std::ostringstream(std::ios_base::ate)};
-    for (const auto& box : results)
-        os << "{\"x\": " << unsigned(box.x) << ", \"y\": " << unsigned(box.y)
-           << ", \"target\": " << unsigned(box.target) << "}, ";
+    using F                = std::function<void(void)>;
+    static F delim_f       = []() {};
+    static F print_delim_f = [&os]() { os << ", "; };
+    static F print_void_f  = [&]() { delim_f = print_delim_f; };
+    delim_f                = print_void_f;
+    os << "[";
+    if constexpr (std::is_same<T, el_box_t>::value) {
+        for (const auto& box : results) {
+            delim_f();
+            os << "{\"x\": " << unsigned(box.x) << ", \"y\": " << unsigned(box.y) << ", \"w\": " << unsigned(box.w)
+               << ", \"h\": " << unsigned(box.h) << ", \"target\": " << unsigned(box.target)
+               << ", \"score\": " << unsigned(box.score) << "}";
+        }
+    } else if constexpr (std::is_same<T, el_point_t>::value) {
+        for (const auto& point : results) {
+            delim_f();
+            os << "{\"x\": " << unsigned(point.x) << ", \"y\": " << unsigned(point.y)
+               << ", \"target\": " << unsigned(point.target) << "}";
+        }
+    }
+    os << "]";
     return os.str();
 }
 
 }  // namespace utility
 
-}  // namespace algorithm
-}  // namespace edgelab
+}  // namespace edgelab::algorithm
 
 #endif

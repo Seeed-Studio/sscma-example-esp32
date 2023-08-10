@@ -23,35 +23,51 @@
  *
  */
 
-#ifndef _EL_ALGORITHM_PFLD_H_
-#define _EL_ALGORITHM_PFLD_H_
+#ifndef _EL_ALGORITHM_PFLD_HPP_
+#define _EL_ALGORITHM_PFLD_HPP_
 
 #include <cstdint>
+#include <type_traits>
+#include <utility>
 
 #include "el_algorithm_base.hpp"
+#include "el_cv.h"
 #include "el_debug.h"
 #include "el_types.h"
 
-namespace edgelab {
-namespace algorithm {
+namespace edgelab::algorithm {
 
-template <typename InferenceEngine, typename ImageType, typename PointType>
-class PFLD : public edgelab::algorithm::base::Algorithm<InferenceEngine, ImageType, PointType> {
+namespace types {
+
+// we're not using inheritance since it not standard layout
+struct el_algorithm_pfld_config_t {
+    el_algorithm_info_t info;
+};
+
+}  // namespace types
+
+class PFLD : public edgelab::algorithm::base::Algorithm {
+    using ImageType = el_img_t;
+    using PointType = el_point_t;
+
    public:
-    ImageType _input_img;
+    template <typename InferenceEngine> PFLD(InferenceEngine* engine);
+    ~PFLD();
+
+    template <typename InputType> el_err_code_t run(InputType* input);
+    const std::forward_list<PointType>&         get_results() const;
 
    protected:
     el_err_code_t preprocess() override;
     el_err_code_t postprocess() override;
 
-   public:
-    PFLD(InferenceEngine* engine);
-    ~PFLD();
+   private:
+    ImageType _input_img;
+
+    std::forward_list<PointType> _results;
 };
 
-template <typename InferenceEngine, typename ImageType, typename PointType>
-PFLD<InferenceEngine, ImageType, PointType>::PFLD(InferenceEngine* engine)
-    : edgelab::algorithm::base::Algorithm<InferenceEngine, ImageType, PointType>(engine) {
+template <typename InferenceEngine> PFLD::PFLD(InferenceEngine* engine) : edgelab::algorithm::base::Algorithm(engine) {
     _input_img.data   = static_cast<decltype(ImageType::data)>(engine->get_input(0));
     _input_img.width  = static_cast<decltype(ImageType::width)>(this->__input_shape.dims[1]),
     _input_img.height = static_cast<decltype(ImageType::height)>(this->__input_shape.dims[2]),
@@ -68,20 +84,18 @@ PFLD<InferenceEngine, ImageType, PointType>::PFLD(InferenceEngine* engine)
 
     EL_ASSERT(_input_img.format != EL_PIXEL_FORMAT_UNKNOWN);
     EL_ASSERT(_input_img.rotate != EL_PIXEL_ROTATE_UNKNOWN);
-
-    // el_registered_algorithms.emplace(
-    //   2u, el_algorithm_t{.id = 2, .type = 2, .categroy = 0, .input_type = 0, .parameters = {80, 0, 0, 0}});  // PFLD
 }
 
-template <typename InferenceEngine, typename ImageType, typename PointType>
-PFLD<InferenceEngine, ImageType, PointType>::~PFLD() {
-    this->__results.clear();
-}
+PFLD::~PFLD() { _results.clear(); }
 
-template <typename InferenceEngine, typename ImageType, typename PointType>
-el_err_code_t PFLD<InferenceEngine, ImageType, PointType>::preprocess() {
+template <typename InputType> el_err_code_t PFLD::run(InputType* input) {
+    // TODO: image type conversion before underlying_run, because underlying_run doing a type erasure
+    return underlying_run(input);
+};
+
+el_err_code_t PFLD::preprocess() {
     el_err_code_t ret{EL_OK};
-    auto*  i_img{this->__p_input};
+    auto*         i_img{static_cast<ImageType*>(this->__p_input)};
 
     // convert image
     el_printf("%d, %d\n", _input_img.width, _input_img.height);
@@ -98,20 +112,19 @@ el_err_code_t PFLD<InferenceEngine, ImageType, PointType>::preprocess() {
     return EL_OK;
 }
 
-template <typename InferenceEngine, typename ImageType, typename PointType>
-el_err_code_t PFLD<InferenceEngine, ImageType, PointType>::postprocess() {
-    this->__results.clear();
+el_err_code_t PFLD::postprocess() {
+    _results.clear();
 
     // get output
     auto*   data{static_cast<int8_t*>(this->__p_engine->get_output(0))};
-    auto    width{_input_img->width};
-    auto    height{_input_img->height};
+    auto    width{_input_img.width};
+    auto    height{_input_img.height};
     float   scale{this->__output_quant.scale};
     int32_t zero_point{this->__output_quant.zero_point};
     auto    pred_l{this->__output_shape.dims[1]};
 
     for (decltype(pred_l) i{0}; i < pred_l; i += 2) {
-        this->__results.emplace_front(
+        _results.emplace_front(
           PointType{.x      = static_cast<decltype(PointType::x)>((data[i] - zero_point) * scale * width),
                     .y      = static_cast<decltype(PointType::y)>((data[i + 1] - zero_point) * scale * height),
                     .target = static_cast<decltype(PointType::target)>(i / 2)});
@@ -120,7 +133,8 @@ el_err_code_t PFLD<InferenceEngine, ImageType, PointType>::postprocess() {
     return EL_OK;
 }
 
-}  // namespace algorithm
-}  // namespace edgelab
+const std::forward_list<PFLD::PointType>& PFLD::get_results() const { return _results; }
+
+}  // namespace edgelab::algorithm
 
 #endif

@@ -149,7 +149,12 @@ typedef int el_model_format;
 /**
  * @brief Algorithm Types
  */
-typedef enum { UNDEFINED_ALGORITHM_TYPE = 0u, FOMO = 1u, PFLD = 2u, YOLO = 3u } el_algorithm_type_t;
+typedef enum {
+    UNDEFINED_ALGORITHM_TYPE = 0u,
+    ALGORITHM_FOMO           = 1u,
+    ALGORITHM_PFLD           = 2u,
+    ALGORITHM_YOLO           = 3u
+} el_algorithm_type_t;
 
 /**
  * @brief Model Header Specification

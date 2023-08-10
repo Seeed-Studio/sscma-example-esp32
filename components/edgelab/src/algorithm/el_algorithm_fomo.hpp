@@ -23,39 +23,59 @@
  *
  */
 
-#ifndef _EL_ALGORITHM_FOMO_H_
-#define _EL_ALGORITHM_FOMO_H_
+#ifndef _EL_ALGORITHM_FOMO_HPP_
+#define _EL_ALGORITHM_FOMO_HPP_
 
 #include <cstdint>
 #include <type_traits>
+#include <utility>
 
 #include "el_algorithm_base.hpp"
 #include "el_cv.h"
 #include "el_debug.h"
 #include "el_types.h"
 
-namespace edgelab {
-namespace algorithm {
+namespace edgelab::algorithm {
 
-template <typename InferenceEngine, typename ImageType, typename BoxType>
-class FOMO : public edgelab::algorithm::base::Algorithm<InferenceEngine, ImageType, BoxType> {
-    using ScoreType = edgelab::algorithm::base::Algorithm<InferenceEngine, ImageType, BoxType>::ScoreType;
+namespace types {
+
+// we're not using inheritance since it not standard layout
+struct el_algorithm_fomo_config_t {
+    el_algorithm_info_t info;
+    uint8_t             score_threshold;
+};
+
+}  // namespace types
+
+class FOMO : public edgelab::algorithm::base::Algorithm {
+    using ImageType = el_img_t;
+    using BoxType   = el_box_t;
+    using ScoreType = uint8_t;
 
    public:
-    ImageType _input_img;
+    template <typename InferenceEngine> FOMO(InferenceEngine* engine, ScoreType score_threshold = 80);
+    ~FOMO();
+
+    template <typename InputType> el_err_code_t run(InputType* input);
+    const std::forward_list<BoxType>&           get_results() const;
+
+    el_err_code_t set_score_threshold(ScoreType threshold);
+    ScoreType     get_score_threshold() const;
 
    protected:
     el_err_code_t preprocess() override;
     el_err_code_t postprocess() override;
 
-   public:
-    FOMO(InferenceEngine* engine, ScoreType score_threshold = 80);
-    ~FOMO();
+   private:
+    ImageType _input_img;
+    uint8_t   _score_threshold;
+
+    std::forward_list<BoxType> _results;
 };
 
-template <typename InferenceEngine, typename ImageType, typename BoxType>
-FOMO<InferenceEngine, ImageType, BoxType>::FOMO(InferenceEngine* engine, ScoreType score_threshold)
-    : edgelab::algorithm::base::Algorithm<InferenceEngine, ImageType, BoxType>(engine, score_threshold) {
+template <typename InferenceEngine>
+FOMO::FOMO(InferenceEngine* engine, ScoreType score_threshold)
+    : edgelab::algorithm::base::Algorithm(engine), _score_threshold(score_threshold) {
     _input_img.data   = static_cast<decltype(ImageType::data)>(engine->get_input(0));
     _input_img.width  = static_cast<decltype(ImageType::width)>(this->__input_shape.dims[1]),
     _input_img.height = static_cast<decltype(ImageType::height)>(this->__input_shape.dims[2]),
@@ -72,20 +92,18 @@ FOMO<InferenceEngine, ImageType, BoxType>::FOMO(InferenceEngine* engine, ScoreTy
 
     EL_ASSERT(_input_img.format != EL_PIXEL_FORMAT_UNKNOWN);
     EL_ASSERT(_input_img.rotate != EL_PIXEL_ROTATE_UNKNOWN);
-
-    // el_registered_algorithms.emplace(
-    //   1u, el_algorithm_t{.id = 1, .type = 1, .categroy = 0, .input_type = 0, .parameters = {0, 0, 0, 0}});  // FOMO
 }
 
-template <typename InferenceEngine, typename ImageType, typename BoxType>
-FOMO<InferenceEngine, ImageType, BoxType>::~FOMO() {
-    this->__results.clear();
-}
+FOMO::~FOMO() { _results.clear(); }
 
-template <typename InferenceEngine, typename ImageType, typename BoxType>
-el_err_code_t FOMO<InferenceEngine, ImageType, BoxType>::preprocess() {
+template <typename InputType> el_err_code_t FOMO::run(InputType* input) {
+    // TODO: image type conversion before underlying_run, because underlying_run doing a type erasure
+    return underlying_run(input);
+};
+
+el_err_code_t FOMO::preprocess() {
     el_err_code_t ret{EL_OK};
-    auto*  i_img{this->__p_input};
+    auto*         i_img{static_cast<ImageType*>(this->__p_input)};
 
     // convert image
     el_printf("%d, %d\n", _input_img.width, _input_img.height);
@@ -102,14 +120,13 @@ el_err_code_t FOMO<InferenceEngine, ImageType, BoxType>::preprocess() {
     return EL_OK;
 }
 
-template <typename InferenceEngine, typename ImageType, typename BoxType>
-el_err_code_t FOMO<InferenceEngine, ImageType, BoxType>::postprocess() {
-    this->__results.clear();
+el_err_code_t FOMO::postprocess() {
+    _results.clear();
 
     // get output
     auto*   data{static_cast<int8_t*>(this->__p_engine->get_output(0))};
-    auto    width{this->__p_input->width};
-    auto    height{this->__p_input->height};
+    auto    width{_input_img.width};
+    auto    height{_input_img.height};
     float   scale{this->__output_quant.scale};
     int32_t zero_point{this->__output_quant.zero_point};
     auto    pred_w{this->__output_shape.dims[2]};
@@ -131,24 +148,32 @@ el_err_code_t FOMO<InferenceEngine, ImageType, BoxType>::postprocess() {
                     max_target = t;
                 }
             }
-            if (max_score > this->__score_threshold && max_target != 0) {
+            if (max_score > _score_threshold && max_target != 0) {
                 // only unsigned is supported for fast div by 2 (>> 1)
                 static_assert(std::is_unsigned<decltype(bw)>::value && std::is_unsigned<decltype(bh)>::value);
-                this->__results.emplace_front(BoxType{.x      = static_cast<decltype(BoxType::x)>(j * bw + (bw >> 1)),
-                                                      .y      = static_cast<decltype(BoxType::y)>(i * bh + (bh >> 1)),
-                                                      .w      = bw,
-                                                      .h      = bh,
-                                                      .score  = max_score,
-                                                      .target = max_target});
+                _results.emplace_front(BoxType{.x      = static_cast<decltype(BoxType::x)>(j * bw + (bw >> 1)),
+                                               .y      = static_cast<decltype(BoxType::y)>(i * bh + (bh >> 1)),
+                                               .w      = bw,
+                                               .h      = bh,
+                                               .score  = max_score,
+                                               .target = max_target});
             }
         }
     }
-    this->__results.sort([](const BoxType& a, const BoxType& b) { return a.x < b.x; });
+    _results.sort([](const BoxType& a, const BoxType& b) { return a.x < b.x; });
 
     return EL_OK;
 }
 
-}  // namespace algorithm
-}  // namespace edgelab
+const std::forward_list<FOMO::BoxType>& FOMO::get_results() const { return _results; }
+
+el_err_code_t FOMO::set_score_threshold(ScoreType threshold) {
+    _score_threshold = threshold;
+    return EL_OK;
+}
+
+FOMO::ScoreType FOMO::get_score_threshold() const { return _score_threshold; }
+
+}  // namespace edgelab::algorithm
 
 #endif

@@ -44,10 +44,10 @@ class SerialEsp : public Serial {
     ~SerialEsp() override;
     el_err_code_t init() override;
     el_err_code_t deinit() override;
-    char   echo(bool only_visible = true) override;
-    char   get_char() override;
-    size_t get_line(char* buffer, size_t size, const char delim = 0x0d) override;
-    size_t write_bytes(const char* buffer, size_t size) override;
+    char          echo(bool only_visible = true) override;
+    char          get_char() override;
+    size_t        get_line(char* buffer, size_t size, const char delim = 0x0d) override;
+    size_t        write_bytes(const char* buffer, size_t size) override;
 
     operator bool() { return _is_present; }
 };

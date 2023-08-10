@@ -25,10 +25,10 @@
 
 #include "el_serial_esp.h"
 
-#include <assert.h>
 #include <ctype.h>
 
 namespace edgelab {
+
 SerialEsp::SerialEsp(usb_serial_jtag_driver_config_t driver_config) : _driver_config(driver_config) {}
 
 SerialEsp::~SerialEsp() { deinit(); }

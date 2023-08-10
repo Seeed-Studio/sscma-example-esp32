@@ -34,8 +34,10 @@
 
 namespace edgelab {
 
-using Models  = data::Models;
+using Models = data::Models;
+    #ifdef CONFIG_EL_LIB_FLASHDB
 using Storage = data::Storage;
+    #endif
 
 class DataDelegate {
    public:
@@ -46,20 +48,19 @@ class DataDelegate {
         return &data_delegate;
     }
 
-    Models*  get_models_handler() { return _models_handler; }
-    Storage* get_storage_handler() { return _storage_handler; }
+    Models* get_models_handler() {
+        static Models* models_handler = new Models{};
+        return models_handler;
+    }
+    #ifdef CONFIG_EL_LIB_FLASHDB
+    Storage* get_storage_handler() {
+        static Storage* storage_handler = new Storage{};
+        return storage_handler;
+    }
+    #endif
 
    private:
-    DataDelegate() {
-        static Models  models  = Models{};
-        static Storage storage = Storage{};
-
-        _models_handler  = &models;
-        _storage_handler = &storage;
-    };
-
-    Models*  _models_handler;
-    Storage* _storage_handler;
+    DataDelegate() = default;
 };
 
 }  // namespace edgelab

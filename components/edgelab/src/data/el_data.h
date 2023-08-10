@@ -43,7 +43,7 @@ class DataDelegate {
    public:
     ~DataDelegate() = default;
 
-    static DataDelegate* get() {
+    static DataDelegate* get_delegate() {
         static DataDelegate data_delegate = DataDelegate();
         return &data_delegate;
     }

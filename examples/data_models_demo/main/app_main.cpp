@@ -9,7 +9,7 @@ extern "C" void app_main()
     printf("Data models demo:\n");
 
     printf("Getting data delegate...\n");
-    DataDelegate* data_dalegate = DataDelegate::get();
+    DataDelegate* data_dalegate = DataDelegate::get_delegate();
 
     printf("Geting models handler from data delegate...\n");
     Models* models = data_dalegate->get_models_handler();

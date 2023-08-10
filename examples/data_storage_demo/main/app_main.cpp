@@ -13,7 +13,7 @@ extern "C" void app_main()
     printf("Data storage demo:\n");
 
     printf("Getting data delegate...\n");
-    DataDelegate* data_dalegate = DataDelegate::get();
+    DataDelegate* data_dalegate = DataDelegate::get_delegate();
 
     printf("Geting storage handler from data delegate...\n");
     Storage* storage = data_dalegate->get_storage_handler();

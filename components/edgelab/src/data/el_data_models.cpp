@@ -140,7 +140,7 @@ el_err_code_t Models::get(el_model_id_t model_id, el_model_info_t& model_info) c
     return EL_EINVAL;
 }
 
-el_model_info_t Models::get_model_info(el_model_id_t model_id) const {
+const el_model_info_t& Models::get_model_info(el_model_id_t model_id) const {
     auto it{std::find_if(__model_info.begin(), __model_info.end(), [&](const auto& v) { return v.id == model_id; })};
     if (it != __model_info.end()) [[likely]] {
         return *it;
@@ -148,6 +148,8 @@ el_model_info_t Models::get_model_info(el_model_id_t model_id) const {
     return el_model_info_t{};
 }
 
-std::forward_list<el_model_info_t> Models::get_all_model_info() const { return __model_info; }
+const std::forward_list<el_model_info_t>& Models::get_all_model_info() const { return __model_info; }
+
+size_t Models::get_all_model_info_size() const { return std::distance(__model_info.begin(), __model_info.end()); }
 
 }  // namespace edgelab::data

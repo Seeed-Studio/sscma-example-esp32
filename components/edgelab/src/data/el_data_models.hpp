@@ -50,11 +50,12 @@ class Models {
                        const el_model_format& model_format   = el_model_format_t::PACKED_TFLITE);
     void          deinit();
 
-    size_t                             seek_models_from_flash(const el_model_format& model_format);
-    bool                               has_model(el_model_id_t model_id) const;
-    el_err_code_t                      get(el_model_id_t model_id, el_model_info_t& model_info) const;
-    el_model_info_t                    get_model_info(el_model_id_t model_id) const;
-    std::forward_list<el_model_info_t> get_all_model_info() const;
+    size_t                                    seek_models_from_flash(const el_model_format& model_format);
+    bool                                      has_model(el_model_id_t model_id) const;
+    el_err_code_t                             get(el_model_id_t model_id, el_model_info_t& model_info) const;
+    const el_model_info_t&                    get_model_info(el_model_id_t model_id) const;
+    const std::forward_list<el_model_info_t>& get_all_model_info() const;
+    size_t                                    get_all_model_info_size() const;
 
    protected:
     void m_seek_packed_models_from_flash();

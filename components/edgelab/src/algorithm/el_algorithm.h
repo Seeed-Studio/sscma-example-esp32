@@ -28,6 +28,7 @@
 
 #ifdef __cplusplus
 
+    #include <algorithm>
     #include <forward_list>
 
     #include "el_algorithm_fomo.hpp"
@@ -48,13 +49,23 @@ class AlgorithmDelegate {
    public:
     ~AlgorithmDelegate() = default;
 
-    static AlgorithmDelegate* get() {
+    static AlgorithmDelegate* get_delegate() {
         static AlgorithmDelegate data_delegate = AlgorithmDelegate();
         return &data_delegate;
     }
 
     const std::forward_list<types::el_algorithm_info_t>& get_registered_algorithms() const {
         return _registered_algorithms;
+    }
+
+    size_t get_registered_algorithms_count() const {
+        return std::distance(_registered_algorithms.begin(), _registered_algorithms.end());
+    }
+
+    bool has_algorithm(uint8_t id) const {
+        auto it = std::find_if(
+          _registered_algorithms.begin(), _registered_algorithms.end(), [&](const auto& i) { return i.id == id; });
+        return it != _registered_algorithms.end();
     }
 
     // TODO: add singleton algorithm handler
@@ -89,7 +100,7 @@ class AlgorithmDelegate {
           .input_type = 1u,
         });
     #endif
-        }
+    }
 
     std::forward_list<types::el_algorithm_info_t> _registered_algorithms;
 };

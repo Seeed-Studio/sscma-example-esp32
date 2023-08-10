@@ -233,7 +233,7 @@ EL_ATTR_WEAK el_err_code_t el_img_convert(const el_img_t* src, el_img_t* dst) {
     return EL_OK;
 }
 
-EL_ATTR_WEAK void el_draw_point(el_img_t* img, uint16_t x, uint16_t y, uint32_t color) {
+EL_ATTR_WEAK void el_draw_point(el_img_t* img, int16_t x, int16_t y, uint32_t color) {
     int index = x + y * img->width;
     if (index >= img->width * img->height) {
         return;
@@ -251,7 +251,7 @@ EL_ATTR_WEAK void el_draw_point(el_img_t* img, uint16_t x, uint16_t y, uint32_t 
     }
 }
 
-EL_ATTR_WEAK void el_fill_rect(el_img_t* img, uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint32_t color) {
+EL_ATTR_WEAK void el_fill_rect(el_img_t* img, int16_t x, int16_t y, int16_t w, int16_t h, uint32_t color) {
     int bytesPerPixel = 0;
     switch (img->format) {
     case EL_PIXEL_FORMAT_GRAYSCALE:
@@ -300,18 +300,16 @@ EL_ATTR_WEAK void el_fill_rect(el_img_t* img, uint16_t x, uint16_t y, uint16_t w
     }
 }
 
-EL_ATTR_WEAK void el_draw_h_line(el_img_t* img, uint16_t x0, uint16_t x1, uint16_t y, uint32_t color) {
+EL_ATTR_WEAK void el_draw_h_line(el_img_t* img, int16_t x0, int16_t x1, int16_t y, uint32_t color) {
     return el_fill_rect(img, x0, y, x1 - x0, 1, color);
 }
 
-EL_ATTR_WEAK void el_draw_v_line(el_img_t* img, uint16_t x, uint16_t y0, uint16_t y1, uint32_t color) {
+EL_ATTR_WEAK void el_draw_v_line(el_img_t* img, int16_t x, int16_t y0, int16_t y1, uint32_t color) {
     return el_fill_rect(img, x, y0, 1, y1 - y0, color);
 }
 
 EL_ATTR_WEAK void el_draw_rect(
-  el_img_t* img, uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint32_t color, uint16_t thickness)
-
-{
+  el_img_t* img, int16_t x, int16_t y, int16_t w, int16_t h, uint32_t color, int16_t thickness) {
     for (int i = 0; i < thickness; i++) {
         el_draw_h_line(img, x + i, x + w - i, y + i, color);
         el_draw_h_line(img, x + i, x + w - i, y + h - i, color);

@@ -46,17 +46,17 @@ void el_resize_image(
 
 void el_draw_box(el_img_t* img, const el_box_t* box, bool show_text = false);
 
-void el_draw_rect(
-  el_img_t* img, uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint32_t color, uint16_t thickness = 1);
+void el_draw_rect(el_img_t* img, int16_t x, int16_t y, int16_t w, int16_t h, uint32_t color, int16_t thickness = 1);
 
-void el_fill_rect(el_img_t* img, uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint32_t color);
+void el_fill_rect(el_img_t* img, int16_t x, int16_t y, int16_t w, int16_t h, uint32_t color);
 
-void          el_draw_point(el_img_t* img, uint16_t x, uint16_t y, uint32_t color);
+void el_draw_point(el_img_t* img, int16_t x, int16_t y, uint32_t color);
+
 el_err_code_t rgb_to_rgb(const el_img_t* src, el_img_t* dst);
 
-void el_draw_h_line(el_img_t* img, uint16_t x0, uint16_t x1, uint16_t y, uint32_t color);
+void el_draw_h_line(el_img_t* img, int16_t x0, int16_t x1, int16_t y, uint32_t color);
 
-void el_draw_v_line(el_img_t* img, uint16_t x, uint16_t y0, uint16_t y1, uint32_t color);
+void el_draw_v_line(el_img_t* img, int16_t x, int16_t y0, int16_t y1, uint32_t color);
 
 #ifdef CONFIG_EL_LIB_JPEGENC
 

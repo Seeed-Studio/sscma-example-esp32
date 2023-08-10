@@ -114,6 +114,7 @@ static inline constexpr edgelab::data::types::el_storage_kv_t<ValueTypeNoCV> el_
         std::sprintf(static_buffer, format_str, hash);
         hash_list.emplace_front(hash, static_buffer);
     }
+    EL_ASSERT(static_buffer != nullptr);
 
     return el_make_storage_kv(static_buffer, std::forward<VarType>(data));
 }
@@ -131,6 +132,8 @@ class Storage {
 
     el_err_code_t init(const char* name = CONFIG_EL_STORAGE_NAME, const char* path = CONFIG_EL_STORAGE_PATH);
     void          deinit();
+
+    bool contains(const char* key) const;
 
     // size of the buffer should be equal to handler->value_len
     template <typename ValueType, typename std::enable_if<!std::is_const<ValueType>::value>::type* = nullptr>
@@ -188,9 +191,7 @@ class Storage {
 
     template <typename ValueType> bool emplace(const types::el_storage_kv_t<ValueType>& kv) {
         volatile const Guard guard(this);
-        if (!kv.size || !__kvdb) [[unlikely]]
-            return false;
-        fdb_blob blob{};
+        fdb_blob             blob{};
         return fdb_kv_set_blob(__kvdb, kv.key, fdb_blob_make(&blob, &kv.value, kv.size)) == FDB_NO_ERR;
     }
 
@@ -199,6 +200,16 @@ class Storage {
         EL_ASSERT(is_ok);
 
         return *this;
+    }
+
+    template <typename ValueType> bool try_emplace(const types::el_storage_kv_t<ValueType>& kv) {
+        volatile const Guard guard(this);
+        if (!kv.key || !__kvdb) [[unlikely]]
+            return false;
+        fdb_kv kv_{};
+        if (find_kv(__kvdb, kv.key, &kv_)) return false;
+        fdb_blob blob{};
+        return fdb_kv_set_blob(__kvdb, kv.key, fdb_blob_make(&blob, &kv.value, kv.size)) == FDB_NO_ERR;
     }
 
     struct Iterator {

@@ -552,7 +552,7 @@ static bool find_kv_no_cache(fdb_kvdb_t db, const char *key, fdb_kv_t kv)
     return find_ok;
 }
 
-static bool find_kv(fdb_kvdb_t db, const char *key, fdb_kv_t kv)
+bool find_kv(fdb_kvdb_t db, const char *key, fdb_kv_t kv)
 {
     bool find_ok = false;
 

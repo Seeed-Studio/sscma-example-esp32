@@ -59,12 +59,18 @@ void Storage::deinit() {
     }
 }
 
-size_t Storage::get_value_size(const char* key) const {
+bool Storage::contains(const char* key) const {
     volatile const Guard guard(this);
     if (!key || !__kvdb) [[unlikely]]
-        return 0u;
-    fdb_kv   handler{};
-    fdb_kv_t p_handler = fdb_kv_get_obj(__kvdb, key, &handler);
+        return false;
+    fdb_kv kv{};
+    return find_kv(__kvdb, key, &kv);
+}
+
+size_t Storage::get_value_size(const char* key) const {
+    volatile const Guard guard(this);
+    fdb_kv               handler{};
+    fdb_kv_t             p_handler = fdb_kv_get_obj(__kvdb, key, &handler);
     if (!p_handler || !p_handler->value_len) [[unlikely]]
         return 0u;
 
@@ -73,9 +79,6 @@ size_t Storage::get_value_size(const char* key) const {
 
 bool Storage::erase(const char* key) {
     volatile const Guard guard(this);
-    if (!__kvdb) [[unlikely]]
-        return false;
-
     return fdb_kv_del(__kvdb, key) == FDB_NO_ERR;
 }
 

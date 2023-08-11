@@ -76,7 +76,7 @@ class FOMO : public edgelab::algorithm::base::Algorithm {
 template <typename InferenceEngine>
 FOMO::FOMO(InferenceEngine* engine, ScoreType score_threshold)
     : edgelab::algorithm::base::Algorithm(engine), _score_threshold(score_threshold) {
-    _input_img.data   = static_cast<decltype(ImageType::data)>(engine->get_input(0));
+    _input_img.data   = static_cast<decltype(ImageType::data)>(this->__p_engine->get_input(0));
     _input_img.width  = static_cast<decltype(ImageType::width)>(this->__input_shape.dims[1]),
     _input_img.height = static_cast<decltype(ImageType::height)>(this->__input_shape.dims[2]),
     _input_img.size =

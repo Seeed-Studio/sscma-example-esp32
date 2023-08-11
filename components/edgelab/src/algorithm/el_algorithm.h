@@ -41,6 +41,7 @@ namespace edgelab {
 
 using namespace edgelab::algorithm;
 
+using Algorithm     = class base::Algorithm;
 using AlgorithmFOMO = class FOMO;
 using AlgorithmPFLD = class PFLD;
 using AlgorithmYOLO = class YOLO;
@@ -52,6 +53,14 @@ class AlgorithmDelegate {
     static AlgorithmDelegate* get_delegate() {
         static AlgorithmDelegate data_delegate = AlgorithmDelegate();
         return &data_delegate;
+    }
+
+    const types::el_algorithm_info_t& get_algorithm(uint8_t id) const {
+        auto it = std::find_if(
+          _registered_algorithms.begin(), _registered_algorithms.end(), [&](const auto& i) { return i.id == id; });
+        if (it != _registered_algorithms.end()) return *it;
+        static types::el_algorithm_info_t algorithm{};
+        return algorithm;
     }
 
     const std::forward_list<types::el_algorithm_info_t>& get_registered_algorithms() const {

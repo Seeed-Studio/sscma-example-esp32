@@ -132,7 +132,7 @@ void Models::m_seek_plain_models_from_flash() {
 bool Models::has_model(el_model_id_t model_id) const { return __model_id_mask & (1u << model_id); }
 
 el_err_code_t Models::get(el_model_id_t model_id, el_model_info_t& model_info) const {
-    auto it{std::find_if(__model_info.begin(), __model_info.end(), [&](const auto& v) { return v.id == model_id; })};
+    auto it = std::find_if(__model_info.begin(), __model_info.end(), [&](const auto& v) { return v.id == model_id; });
     if (it != __model_info.end()) [[likely]] {
         model_info = *it;
         return EL_OK;
@@ -141,11 +141,12 @@ el_err_code_t Models::get(el_model_id_t model_id, el_model_info_t& model_info) c
 }
 
 const el_model_info_t& Models::get_model_info(el_model_id_t model_id) const {
-    auto it{std::find_if(__model_info.begin(), __model_info.end(), [&](const auto& v) { return v.id == model_id; })};
+    auto it = std::find_if(__model_info.begin(), __model_info.end(), [&](const auto& v) { return v.id == model_id; });
     if (it != __model_info.end()) [[likely]] {
         return *it;
     }
-    return el_model_info_t{};
+    static el_model_info_t info{};
+    return info;
 }
 
 const std::forward_list<el_model_info_t>& Models::get_all_model_info() const { return __model_info; }

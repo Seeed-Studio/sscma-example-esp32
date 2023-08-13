@@ -57,14 +57,15 @@ class TaskExecutor {
                 if (!__task_queue.empty()) {
                     task = std::move(__task_queue.front());
                     __task_queue.pop();
+                    if (__task_queue.empty()) [[likely]]
+                        __task_stop_requested.store(false, std::memory_order_seq_cst);
+                    else
+                        __task_stop_requested.store(true, std::memory_order_seq_cst);
                 }
                 m_unlock();
             }
-            if (task) {
-                __task_stop_requested.store(false, std::memory_order_release);
-                task(__task_stop_requested);
-            }
-            vTaskDelay(20 / portTICK_PERIOD_MS);
+            if (task) task(__task_stop_requested);
+            vTaskDelay(15 / portTICK_PERIOD_MS);
         }
     }
 };

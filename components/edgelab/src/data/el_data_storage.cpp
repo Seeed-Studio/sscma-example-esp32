@@ -44,7 +44,10 @@ Storage::Storage() noexcept : __lock(xSemaphoreCreateCounting(1, 1)), __kvdb(new
     EL_ASSERT(__kvdb);
 }
 
-Storage::~Storage() { deinit(); };
+Storage::~Storage() {
+    deinit();
+    vSemaphoreDelete(__lock);
+};
 
 el_err_code_t Storage::init(const char* name, const char* path) {
     volatile const Guard guard(this);

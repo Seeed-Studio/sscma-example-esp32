@@ -98,7 +98,6 @@ el_err_code_t PFLD::preprocess() {
     auto*         i_img{static_cast<ImageType*>(this->__p_input)};
 
     // convert image
-    el_printf("%d, %d\n", _input_img.width, _input_img.height);
     ret = rgb_to_rgb(i_img, &_input_img);
 
     if (ret != EL_OK) {
@@ -120,8 +119,11 @@ el_err_code_t PFLD::postprocess() {
     auto    width{_input_img.width};
     auto    height{_input_img.height};
     float   scale{this->__output_quant.scale};
+    bool    rescale{scale < 0.1f ? true : false};
     int32_t zero_point{this->__output_quant.zero_point};
     auto    pred_l{this->__output_shape.dims[1]};
+
+    scale = rescale ? scale * 100.f : scale;
 
     for (decltype(pred_l) i{0}; i < pred_l; i += 2) {
         _results.emplace_front(

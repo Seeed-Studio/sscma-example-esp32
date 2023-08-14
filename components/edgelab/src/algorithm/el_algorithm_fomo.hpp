@@ -68,7 +68,7 @@ class FOMO : public edgelab::algorithm::base::Algorithm {
 
    private:
     ImageType _input_img;
-    uint8_t   _score_threshold;
+    ScoreType _score_threshold;
 
     std::forward_list<BoxType> _results;
 };
@@ -106,7 +106,6 @@ el_err_code_t FOMO::preprocess() {
     auto*         i_img{static_cast<ImageType*>(this->__p_input)};
 
     // convert image
-    el_printf("%d, %d\n", _input_img.width, _input_img.height);
     ret = rgb_to_rgb(i_img, &_input_img);
 
     if (ret != EL_OK) {

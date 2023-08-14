@@ -86,7 +86,7 @@ class YOLO : public edgelab::algorithm::base::Algorithm {
     ImageType        _input_img;
     float            _w_scale;
     float            _h_scale;
-    uint8_t          _score_threshold;
+    ScoreType        _score_threshold;
     NMSThresholdType _nms_threshold;
 
     std::forward_list<BoxType> _results;

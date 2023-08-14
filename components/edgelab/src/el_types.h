@@ -153,7 +153,8 @@ typedef enum {
     UNDEFINED_ALGORITHM_TYPE = 0u,
     ALGORITHM_FOMO           = 1u,
     ALGORITHM_PFLD           = 2u,
-    ALGORITHM_YOLO           = 3u
+    ALGORITHM_YOLO           = 3u,
+    ALGORITHM_CLS            = 4u
 } el_algorithm_type_t;
 
 /**

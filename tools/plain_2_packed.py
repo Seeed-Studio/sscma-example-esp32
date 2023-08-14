@@ -5,7 +5,8 @@ header_magic = [0x4c, 0x48, 0x54]
 model_type_map = {
     'fomo': 1,
     'pfld': 2,
-    'yolo': 3
+    'yolo': 3,
+    'cls': 4
 }
 
 def parse_args():

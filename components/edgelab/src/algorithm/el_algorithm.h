@@ -31,6 +31,7 @@
     #include <algorithm>
     #include <forward_list>
 
+    #include "el_algorithm_cls.hpp"
     #include "el_algorithm_fomo.hpp"
     #include "el_algorithm_pfld.hpp"
     #include "el_algorithm_yolo.hpp"
@@ -42,6 +43,7 @@ namespace edgelab {
 using namespace edgelab::algorithm;
 
 using Algorithm     = class base::Algorithm;
+using AlgorithmCLS  = class CLS;
 using AlgorithmFOMO = class FOMO;
 using AlgorithmPFLD = class PFLD;
 using AlgorithmYOLO = class YOLO;
@@ -109,6 +111,16 @@ class AlgorithmDelegate {
           .input_type = 1u,
         });
     #endif
+
+    #ifdef _EL_ALGORITHM_CLS_HPP_
+        _registered_algorithms.emplace_front(types::el_algorithm_info_t{
+          .id         = ++i,
+          .type       = el_algorithm_type_t::ALGORITHM_CLS,
+          .categroy   = 2u,
+          .input_type = 1u,
+        });
+    #endif
+
     }
 
     std::forward_list<types::el_algorithm_info_t> _registered_algorithms;

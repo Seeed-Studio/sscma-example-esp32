@@ -125,8 +125,8 @@ typedef enum {
 typedef struct EL_ATTR_PACKED {
     uint8_t*          data;
     size_t            size;
-    uint32_t          width;
-    uint32_t          height;
+    uint16_t          width;
+    uint16_t          height;
     el_pixel_format_t format;
     el_pixel_rotate_t rotate;
 } el_img_t;

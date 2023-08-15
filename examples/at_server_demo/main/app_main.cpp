@@ -76,7 +76,7 @@ extern "C" void app_main(void) {
     *storage << el_make_storage_kv("boot_count", ++boot_count);
 
     // init task executor
-    TaskExecutor* executor = new TaskExecutor();
+    TaskExecutor* executor = new TaskExecutor(CONFIG_PTHREAD_TASK_STACK_SIZE_DEFAULT, CONFIG_PTHREAD_TASK_PRIO_DEFAULT);
 
     // register repl commands
     instance->register_cmd("ID",
@@ -596,7 +596,7 @@ std::string invoke_results_2_string(AlgorithmType* algorithm,
 std::string el_img_2_base64_string(const el_img_t* img) {
     if (!img) [[unlikely]]
         return {};
-    auto          size    = img->width * img->height * 3;
+    size_t        size    = img->width * img->height * 3;
     auto          rgb_img = el_img_t{.data   = new uint8_t[size]{},
                                      .size   = size,
                                      .width  = img->width,

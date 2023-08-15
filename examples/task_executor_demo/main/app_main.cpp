@@ -1,11 +1,9 @@
-
-
 #include <stdio.h>
 
 #include "task_executor.hpp"
 
 extern "C" void app_main() {
-    TaskExecutor* executor = new TaskExecutor();
+    TaskExecutor* executor = new TaskExecutor(CONFIG_MAIN_TASK_STACK_SIZE);
 
     printf("Starting task thread...\n");
     executor->start();

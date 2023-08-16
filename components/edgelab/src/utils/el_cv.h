@@ -36,7 +36,7 @@ namespace edgelab {
 
 extern "C" el_err_code_t yuv422p_to_rgb(const el_img_t* src, el_img_t* dst);
 
-extern "C" el_err_code_t rgb_to_rgb(const el_img_t* src, el_img_t* dst);
+extern "C" void rgb_to_rgb(const el_img_t* src, el_img_t* dst);
 
 extern "C" el_err_code_t el_img_convert(const el_img_t* src, el_img_t* dst);
 

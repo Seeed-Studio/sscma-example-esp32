@@ -890,7 +890,7 @@ EL_ATTR_WEAK void gray_to_gray(const el_img_t* src, el_img_t* dst) {
 }
 
 // Note: Current downscaling algorithm implementation is INTER_NEARST
-EL_ATTR_WEAK el_err_code_t rgb_to_rgb(const el_img_t* src, el_img_t* dst) {
+EL_ATTR_WEAK void rgb_to_rgb(const el_img_t* src, el_img_t* dst) {
     if (src->format == EL_PIXEL_FORMAT_RGB888) {
         if (dst->format == EL_PIXEL_FORMAT_RGB888)
             rgb888_to_rgb888(src, dst);
@@ -917,8 +917,6 @@ EL_ATTR_WEAK el_err_code_t rgb_to_rgb(const el_img_t* src, el_img_t* dst) {
         else if (dst->format == EL_PIXEL_FORMAT_GRAYSCALE)
             gray_to_gray(src, dst);
     }
-
-    return EL_OK;
 }
 
 #ifdef CONFIG_EL_LIB_JPEGENC
@@ -982,9 +980,9 @@ EL_ATTR_WEAK el_err_code_t el_img_convert(const el_img_t* src, el_img_t* dst) {
     } else if (src->format == EL_PIXEL_FORMAT_RGB565 || src->format == EL_PIXEL_FORMAT_RGB888 ||
                src->format == EL_PIXEL_FORMAT_GRAYSCALE) {
         if (dst->format == EL_PIXEL_FORMAT_JPEG) {
-            return rgb_to_jpeg(src, dst);
+            rgb_to_jpeg(src, dst);
         } else {
-            return rgb_to_rgb(src, dst);
+            rgb_to_rgb(src, dst);
         }
     } else {
         return EL_ENOTSUP;

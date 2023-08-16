@@ -53,7 +53,7 @@ class FOMO : public edgelab::algorithm::base::Algorithm {
     using ScoreType = uint8_t;
 
    public:
-    template <typename InferenceEngine> FOMO(InferenceEngine* engine, ScoreType score_threshold = 80);
+    template <typename InferenceEngine> FOMO(InferenceEngine* engine, ScoreType score_threshold = 50);
     ~FOMO();
 
     template <typename InputType> el_err_code_t run(InputType* input);
@@ -68,6 +68,8 @@ class FOMO : public edgelab::algorithm::base::Algorithm {
 
    private:
     ImageType _input_img;
+    float     _w_scale;
+    float     _h_scale;
     ScoreType _score_threshold;
 
     std::forward_list<BoxType> _results;
@@ -75,7 +77,7 @@ class FOMO : public edgelab::algorithm::base::Algorithm {
 
 template <typename InferenceEngine>
 FOMO::FOMO(InferenceEngine* engine, ScoreType score_threshold)
-    : edgelab::algorithm::base::Algorithm(engine), _score_threshold(score_threshold) {
+    : edgelab::algorithm::base::Algorithm(engine), _w_scale(1.f), _h_scale(1.f), _score_threshold(score_threshold) {
     _input_img.data   = static_cast<decltype(ImageType::data)>(this->__p_engine->get_input(0));
     _input_img.width  = static_cast<decltype(ImageType::width)>(this->__input_shape.dims[1]),
     _input_img.height = static_cast<decltype(ImageType::height)>(this->__input_shape.dims[2]),
@@ -97,22 +99,21 @@ FOMO::FOMO(InferenceEngine* engine, ScoreType score_threshold)
 FOMO::~FOMO() { _results.clear(); }
 
 template <typename InputType> el_err_code_t FOMO::run(InputType* input) {
+    _w_scale = static_cast<float>(input->width) / static_cast<float>(_input_img.width);
+    _h_scale = static_cast<float>(input->height) / static_cast<float>(_input_img.height);
+
     // TODO: image type conversion before underlying_run, because underlying_run doing a type erasure
     return underlying_run(input);
 };
 
 el_err_code_t FOMO::preprocess() {
-    el_err_code_t ret{EL_OK};
-    auto*         i_img{static_cast<ImageType*>(this->__p_input)};
+    auto* i_img{static_cast<ImageType*>(this->__p_input)};
 
     // convert image
-    ret = rgb_to_rgb(i_img, &_input_img);
+    rgb_to_rgb(i_img, &_input_img);
 
-    if (ret != EL_OK) {
-        return ret;
-    }
-
-    for (decltype(ImageType::size) i{0}; i < _input_img.size; ++i) {
+    auto size{_input_img.size};
+    for (decltype(ImageType::size) i{0}; i < size; ++i) {
         _input_img.data[i] -= 128;
     }
 
@@ -150,10 +151,10 @@ el_err_code_t FOMO::postprocess() {
             if (max_score > _score_threshold && max_target != 0) {
                 // only unsigned is supported for fast div by 2 (>> 1)
                 static_assert(std::is_unsigned<decltype(bw)>::value && std::is_unsigned<decltype(bh)>::value);
-                _results.emplace_front(BoxType{.x      = static_cast<decltype(BoxType::x)>(j * bw + (bw >> 1)),
-                                               .y      = static_cast<decltype(BoxType::y)>(i * bh + (bh >> 1)),
-                                               .w      = bw,
-                                               .h      = bh,
+                _results.emplace_front(BoxType{.x = static_cast<decltype(BoxType::x)>((j * bw + (bw >> 1)) * _w_scale),
+                                               .y = static_cast<decltype(BoxType::y)>((i * bh + (bh >> 1)) * _h_scale),
+                                               .w = static_cast<decltype(BoxType::w)>(bw * _w_scale),
+                                               .h = static_cast<decltype(BoxType::h)>(bh * _h_scale),
                                                .score  = max_score,
                                                .target = max_target});
             }

@@ -63,11 +63,14 @@ class PFLD : public edgelab::algorithm::base::Algorithm {
 
    private:
     ImageType _input_img;
+    float     _w_scale;
+    float     _h_scale;
 
     std::forward_list<PointType> _results;
 };
 
-template <typename InferenceEngine> PFLD::PFLD(InferenceEngine* engine) : edgelab::algorithm::base::Algorithm(engine) {
+template <typename InferenceEngine>
+PFLD::PFLD(InferenceEngine* engine) : edgelab::algorithm::base::Algorithm(engine), _w_scale(1.f), _h_scale(1.f) {
     _input_img.data   = static_cast<decltype(ImageType::data)>(this->__p_engine->get_input(0));
     _input_img.width  = static_cast<decltype(ImageType::width)>(this->__input_shape.dims[1]),
     _input_img.height = static_cast<decltype(ImageType::height)>(this->__input_shape.dims[2]),
@@ -89,22 +92,21 @@ template <typename InferenceEngine> PFLD::PFLD(InferenceEngine* engine) : edgela
 PFLD::~PFLD() { _results.clear(); }
 
 template <typename InputType> el_err_code_t PFLD::run(InputType* input) {
+    _w_scale = static_cast<float>(input->width) / static_cast<float>(_input_img.width);
+    _h_scale = static_cast<float>(input->height) / static_cast<float>(_input_img.height);
+
     // TODO: image type conversion before underlying_run, because underlying_run doing a type erasure
     return underlying_run(input);
 };
 
 el_err_code_t PFLD::preprocess() {
-    el_err_code_t ret{EL_OK};
-    auto*         i_img{static_cast<ImageType*>(this->__p_input)};
+    auto* i_img{static_cast<ImageType*>(this->__p_input)};
 
     // convert image
-    ret = rgb_to_rgb(i_img, &_input_img);
+    rgb_to_rgb(i_img, &_input_img);
 
-    if (ret != EL_OK) {
-        return ret;
-    }
-
-    for (decltype(ImageType::size) i{0}; i < _input_img.size; ++i) {
+    auto size{_input_img.size};
+    for (decltype(ImageType::size) i{0}; i < size; ++i) {
         _input_img.data[i] -= 128;
     }
 

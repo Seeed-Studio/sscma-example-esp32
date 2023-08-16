@@ -143,7 +143,7 @@ EL_ATTR_WEAK void rgb888_to_rgb888(const el_img_t* src, el_img_t* dst) {
 
             for (uint16_t j = 0; j < dw; ++j) {
                 init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
-                index      = (index % dw) * dh + (dh - 1 - index / dw);
+                index      = (j % dw) * dh + ((dh - 1) - ((j / dw) + i));
 
                 *reinterpret_cast<b24_t*>(dst_p + (index * 3)) =
                   *reinterpret_cast<const b24_t*>(src_p + (init_index * 3));
@@ -157,7 +157,7 @@ EL_ATTR_WEAK void rgb888_to_rgb888(const el_img_t* src, el_img_t* dst) {
 
             for (uint16_t j = 0; j < dw; ++j) {
                 init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
-                index      = (dw - 1 - index % dw) + (dh - 1 - index / dw) * dw;
+                index      = ((dw - 1) - (j % dw)) + ((dh - 1) - ((j / dw) + i)) * dw;
 
                 *reinterpret_cast<b24_t*>(dst_p + (index * 3)) =
                   *reinterpret_cast<const b24_t*>(src_p + (init_index * 3));
@@ -171,7 +171,7 @@ EL_ATTR_WEAK void rgb888_to_rgb888(const el_img_t* src, el_img_t* dst) {
 
             for (uint16_t j = 0; j < dw; ++j) {
                 init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
-                index      = (dw - 1 - index % dw) * dh + index / dw;
+                index      = ((dw - 1) - (j % dw)) * dh + (j / dw) + i;
 
                 *reinterpret_cast<b24_t*>(dst_p + (index * 3)) =
                   *reinterpret_cast<const b24_t*>(src_p + (init_index * 3));
@@ -214,7 +214,7 @@ EL_ATTR_WEAK void rgb888_to_rgb565(const el_img_t* src, el_img_t* dst) {
 
             for (uint16_t j = 0; j < dw; ++j) {
                 init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
-                index      = (index % dw) * dh + (dh - 1 - index / dw);
+                index      = (j % dw) * dh + ((dh - 1) - ((j / dw) + i));
 
                 b24 = *reinterpret_cast<const b24_t*>(src_p + (init_index * 3));
                 r   = RGB565_TO_RGB888_LOOKUP_TABLE_5[(b24.b0_8 & 0xF8) >> 3];
@@ -234,7 +234,7 @@ EL_ATTR_WEAK void rgb888_to_rgb565(const el_img_t* src, el_img_t* dst) {
 
             for (uint16_t j = 0; j < dw; ++j) {
                 init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
-                index      = (dw - 1 - index % dw) + (dh - 1 - index / dw) * dw;
+                index      = ((dw - 1) - (j % dw)) + ((dh - 1) - ((j / dw) + i)) * dw;
 
                 b24 = *reinterpret_cast<const b24_t*>(src_p + (init_index * 3));
                 r   = RGB565_TO_RGB888_LOOKUP_TABLE_5[(b24.b0_8 & 0xF8) >> 3];
@@ -254,7 +254,7 @@ EL_ATTR_WEAK void rgb888_to_rgb565(const el_img_t* src, el_img_t* dst) {
 
             for (uint16_t j = 0; j < dw; ++j) {
                 init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
-                index      = (dw - 1 - index % dw) * dh + index / dw;
+                index      = ((dw - 1) - (j % dw)) * dh + (j / dw) + i;
 
                 b24 = *reinterpret_cast<const b24_t*>(src_p + (init_index * 3));
                 r   = RGB565_TO_RGB888_LOOKUP_TABLE_5[(b24.b0_8 & 0xF8) >> 3];
@@ -321,7 +321,7 @@ EL_ATTR_WEAK void rgb888_to_gray(const el_img_t* src, el_img_t* dst) {
 
             for (uint16_t j = 0; j < dw; ++j) {
                 init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
-                index      = (index % dw) * dh + (dh - 1 - index / dw);
+                index      = (j % dw) * dh + ((dh - 1) - ((j / dw) + i));
 
                 b24 = *reinterpret_cast<const b24_t*>(src_p + (init_index * 3));
                 r   = RGB565_TO_RGB888_LOOKUP_TABLE_5[(b24.b0_8 & 0xF8) >> 3];
@@ -339,7 +339,7 @@ EL_ATTR_WEAK void rgb888_to_gray(const el_img_t* src, el_img_t* dst) {
 
             for (uint16_t j = 0; j < dw; ++j) {
                 init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
-                index      = (dw - 1 - index % dw) + (dh - 1 - index / dw) * dw;
+                index      = ((dw - 1) - (j % dw)) + ((dh - 1) - ((j / dw) + i)) * dw;
 
                 b24 = *reinterpret_cast<const b24_t*>(src_p + (init_index * 3));
                 r   = RGB565_TO_RGB888_LOOKUP_TABLE_5[(b24.b0_8 & 0xF8) >> 3];
@@ -357,7 +357,8 @@ EL_ATTR_WEAK void rgb888_to_gray(const el_img_t* src, el_img_t* dst) {
 
             for (uint16_t j = 0; j < dw; ++j) {
                 init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
-                index      = (dw - 1 - index % dw) * dh + index / dw;
+                index      = j + i_mul_dw;
+                index      = ((dw - 1) - (j % dw)) * dh + (j / dw) + i;
 
                 b24 = *reinterpret_cast<const b24_t*>(src_p + (init_index * 3));
                 r   = RGB565_TO_RGB888_LOOKUP_TABLE_5[(b24.b0_8 & 0xF8) >> 3];
@@ -420,7 +421,7 @@ EL_ATTR_WEAK void rgb565_to_rgb888(const el_img_t* src, el_img_t* dst) {
 
             for (uint16_t j = 0; j < dw; ++j) {
                 init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
-                index      = (index % dw) * dh + (dh - 1 - index / dw);
+                index      = (j % dw) * dh + ((dh - 1) - ((j / dw) + i));
 
                 b16 = *reinterpret_cast<const b16_t*>(src_p + (init_index << 1));
                 r   = RGB565_TO_RGB888_LOOKUP_TABLE_5[(b16.b0_8 & 0xF8) >> 3];
@@ -438,7 +439,7 @@ EL_ATTR_WEAK void rgb565_to_rgb888(const el_img_t* src, el_img_t* dst) {
 
             for (uint16_t j = 0; j < dw; ++j) {
                 init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
-                index      = (dw - 1 - index % dw) + (dh - 1 - index / dw) * dw;
+                index      = ((dw - 1) - (j % dw)) + ((dh - 1) - ((j / dw) + i)) * dw;
 
                 b16 = *reinterpret_cast<const b16_t*>(src_p + (init_index << 1));
                 r   = RGB565_TO_RGB888_LOOKUP_TABLE_5[(b16.b0_8 & 0xF8) >> 3];
@@ -456,7 +457,7 @@ EL_ATTR_WEAK void rgb565_to_rgb888(const el_img_t* src, el_img_t* dst) {
 
             for (uint16_t j = 0; j < dw; ++j) {
                 init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
-                index      = (dw - 1 - index % dw) * dh + index / dw;
+                index      = ((dw - 1) - (j % dw)) * dh + (j / dw) + i;
 
                 b16 = *reinterpret_cast<const b16_t*>(src_p + (init_index << 1));
                 r   = RGB565_TO_RGB888_LOOKUP_TABLE_5[(b16.b0_8 & 0xF8) >> 3];
@@ -512,7 +513,7 @@ EL_ATTR_WEAK void rgb565_to_rgb565(const el_img_t* src, el_img_t* dst) {
 
             for (uint16_t j = 0; j < dw; ++j) {
                 init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
-                index      = (index % dw) * dh + (dh - 1 - index / dw);
+                index      = (j % dw) * dh + ((dh - 1) - ((j / dw) + i));
 
                 *reinterpret_cast<b16_t*>(dst_p + (index << 1)) =
                   *reinterpret_cast<const b16_t*>(src_p + (init_index << 1));
@@ -526,7 +527,7 @@ EL_ATTR_WEAK void rgb565_to_rgb565(const el_img_t* src, el_img_t* dst) {
 
             for (uint16_t j = 0; j < dw; ++j) {
                 init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
-                index      = (dw - 1 - index % dw) + (dh - 1 - index / dw) * dw;
+                index      = ((dw - 1) - (j % dw)) + ((dh - 1) - ((j / dw) + i)) * dw;
 
                 *reinterpret_cast<b16_t*>(dst_p + (index << 1)) =
                   *reinterpret_cast<const b16_t*>(src_p + (init_index << 1));
@@ -540,7 +541,7 @@ EL_ATTR_WEAK void rgb565_to_rgb565(const el_img_t* src, el_img_t* dst) {
 
             for (uint16_t j = 0; j < dw; ++j) {
                 init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
-                index      = (dw - 1 - index % dw) * dh + index / dw;
+                index      = ((dw - 1) - (j % dw)) * dh + (j / dw) + i;
 
                 *reinterpret_cast<b16_t*>(dst_p + (index << 1)) =
                   *reinterpret_cast<const b16_t*>(src_p + (init_index << 1));
@@ -584,7 +585,7 @@ EL_ATTR_WEAK void rgb565_to_gray(const el_img_t* src, el_img_t* dst) {
 
             for (uint16_t j = 0; j < dw; ++j) {
                 init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
-                index      = (index % dw) * dh + (dh - 1 - index / dw);
+                index      = (j % dw) * dh + ((dh - 1) - ((j / dw) + i));
 
                 b16 = *reinterpret_cast<const b16_t*>(src_p + (init_index << 1));
                 r   = RGB565_TO_RGB888_LOOKUP_TABLE_5[(b16.b0_8 & 0xF8) >> 3];
@@ -602,7 +603,7 @@ EL_ATTR_WEAK void rgb565_to_gray(const el_img_t* src, el_img_t* dst) {
 
             for (uint16_t j = 0; j < dw; ++j) {
                 init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
-                index      = (dw - 1 - index % dw) + (dh - 1 - index / dw) * dw;
+                index      = ((dw - 1) - (j % dw)) + ((dh - 1) - ((j / dw) + i)) * dw;
 
                 b16 = *reinterpret_cast<const b16_t*>(src_p + (init_index << 1));
                 r   = RGB565_TO_RGB888_LOOKUP_TABLE_5[(b16.b0_8 & 0xF8) >> 3];
@@ -620,7 +621,7 @@ EL_ATTR_WEAK void rgb565_to_gray(const el_img_t* src, el_img_t* dst) {
 
             for (uint16_t j = 0; j < dw; ++j) {
                 init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
-                index      = (dw - 1 - index % dw) * dh + index / dw;
+                index      = ((dw - 1) - (j % dw)) * dh + (j / dw) + i;
 
                 b16 = *reinterpret_cast<const b16_t*>(src_p + (init_index << 1));
                 r   = RGB565_TO_RGB888_LOOKUP_TABLE_5[(b16.b0_8 & 0xF8) >> 3];
@@ -679,7 +680,7 @@ EL_ATTR_WEAK void gray_to_rgb888(const el_img_t* src, el_img_t* dst) {
 
             for (uint16_t j = 0; j < dw; ++j) {
                 init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
-                index      = (index % dw) * dh + (dh - 1 - index / dw);
+                index      = (j % dw) * dh + ((dh - 1) - ((j / dw) + i));
 
                 c = src_p[init_index];
 
@@ -694,7 +695,7 @@ EL_ATTR_WEAK void gray_to_rgb888(const el_img_t* src, el_img_t* dst) {
 
             for (uint16_t j = 0; j < dw; ++j) {
                 init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
-                index      = (dw - 1 - index % dw) + (dh - 1 - index / dw) * dw;
+                index      = ((dw - 1) - (j % dw)) + ((dh - 1) - ((j / dw) + i)) * dw;
 
                 c = src_p[init_index];
 
@@ -709,7 +710,7 @@ EL_ATTR_WEAK void gray_to_rgb888(const el_img_t* src, el_img_t* dst) {
 
             for (uint16_t j = 0; j < dw; ++j) {
                 init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
-                index      = (dw - 1 - index % dw) * dh + index / dw;
+                index      = ((dw - 1) - (j % dw)) * dh + (j / dw) + i;
 
                 c = src_p[init_index];
 
@@ -762,7 +763,7 @@ EL_ATTR_WEAK void gray_to_rgb565(const el_img_t* src, el_img_t* dst) {
 
             for (uint16_t j = 0; j < dw; ++j) {
                 init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
-                index      = (index % dw) * dh + (dh - 1 - index / dw);
+                index      = (j % dw) * dh + ((dh - 1) - ((j / dw) + i));
 
                 c = src_p[init_index];
 
@@ -779,7 +780,7 @@ EL_ATTR_WEAK void gray_to_rgb565(const el_img_t* src, el_img_t* dst) {
 
             for (uint16_t j = 0; j < dw; ++j) {
                 init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
-                index      = (dw - 1 - index % dw) + (dh - 1 - index / dw) * dw;
+                index      = ((dw - 1) - (j % dw)) + ((dh - 1) - ((j / dw) + i)) * dw;
 
                 c = src_p[init_index];
 
@@ -796,7 +797,7 @@ EL_ATTR_WEAK void gray_to_rgb565(const el_img_t* src, el_img_t* dst) {
 
             for (uint16_t j = 0; j < dw; ++j) {
                 init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
-                index      = (dw - 1 - index % dw) * dh + index / dw;
+                index      = ((dw - 1) - (j % dw)) * dh + (j / dw) + i;
 
                 c = src_p[init_index];
 
@@ -850,7 +851,7 @@ EL_ATTR_WEAK void gray_to_gray(const el_img_t* src, el_img_t* dst) {
 
             for (uint16_t j = 0; j < dw; ++j) {
                 init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
-                index      = (index % dw) * dh + (dh - 1 - index / dw);
+                index      = (j % dw) * dh + ((dh - 1) - ((j / dw) + i));
 
                 dst_p[index] = src_p[init_index];
             }
@@ -863,7 +864,7 @@ EL_ATTR_WEAK void gray_to_gray(const el_img_t* src, el_img_t* dst) {
 
             for (uint16_t j = 0; j < dw; ++j) {
                 init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
-                index      = (dw - 1 - index % dw) + (dh - 1 - index / dw) * dw;
+                index      = ((dw - 1) - (j % dw)) + ((dh - 1) - ((j / dw) + i)) * dw;
 
                 dst_p[index] = src_p[init_index];
             }
@@ -876,7 +877,7 @@ EL_ATTR_WEAK void gray_to_gray(const el_img_t* src, el_img_t* dst) {
 
             for (uint16_t j = 0; j < dw; ++j) {
                 init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
-                index      = (dw - 1 - index % dw) * dh + index / dw;
+                index      = ((dw - 1) - (j % dw)) * dh + (j / dw) + i;
 
                 dst_p[index] = src_p[init_index];
             }

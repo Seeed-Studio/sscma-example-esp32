@@ -82,7 +82,7 @@ extern "C" void app_main(void) {
     instance->register_cmd("ID",
                            "Get device ID",
                            "",
-                           el_repl_cmd_exec_cb_t([&]() -> el_err_code_t {
+                           el_repl_cmd_cb_t([&](int argc, char** argv) -> el_err_code_t {
                                executor->add_task([&](auto& stop_token) {
                                    auto os = std::ostringstream(std::ios_base::ate);
                                    os << "{\"id\": \"" << std::uppercase << std::hex << device->get_device_id()
@@ -92,14 +92,12 @@ extern "C" void app_main(void) {
                                    serial->write_bytes(str.c_str(), str.size());
                                });
                                return EL_OK;
-                           }),
-                           nullptr,
-                           nullptr);
+                           }));
 
     instance->register_cmd("NAME",
                            "Get device name",
                            "",
-                           el_repl_cmd_exec_cb_t([&]() -> el_err_code_t {
+                           el_repl_cmd_cb_t([&](int argc, char** argv) -> el_err_code_t {
                                executor->add_task([&](auto& stop_token) {
                                    auto os = std::ostringstream(std::ios_base::ate);
                                    os << "{\"id\": \"" << device->get_device_name()
@@ -108,14 +106,12 @@ extern "C" void app_main(void) {
                                    serial->write_bytes(str.c_str(), str.size());
                                });
                                return EL_OK;
-                           }),
-                           nullptr,
-                           nullptr);
+                           }));
 
     instance->register_cmd("STAT",
                            "Get device status",
                            "",
-                           el_repl_cmd_exec_cb_t([&]() -> el_err_code_t {
+                           el_repl_cmd_cb_t([&](int argc, char** argv) -> el_err_code_t {
                                executor->add_task([&](auto& stop_token) {
                                    auto os = std::ostringstream(std::ios_base::ate);
                                    os << "{\"boot_count\": " << unsigned(boot_count)
@@ -127,14 +123,12 @@ extern "C" void app_main(void) {
                                    serial->write_bytes(str.c_str(), str.size());
                                });
                                return EL_OK;
-                           }),
-                           nullptr,
-                           nullptr);
+                           }));
 
     instance->register_cmd("VERSION",
                            "Get version details",
                            "",
-                           el_repl_cmd_exec_cb_t([&]() -> el_err_code_t {
+                           el_repl_cmd_cb_t([&](int argc, char** argv) -> el_err_code_t {
                                executor->add_task([&](auto& stop_token) {
                                    auto os = std::ostringstream(std::ios_base::ate);
                                    os << "{\"edgelab-cpp-sdk\": \"v" << EL_VERSION << "\", \"hardware\": \"v"
@@ -144,24 +138,20 @@ extern "C" void app_main(void) {
                                    serial->write_bytes(str.c_str(), str.size());
                                });
                                return EL_OK;
-                           }),
-                           nullptr,
-                           nullptr);
+                           }));
 
     instance->register_cmd("RST",
                            "Reboot device",
                            "",
-                           el_repl_cmd_exec_cb_t([&]() -> el_err_code_t {
+                           el_repl_cmd_cb_t([&](int argc, char** argv) -> el_err_code_t {
                                executor->add_task([&](auto& stop_token) { device->restart(); });
                                return EL_OK;
-                           }),
-                           nullptr,
-                           nullptr);
+                           }));
 
     instance->register_cmd("VALGO",
                            "Get available algorithms",
                            "",
-                           el_repl_cmd_exec_cb_t([&]() -> el_err_code_t {
+                           el_repl_cmd_cb_t([&](int argc, char** argv) -> el_err_code_t {
                                executor->add_task([&](auto& stop_token) {
                                    auto os = std::ostringstream(std::ios_base::ate);
                                    os << "{\"count\": " << algorithm_delegate->get_registered_algorithms_count()
@@ -176,16 +166,12 @@ extern "C" void app_main(void) {
                                    serial->write_bytes(str.c_str(), str.size());
                                });
                                return EL_OK;
-                           }),
-                           nullptr,
-                           nullptr);
+                           }));
 
     instance->register_cmd("ALGO",
                            "Set algorithm for inference by algorithm ID",
                            "ALGO_ID",
-                           nullptr,
-                           nullptr,
-                           el_repl_cmd_write_cb_t([&](int argc, char** argv) -> el_err_code_t {
+                           el_repl_cmd_cb_t([&](int argc, char** argv) -> el_err_code_t {
                                uint8_t algorithm_id = std::atoi(argv[0]);
                                executor->add_task([&, algorithm_id = std::move(algorithm_id)](auto& stop_token) {
                                    auto          os  = std::ostringstream(std::ios_base::ate);
@@ -209,7 +195,7 @@ extern "C" void app_main(void) {
       "VMODEL",
       "Get available models",
       "",
-      el_repl_cmd_exec_cb_t([&]() -> el_err_code_t {
+      el_repl_cmd_cb_t([&](int argc, char** argv) -> el_err_code_t {
           executor->add_task([&](auto& stop_token) {
               auto os          = std::ostringstream(std::ios_base::ate);
               auto models_info = models->get_all_model_info();
@@ -222,16 +208,12 @@ extern "C" void app_main(void) {
               serial->write_bytes(str.c_str(), str.size());
           });
           return EL_OK;
-      }),
-      nullptr,
-      nullptr);
+      }));
 
     instance->register_cmd("MODEL",
                            "Load a model by model ID",
                            "MODEL_ID",
-                           nullptr,
-                           nullptr,
-                           el_repl_cmd_write_cb_t([&](int argc, char** argv) -> el_err_code_t {
+                           el_repl_cmd_cb_t([&](int argc, char** argv) -> el_err_code_t {
                                uint8_t model_id = std::atoi(argv[0]);
                                executor->add_task([&, model_id = std::move(model_id)](auto& stop_token) {
                                    auto            os         = std::ostringstream(std::ios_base::ate);
@@ -266,7 +248,7 @@ extern "C" void app_main(void) {
     instance->register_cmd("VSENSOR",
                            "Get available sensors",
                            "",
-                           el_repl_cmd_exec_cb_t([&]() -> el_err_code_t {
+                           el_repl_cmd_cb_t([&](int argc, char** argv) -> el_err_code_t {
                                executor->add_task([&](auto& stop_token) {
                                    auto   os   = std::ostringstream(std::ios_base::ate);
                                    size_t size = std::distance(registered_sensors.begin(), registered_sensors.end());
@@ -283,16 +265,12 @@ extern "C" void app_main(void) {
                                    serial->write_bytes(str.c_str(), str.size());
                                });
                                return EL_OK;
-                           }),
-                           nullptr,
-                           nullptr);
+                           }));
 
     instance->register_cmd("SENSOR",
                            "Set a default sensor by sensor ID",
                            "SENSOR_ID",
-                           nullptr,
-                           nullptr,
-                           el_repl_cmd_write_cb_t([&](int argc, char** argv) -> el_err_code_t {
+                           el_repl_cmd_cb_t([&](int argc, char** argv) -> el_err_code_t {
                                uint8_t sensor_id = std::atoi(argv[0]);
                                executor->add_task([&, sensor_id = std::move(sensor_id)](auto& stop_token) {
                                    auto          it    = std::find_if(registered_sensors.begin(),
@@ -326,7 +304,7 @@ extern "C" void app_main(void) {
       "SAMPLE",
       "Sample data from current sensor",
       "",
-      el_repl_cmd_exec_cb_t([&]() -> el_err_code_t {
+      el_repl_cmd_cb_t([&](int argc, char** argv) -> el_err_code_t {
           executor->add_task([&](auto& stop_token) {
               auto it    = std::find_if(registered_sensors.begin(), registered_sensors.end(), [&](const auto& sensor) {
                   return sensor.id == current_sensor_id;
@@ -367,17 +345,13 @@ extern "C" void app_main(void) {
               serial->write_bytes(str.c_str(), str.size());
           });
           return EL_OK;
-      }),
-      nullptr,
-      nullptr);
+      }));
 
     instance->register_cmd(
       "INVOKE",
       "Invoke for N times (-1 for infinity loop)",
       "N_TIMES",
-      nullptr,
-      nullptr,
-      el_repl_cmd_write_cb_t([&](int argc, char** argv) -> el_err_code_t {
+      el_repl_cmd_cb_t([&](int argc, char** argv) -> el_err_code_t {
           int n_times = std::atoi(argv[0]);
           executor->add_task([&, n_times = std::move(n_times)](auto& stop_token) mutable {
               auto                os               = std::ostringstream(std::ios_base::ate);
@@ -568,6 +542,7 @@ extern "C" void app_main(void) {
 // enter service pipeline (TODO: pipeline builder)
 ServiceLoop:
     instance->loop(serial->get_char());
+    vTaskDelay(30 / portTICK_PERIOD_MS);
 
     goto ServiceLoop;
 
@@ -596,23 +571,22 @@ std::string invoke_results_2_string(AlgorithmType* algorithm,
 std::string el_img_2_base64_string(const el_img_t* img) {
     if (!img) [[unlikely]]
         return {};
-    size_t        size    = img->width * img->height * 3;
-    auto          rgb_img = el_img_t{.data   = new uint8_t[size]{},
-                                     .size   = size,
-                                     .width  = img->width,
-                                     .height = img->height,
-                                     .format = EL_PIXEL_FORMAT_RGB888,
-                                     .rotate = img->rotate};
-    el_err_code_t ret     = rgb_to_rgb(img, &rgb_img);
-    if (ret != EL_OK) [[unlikely]]
-        return {};
-    auto jpeg_img = el_img_t{.data   = new uint8_t[size]{},
-                             .size   = size,
-                             .width  = rgb_img.width,
-                             .height = rgb_img.height,
-                             .format = EL_PIXEL_FORMAT_JPEG,
-                             .rotate = rgb_img.rotate};
-    ret           = rgb_to_jpeg(&rgb_img, &jpeg_img);
+    size_t size    = img->width * img->height * 3;
+    auto   rgb_img = el_img_t{.data   = new uint8_t[size]{},
+                              .size   = size,
+                              .width  = img->width,
+                              .height = img->height,
+                              .format = EL_PIXEL_FORMAT_RGB888,
+                              .rotate = img->rotate};
+    rgb_to_rgb(img, &rgb_img);
+
+    auto          jpeg_img = el_img_t{.data   = new uint8_t[size]{},
+                                      .size   = size,
+                                      .width  = rgb_img.width,
+                                      .height = rgb_img.height,
+                                      .format = EL_PIXEL_FORMAT_JPEG,
+                                      .rotate = rgb_img.rotate};
+    el_err_code_t ret      = rgb_to_jpeg(&rgb_img, &jpeg_img);
     if (ret != EL_OK) [[unlikely]]
         return {};
     delete[] rgb_img.data;
@@ -634,16 +608,15 @@ const char* el_img_2_base64_c_str(const el_img_t* img) {
                                        .height = img->height,
                                        .format = EL_PIXEL_FORMAT_RGB888,
                                        .rotate = img->rotate};
-    el_err_code_t   ret     = rgb_to_rgb(img, &rgb_img);
-    if (ret != EL_OK) [[unlikely]]
-        return {};
+    rgb_to_rgb(img, &rgb_img);
+
     static el_img_t jpeg_img = el_img_t{.data   = new uint8_t[size]{},
                                         .size   = size,
                                         .width  = rgb_img.width,
                                         .height = rgb_img.height,
                                         .format = EL_PIXEL_FORMAT_JPEG,
                                         .rotate = rgb_img.rotate};
-    ret                      = rgb_to_jpeg(&rgb_img, &jpeg_img);
+    el_err_code_t   ret      = rgb_to_jpeg(&rgb_img, &jpeg_img);
     if (ret != EL_OK) [[unlikely]]
         return {};
     static auto buffer = new char[size]{};

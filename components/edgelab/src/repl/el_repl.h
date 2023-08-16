@@ -39,32 +39,16 @@
 
 namespace edgelab {
 
-typedef std::function<el_err_code_t(void)>        el_repl_cmd_exec_cb_t;
-typedef std::function<el_err_code_t(void)>        el_repl_cmd_read_cb_t;
-typedef std::function<el_err_code_t(int, char**)> el_repl_cmd_write_cb_t;
-
-typedef enum {
-    EL_REPL_CMD_NONE  = 0x00,
-    EL_REPL_CMD_EXEC  = EL_BIT(0),
-    EL_REPL_CMD_READ  = EL_BIT(1),
-    EL_REPL_CMD_WRITE = EL_BIT(2),
-} el_repl_cmd_type_t;
+typedef std::function<el_err_code_t(int, char**)> el_repl_cmd_cb_t;
 
 typedef struct {
-    std::string            cmd;
-    std::string            desc;
-    std::string            arg;
-    el_repl_cmd_exec_cb_t  exec_cb;
-    el_repl_cmd_read_cb_t  read_cb;
-    el_repl_cmd_write_cb_t write_cb;
+    std::string      cmd;
+    std::string      desc;
+    std::string      arg;
+    el_repl_cmd_cb_t cmd_cb;
 } el_repl_cmd_t;
 
 class ReplHistory {
-   private:
-    std::deque<std::string> _history;
-    int                     _history_index;
-    int                     _max_size;
-
    public:
     ReplHistory(int max_size = 10) : _max_size(max_size) { _history_index = -1; };
     ~ReplHistory(){};
@@ -78,27 +62,25 @@ class ReplHistory {
     el_err_code_t get(std::string& line, int index);
     el_err_code_t next(std::string& line);
     el_err_code_t prev(std::string& line);
+    bool          reset();
     el_err_code_t clear();
-    int    size() { return _history.size(); };
-    void   print();
+    int           size() { return _history.size(); };
+    void          print();
+
+   private:
+    std::deque<std::string> _history;
+    int                     _history_index;
+    int                     _max_size;
 };
 
 class ReplServer {
-   private:
-    std::vector<el_repl_cmd_t> _cmd_list;
-    ReplHistory                _history;
-    bool                       _is_ctrl;
-    std::string                _line;
-    int                        _line_index;
-    std::string                _ctrl_line;
-    static ReplServer*         _instance;
-
    public:
-    ReplServer() { _line_index = -1; };
-    ~ReplServer(){};
+    ~ReplServer() = default;
 
     static ReplServer* get_instance() {
-        if (!_instance) _instance = new ReplServer();
+        if (!_instance) {
+            _instance = new ReplServer();
+        }
         return _instance;
     }
 
@@ -111,21 +93,30 @@ class ReplServer {
     void loop(char c);
 
     el_err_code_t register_cmd(el_repl_cmd_t& cmd);
-    el_err_code_t register_cmd(const char*            cmd,
-                        const char*            desc,
-                        const char*            arg,
-                        el_repl_cmd_exec_cb_t  exec_cb,
-                        el_repl_cmd_read_cb_t  read_cb,
-                        el_repl_cmd_write_cb_t write_cb);
+    el_err_code_t register_cmd(const char* cmd, const char* desc, const char* arg, el_repl_cmd_cb_t cmd_cb);
+
     el_err_code_t register_cmds(std::vector<el_repl_cmd_t>& cmd_list);
     el_err_code_t register_cmds(el_repl_cmd_t* cmd_list, int size);
     el_err_code_t unregister_cmd(std::string& cmd);
     el_err_code_t print_help();
 
+   protected:
+    ReplServer() : _is_ctrl(false), _line_index(-1){};
+
    private:
     el_err_code_t _exec_cmd(std::string& line);
+
+    ReplHistory                _history;
+    std::vector<el_repl_cmd_t> _cmd_list;
+
+    bool        _is_ctrl;
+    std::string _ctrl_line;
+    std::string _line;
+    int         _line_index;
+
+    static ReplServer* _instance;
 };
 
 }  // namespace edgelab
 
-#endif /* _EL_REPL_H_ */
+#endif

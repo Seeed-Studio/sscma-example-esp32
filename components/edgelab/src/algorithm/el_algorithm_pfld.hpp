@@ -129,8 +129,8 @@ el_err_code_t PFLD::postprocess() {
 
     for (decltype(pred_l) i{0}; i < pred_l; i += 2) {
         _results.emplace_front(
-          PointType{.x      = static_cast<decltype(PointType::x)>((data[i] - zero_point) * scale * width),
-                    .y      = static_cast<decltype(PointType::y)>((data[i + 1] - zero_point) * scale * height),
+          PointType{.x      = static_cast<decltype(PointType::x)>(((data[i] - zero_point) * scale * width) * _w_scale),
+                    .y      = static_cast<decltype(PointType::y)>(((data[i + 1] - zero_point) * scale * height) * _h_scale),
                     .target = static_cast<decltype(PointType::target)>(i / 2)});
     }
 

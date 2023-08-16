@@ -126,8 +126,8 @@ EL_ATTR_WEAK void rgb888_to_rgb888(const el_img_t* src, el_img_t* dst) {
     uint16_t dw = dst->width;
     uint16_t dh = dst->height;
 
-    float beta_w = (float)sw / (float)dw;
-    float beta_h = (float)sh / (float)dh;
+    uint32_t beta_w = (sw << 16) / dw;
+    uint32_t beta_h = (sh << 16) / dh;
 
     uint32_t i_mul_bh_sw = 0;
 
@@ -140,10 +140,10 @@ EL_ATTR_WEAK void rgb888_to_rgb888(const el_img_t* src, el_img_t* dst) {
     switch (dst->rotate) {
     case EL_PIXEL_ROTATE_90:
         for (uint16_t i = 0; i < dh; ++i) {
-            i_mul_bh_sw = static_cast<uint32_t>(i * beta_h) * sw;
+            i_mul_bh_sw = ((i * beta_h) >> 16) * sw;
 
             for (uint16_t j = 0; j < dw; ++j) {
-                init_index = j * beta_w + i_mul_bh_sw;
+                init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
                 index      = (index % dw) * dh + (dh - 1 - index / dw);
 
                 *reinterpret_cast<b24_t*>(dst_p + (index * 3)) =
@@ -154,10 +154,10 @@ EL_ATTR_WEAK void rgb888_to_rgb888(const el_img_t* src, el_img_t* dst) {
 
     case EL_PIXEL_ROTATE_180:
         for (uint16_t i = 0; i < dh; ++i) {
-            i_mul_bh_sw = static_cast<uint32_t>(i * beta_h) * sw;
+            i_mul_bh_sw = ((i * beta_h) >> 16) * sw;
 
             for (uint16_t j = 0; j < dw; ++j) {
-                init_index = j * beta_w + i_mul_bh_sw;
+                init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
                 index      = (dw - 1 - index % dw) + (dh - 1 - index / dw) * dw;
 
                 *reinterpret_cast<b24_t*>(dst_p + (index * 3)) =
@@ -168,10 +168,10 @@ EL_ATTR_WEAK void rgb888_to_rgb888(const el_img_t* src, el_img_t* dst) {
 
     case EL_PIXEL_ROTATE_270:
         for (uint16_t i = 0; i < dh; ++i) {
-            i_mul_bh_sw = static_cast<uint32_t>(i * beta_h) * sw;
+            i_mul_bh_sw = ((i * beta_h) >> 16) * sw;
 
             for (uint16_t j = 0; j < dw; ++j) {
-                init_index = j * beta_w + i_mul_bh_sw;
+                init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
                 index      = (dw - 1 - index % dw) * dh + index / dw;
 
                 *reinterpret_cast<b24_t*>(dst_p + (index * 3)) =
@@ -191,8 +191,8 @@ EL_ATTR_WEAK void rgb888_to_rgb565(const el_img_t* src, el_img_t* dst) {
     uint16_t dw = dst->width;
     uint16_t dh = dst->height;
 
-    float beta_w = (float)sw / (float)dw;
-    float beta_h = (float)sh / (float)dh;
+    uint32_t beta_w = (sw << 16) / dw;
+    uint32_t beta_h = (sh << 16) / dh;
 
     uint32_t i_mul_bh_sw = 0;
     uint32_t i_mul_dw    = 0;
@@ -211,10 +211,10 @@ EL_ATTR_WEAK void rgb888_to_rgb565(const el_img_t* src, el_img_t* dst) {
     switch (dst->rotate) {
     case EL_PIXEL_ROTATE_90:
         for (uint16_t i = 0; i < dh; ++i) {
-            i_mul_bh_sw = static_cast<uint32_t>(i * beta_h) * sw;
+            i_mul_bh_sw = ((i * beta_h) >> 16) * sw;
 
             for (uint16_t j = 0; j < dw; ++j) {
-                init_index = j * beta_w + i_mul_bh_sw;
+                init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
                 index      = (index % dw) * dh + (dh - 1 - index / dw);
 
                 b24 = *reinterpret_cast<const b24_t*>(src_p + (init_index * 3));
@@ -231,10 +231,10 @@ EL_ATTR_WEAK void rgb888_to_rgb565(const el_img_t* src, el_img_t* dst) {
 
     case EL_PIXEL_ROTATE_180:
         for (uint16_t i = 0; i < dh; ++i) {
-            i_mul_bh_sw = static_cast<uint32_t>(i * beta_h) * sw;
+            i_mul_bh_sw = ((i * beta_h) >> 16) * sw;
 
             for (uint16_t j = 0; j < dw; ++j) {
-                init_index = j * beta_w + i_mul_bh_sw;
+                init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
                 index      = (dw - 1 - index % dw) + (dh - 1 - index / dw) * dw;
 
                 b24 = *reinterpret_cast<const b24_t*>(src_p + (init_index * 3));
@@ -251,10 +251,10 @@ EL_ATTR_WEAK void rgb888_to_rgb565(const el_img_t* src, el_img_t* dst) {
 
     case EL_PIXEL_ROTATE_270:
         for (uint16_t i = 0; i < dh; ++i) {
-            i_mul_bh_sw = static_cast<uint32_t>(i * beta_h) * sw;
+            i_mul_bh_sw = ((i * beta_h) >> 16) * sw;
 
             for (uint16_t j = 0; j < dw; ++j) {
-                init_index = j * beta_w + i_mul_bh_sw;
+                init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
                 index      = (dw - 1 - index % dw) * dh + index / dw;
 
                 b24 = *reinterpret_cast<const b24_t*>(src_p + (init_index * 3));
@@ -271,11 +271,11 @@ EL_ATTR_WEAK void rgb888_to_rgb565(const el_img_t* src, el_img_t* dst) {
 
     default:
         for (uint16_t i = 0; i < dh; ++i) {
-            i_mul_bh_sw = static_cast<uint32_t>(i * beta_h) * sw;
+            i_mul_bh_sw = ((i * beta_h) >> 16) * sw;
             i_mul_dw    = i * dw;
 
             for (uint16_t j = 0; j < dw; ++j) {
-                init_index = j * beta_w + i_mul_bh_sw;
+                init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
                 index      = j + i_mul_dw;
 
                 b24 = *reinterpret_cast<const b24_t*>(src_p + (init_index * 3));
@@ -297,8 +297,8 @@ EL_ATTR_WEAK void rgb888_to_gray(const el_img_t* src, el_img_t* dst) {
     uint16_t dw = dst->width;
     uint16_t dh = dst->height;
 
-    float beta_w = (float)sw / (float)dw;
-    float beta_h = (float)sh / (float)dh;
+    uint32_t beta_w = (sw << 16) / dw;
+    uint32_t beta_h = (sh << 16) / dh;
 
     uint32_t i_mul_bh_sw = 0;
     uint32_t i_mul_dw    = 0;
@@ -318,10 +318,10 @@ EL_ATTR_WEAK void rgb888_to_gray(const el_img_t* src, el_img_t* dst) {
     switch (dst->rotate) {
     case EL_PIXEL_ROTATE_90:
         for (uint16_t i = 0; i < dh; ++i) {
-            i_mul_bh_sw = static_cast<uint32_t>(i * beta_h) * sw;
+            i_mul_bh_sw = ((i * beta_h) >> 16) * sw;
 
             for (uint16_t j = 0; j < dw; ++j) {
-                init_index = j * beta_w + i_mul_bh_sw;
+                init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
                 index      = (index % dw) * dh + (dh - 1 - index / dw);
 
                 b24 = *reinterpret_cast<const b24_t*>(src_p + (init_index * 3));
@@ -336,10 +336,10 @@ EL_ATTR_WEAK void rgb888_to_gray(const el_img_t* src, el_img_t* dst) {
 
     case EL_PIXEL_ROTATE_180:
         for (uint16_t i = 0; i < dh; ++i) {
-            i_mul_bh_sw = static_cast<uint32_t>(i * beta_h) * sw;
+            i_mul_bh_sw = ((i * beta_h) >> 16) * sw;
 
             for (uint16_t j = 0; j < dw; ++j) {
-                init_index = j * beta_w + i_mul_bh_sw;
+                init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
                 index      = (dw - 1 - index % dw) + (dh - 1 - index / dw) * dw;
 
                 b24 = *reinterpret_cast<const b24_t*>(src_p + (init_index * 3));
@@ -354,10 +354,10 @@ EL_ATTR_WEAK void rgb888_to_gray(const el_img_t* src, el_img_t* dst) {
 
     case EL_PIXEL_ROTATE_270:
         for (uint16_t i = 0; i < dh; ++i) {
-            i_mul_bh_sw = static_cast<uint32_t>(i * beta_h) * sw;
+            i_mul_bh_sw = ((i * beta_h) >> 16) * sw;
 
             for (uint16_t j = 0; j < dw; ++j) {
-                init_index = j * beta_w + i_mul_bh_sw;
+                init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
                 index      = (dw - 1 - index % dw) * dh + index / dw;
 
                 b24 = *reinterpret_cast<const b24_t*>(src_p + (init_index * 3));
@@ -372,11 +372,11 @@ EL_ATTR_WEAK void rgb888_to_gray(const el_img_t* src, el_img_t* dst) {
 
     default:
         for (uint16_t i = 0; i < dh; ++i) {
-            i_mul_bh_sw = static_cast<uint32_t>(i * beta_h) * sw;
+            i_mul_bh_sw = ((i * beta_h) >> 16) * sw;
             i_mul_dw    = i * dw;
 
             for (uint16_t j = 0; j < dw; ++j) {
-                init_index = j * beta_w + i_mul_bh_sw;
+                init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
                 index      = j + i_mul_dw;
 
                 b24 = *reinterpret_cast<const b24_t*>(src_p + (init_index * 3));
@@ -396,8 +396,8 @@ EL_ATTR_WEAK void rgb565_to_rgb888(const el_img_t* src, el_img_t* dst) {
     uint16_t dw = dst->width;
     uint16_t dh = dst->height;
 
-    float beta_w = (float)sw / (float)dw;
-    float beta_h = (float)sh / (float)dh;
+    uint32_t beta_w = (sw << 16) / dw;
+    uint32_t beta_h = (sh << 16) / dh;
 
     uint32_t i_mul_bh_sw = 0;
     uint32_t i_mul_dw    = 0;
@@ -417,10 +417,10 @@ EL_ATTR_WEAK void rgb565_to_rgb888(const el_img_t* src, el_img_t* dst) {
     switch (dst->rotate) {
     case EL_PIXEL_ROTATE_90:
         for (uint16_t i = 0; i < dh; ++i) {
-            i_mul_bh_sw = static_cast<uint32_t>(i * beta_h) * sw;
+            i_mul_bh_sw = ((i * beta_h) >> 16) * sw;
 
             for (uint16_t j = 0; j < dw; ++j) {
-                init_index = j * beta_w + i_mul_bh_sw;
+                init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
                 index      = (index % dw) * dh + (dh - 1 - index / dw);
 
                 b16 = *reinterpret_cast<const b16_t*>(src_p + (init_index << 1));
@@ -435,10 +435,10 @@ EL_ATTR_WEAK void rgb565_to_rgb888(const el_img_t* src, el_img_t* dst) {
 
     case EL_PIXEL_ROTATE_180:
         for (uint16_t i = 0; i < dh; ++i) {
-            i_mul_bh_sw = static_cast<uint32_t>(i * beta_h) * sw;
+            i_mul_bh_sw = ((i * beta_h) >> 16) * sw;
 
             for (uint16_t j = 0; j < dw; ++j) {
-                init_index = j * beta_w + i_mul_bh_sw;
+                init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
                 index      = (dw - 1 - index % dw) + (dh - 1 - index / dw) * dw;
 
                 b16 = *reinterpret_cast<const b16_t*>(src_p + (init_index << 1));
@@ -453,10 +453,10 @@ EL_ATTR_WEAK void rgb565_to_rgb888(const el_img_t* src, el_img_t* dst) {
 
     case EL_PIXEL_ROTATE_270:
         for (uint16_t i = 0; i < dh; ++i) {
-            i_mul_bh_sw = static_cast<uint32_t>(i * beta_h) * sw;
+            i_mul_bh_sw = ((i * beta_h) >> 16) * sw;
 
             for (uint16_t j = 0; j < dw; ++j) {
-                init_index = j * beta_w + i_mul_bh_sw;
+                init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
                 index      = (dw - 1 - index % dw) * dh + index / dw;
 
                 b16 = *reinterpret_cast<const b16_t*>(src_p + (init_index << 1));
@@ -471,11 +471,11 @@ EL_ATTR_WEAK void rgb565_to_rgb888(const el_img_t* src, el_img_t* dst) {
 
     default:
         for (uint16_t i = 0; i < dh; ++i) {
-            i_mul_bh_sw = static_cast<uint32_t>(i * beta_h) * sw;
+            i_mul_bh_sw = ((i * beta_h) >> 16) * sw;
             i_mul_dw    = i * dw;
 
             for (uint16_t j = 0; j < dw; ++j) {
-                init_index = j * beta_w + i_mul_bh_sw;
+                init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
                 index      = j + i_mul_dw;
 
                 b16 = *reinterpret_cast<const b16_t*>(src_p + (init_index << 1));
@@ -495,8 +495,8 @@ EL_ATTR_WEAK void rgb565_to_rgb565(const el_img_t* src, el_img_t* dst) {
     uint16_t dw = dst->width;
     uint16_t dh = dst->height;
 
-    float beta_w = (float)sw / (float)dw;
-    float beta_h = (float)sh / (float)dh;
+    uint32_t beta_w = (sw << 16) / dw;
+    uint32_t beta_h = (sh << 16) / dh;
 
     uint32_t i_mul_bh_sw = 0;
 
@@ -509,10 +509,10 @@ EL_ATTR_WEAK void rgb565_to_rgb565(const el_img_t* src, el_img_t* dst) {
     switch (dst->rotate) {
     case EL_PIXEL_ROTATE_90:
         for (uint16_t i = 0; i < dh; ++i) {
-            i_mul_bh_sw = static_cast<uint32_t>(i * beta_h) * sw;
+            i_mul_bh_sw = ((i * beta_h) >> 16) * sw;
 
             for (uint16_t j = 0; j < dw; ++j) {
-                init_index = j * beta_w + i_mul_bh_sw;
+                init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
                 index      = (index % dw) * dh + (dh - 1 - index / dw);
 
                 *reinterpret_cast<b16_t*>(dst_p + (index << 1)) =
@@ -523,10 +523,10 @@ EL_ATTR_WEAK void rgb565_to_rgb565(const el_img_t* src, el_img_t* dst) {
 
     case EL_PIXEL_ROTATE_180:
         for (uint16_t i = 0; i < dh; ++i) {
-            i_mul_bh_sw = static_cast<uint32_t>(i * beta_h) * sw;
+            i_mul_bh_sw = ((i * beta_h) >> 16) * sw;
 
             for (uint16_t j = 0; j < dw; ++j) {
-                init_index = j * beta_w + i_mul_bh_sw;
+                init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
                 index      = (dw - 1 - index % dw) + (dh - 1 - index / dw) * dw;
 
                 *reinterpret_cast<b16_t*>(dst_p + (index << 1)) =
@@ -537,10 +537,10 @@ EL_ATTR_WEAK void rgb565_to_rgb565(const el_img_t* src, el_img_t* dst) {
 
     case EL_PIXEL_ROTATE_270:
         for (uint16_t i = 0; i < dh; ++i) {
-            i_mul_bh_sw = static_cast<uint32_t>(i * beta_h) * sw;
+            i_mul_bh_sw = ((i * beta_h) >> 16) * sw;
 
             for (uint16_t j = 0; j < dw; ++j) {
-                init_index = j * beta_w + i_mul_bh_sw;
+                init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
                 index      = (dw - 1 - index % dw) * dh + index / dw;
 
                 *reinterpret_cast<b16_t*>(dst_p + (index << 1)) =
@@ -560,8 +560,8 @@ EL_ATTR_WEAK void rgb565_to_gray(const el_img_t* src, el_img_t* dst) {
     uint16_t dw = dst->width;
     uint16_t dh = dst->height;
 
-    float beta_w = (float)sw / (float)dw;
-    float beta_h = (float)sh / (float)dh;
+    uint32_t beta_w = (sw << 16) / dw;
+    uint32_t beta_h = (sh << 16) / dh;
 
     uint32_t i_mul_bh_sw = 0;
     uint32_t i_mul_dw    = 0;
@@ -581,10 +581,10 @@ EL_ATTR_WEAK void rgb565_to_gray(const el_img_t* src, el_img_t* dst) {
     switch (dst->rotate) {
     case EL_PIXEL_ROTATE_90:
         for (uint16_t i = 0; i < dh; ++i) {
-            i_mul_bh_sw = static_cast<uint32_t>(i * beta_h) * sw;
+            i_mul_bh_sw = ((i * beta_h) >> 16) * sw;
 
             for (uint16_t j = 0; j < dw; ++j) {
-                init_index = j * beta_w + i_mul_bh_sw;
+                init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
                 index      = (index % dw) * dh + (dh - 1 - index / dw);
 
                 b16 = *reinterpret_cast<const b16_t*>(src_p + (init_index << 1));
@@ -599,10 +599,10 @@ EL_ATTR_WEAK void rgb565_to_gray(const el_img_t* src, el_img_t* dst) {
 
     case EL_PIXEL_ROTATE_180:
         for (uint16_t i = 0; i < dh; ++i) {
-            i_mul_bh_sw = static_cast<uint32_t>(i * beta_h) * sw;
+            i_mul_bh_sw = ((i * beta_h) >> 16) * sw;
 
             for (uint16_t j = 0; j < dw; ++j) {
-                init_index = j * beta_w + i_mul_bh_sw;
+                init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
                 index      = (dw - 1 - index % dw) + (dh - 1 - index / dw) * dw;
 
                 b16 = *reinterpret_cast<const b16_t*>(src_p + (init_index << 1));
@@ -617,10 +617,10 @@ EL_ATTR_WEAK void rgb565_to_gray(const el_img_t* src, el_img_t* dst) {
 
     case EL_PIXEL_ROTATE_270:
         for (uint16_t i = 0; i < dh; ++i) {
-            i_mul_bh_sw = static_cast<uint32_t>(i * beta_h) * sw;
+            i_mul_bh_sw = ((i * beta_h) >> 16) * sw;
 
             for (uint16_t j = 0; j < dw; ++j) {
-                init_index = j * beta_w + i_mul_bh_sw;
+                init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
                 index      = (dw - 1 - index % dw) * dh + index / dw;
 
                 b16 = *reinterpret_cast<const b16_t*>(src_p + (init_index << 1));
@@ -635,11 +635,11 @@ EL_ATTR_WEAK void rgb565_to_gray(const el_img_t* src, el_img_t* dst) {
 
     default:
         for (uint16_t i = 0; i < dh; ++i) {
-            i_mul_bh_sw = static_cast<uint32_t>(i * beta_h) * sw;
+            i_mul_bh_sw = ((i * beta_h) >> 16) * sw;
             i_mul_dw    = i * dw;
 
             for (uint16_t j = 0; j < dw; ++j) {
-                init_index = j * beta_w + i_mul_bh_sw;
+                init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
                 index      = j + i_mul_dw;
 
                 b16 = *reinterpret_cast<const b16_t*>(src_p + (init_index << 1));
@@ -659,8 +659,8 @@ EL_ATTR_WEAK void gray_to_rgb888(const el_img_t* src, el_img_t* dst) {
     uint16_t dw = dst->width;
     uint16_t dh = dst->height;
 
-    float beta_w = (float)sw / (float)dw;
-    float beta_h = (float)sh / (float)dh;
+    uint32_t beta_w = (sw << 16) / dw;
+    uint32_t beta_h = (sh << 16) / dh;
 
     uint32_t i_mul_bh_sw = 0;
     uint32_t i_mul_dw    = 0;
@@ -676,10 +676,10 @@ EL_ATTR_WEAK void gray_to_rgb888(const el_img_t* src, el_img_t* dst) {
     switch (dst->rotate) {
     case EL_PIXEL_ROTATE_90:
         for (uint16_t i = 0; i < dh; ++i) {
-            i_mul_bh_sw = static_cast<uint32_t>(i * beta_h) * sw;
+            i_mul_bh_sw = ((i * beta_h) >> 16) * sw;
 
             for (uint16_t j = 0; j < dw; ++j) {
-                init_index = j * beta_w + i_mul_bh_sw;
+                init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
                 index      = (index % dw) * dh + (dh - 1 - index / dw);
 
                 c = src_p[init_index];
@@ -691,10 +691,10 @@ EL_ATTR_WEAK void gray_to_rgb888(const el_img_t* src, el_img_t* dst) {
 
     case EL_PIXEL_ROTATE_180:
         for (uint16_t i = 0; i < dh; ++i) {
-            i_mul_bh_sw = static_cast<uint32_t>(i * beta_h) * sw;
+            i_mul_bh_sw = ((i * beta_h) >> 16) * sw;
 
             for (uint16_t j = 0; j < dw; ++j) {
-                init_index = j * beta_w + i_mul_bh_sw;
+                init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
                 index      = (dw - 1 - index % dw) + (dh - 1 - index / dw) * dw;
 
                 c = src_p[init_index];
@@ -706,10 +706,10 @@ EL_ATTR_WEAK void gray_to_rgb888(const el_img_t* src, el_img_t* dst) {
 
     case EL_PIXEL_ROTATE_270:
         for (uint16_t i = 0; i < dh; ++i) {
-            i_mul_bh_sw = static_cast<uint32_t>(i * beta_h) * sw;
+            i_mul_bh_sw = ((i * beta_h) >> 16) * sw;
 
             for (uint16_t j = 0; j < dw; ++j) {
-                init_index = j * beta_w + i_mul_bh_sw;
+                init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
                 index      = (dw - 1 - index % dw) * dh + index / dw;
 
                 c = src_p[init_index];
@@ -721,11 +721,11 @@ EL_ATTR_WEAK void gray_to_rgb888(const el_img_t* src, el_img_t* dst) {
 
     default:
         for (uint16_t i = 0; i < dh; ++i) {
-            i_mul_bh_sw = static_cast<uint32_t>(i * beta_h) * sw;
+            i_mul_bh_sw = ((i * beta_h) >> 16) * sw;
             i_mul_dw    = i * dw;
 
             for (uint16_t j = 0; j < dw; ++j) {
-                init_index = j * beta_w + i_mul_bh_sw;
+                init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
                 index      = j + i_mul_dw;
 
                 c = src_p[init_index];
@@ -742,8 +742,8 @@ EL_ATTR_WEAK void gray_to_rgb565(const el_img_t* src, el_img_t* dst) {
     uint16_t dw = dst->width;
     uint16_t dh = dst->height;
 
-    float beta_w = (float)sw / (float)dw;
-    float beta_h = (float)sh / (float)dh;
+    uint32_t beta_w = (sw << 16) / dw;
+    uint32_t beta_h = (sh << 16) / dh;
 
     uint32_t i_mul_bh_sw = 0;
     uint32_t i_mul_dw    = 0;
@@ -759,10 +759,10 @@ EL_ATTR_WEAK void gray_to_rgb565(const el_img_t* src, el_img_t* dst) {
     switch (dst->rotate) {
     case EL_PIXEL_ROTATE_90:
         for (uint16_t i = 0; i < dh; ++i) {
-            i_mul_bh_sw = static_cast<uint32_t>(i * beta_h) * sw;
+            i_mul_bh_sw = ((i * beta_h) >> 16) * sw;
 
             for (uint16_t j = 0; j < dw; ++j) {
-                init_index = j * beta_w + i_mul_bh_sw;
+                init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
                 index      = (index % dw) * dh + (dh - 1 - index / dw);
 
                 c = src_p[init_index];
@@ -776,10 +776,10 @@ EL_ATTR_WEAK void gray_to_rgb565(const el_img_t* src, el_img_t* dst) {
 
     case EL_PIXEL_ROTATE_180:
         for (uint16_t i = 0; i < dh; ++i) {
-            i_mul_bh_sw = static_cast<uint32_t>(i * beta_h) * sw;
+            i_mul_bh_sw = ((i * beta_h) >> 16) * sw;
 
             for (uint16_t j = 0; j < dw; ++j) {
-                init_index = j * beta_w + i_mul_bh_sw;
+                init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
                 index      = (dw - 1 - index % dw) + (dh - 1 - index / dw) * dw;
 
                 c = src_p[init_index];
@@ -793,10 +793,10 @@ EL_ATTR_WEAK void gray_to_rgb565(const el_img_t* src, el_img_t* dst) {
 
     case EL_PIXEL_ROTATE_270:
         for (uint16_t i = 0; i < dh; ++i) {
-            i_mul_bh_sw = static_cast<uint32_t>(i * beta_h) * sw;
+            i_mul_bh_sw = ((i * beta_h) >> 16) * sw;
 
             for (uint16_t j = 0; j < dw; ++j) {
-                init_index = j * beta_w + i_mul_bh_sw;
+                init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
                 index      = (dw - 1 - index % dw) * dh + index / dw;
 
                 c = src_p[init_index];
@@ -810,11 +810,11 @@ EL_ATTR_WEAK void gray_to_rgb565(const el_img_t* src, el_img_t* dst) {
 
     default:
         for (uint16_t i = 0; i < dh; ++i) {
-            i_mul_bh_sw = static_cast<uint32_t>(i * beta_h) * sw;
+            i_mul_bh_sw = ((i * beta_h) >> 16) * sw;
             i_mul_dw    = i * dw;
 
             for (uint16_t j = 0; j < dw; ++j) {
-                init_index = j * beta_w + i_mul_bh_sw;
+                init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
                 index      = j + i_mul_dw;
 
                 c = src_p[init_index];
@@ -833,8 +833,8 @@ EL_ATTR_WEAK void gray_to_gray(const el_img_t* src, el_img_t* dst) {
     uint16_t dw = dst->width;
     uint16_t dh = dst->height;
 
-    float beta_w = (float)sw / (float)dw;
-    float beta_h = (float)sh / (float)dh;
+    uint32_t beta_w = (sw << 16) / dw;
+    uint32_t beta_h = (sh << 16) / dh;
 
     uint32_t i_mul_bh_sw = 0;
 
@@ -847,10 +847,10 @@ EL_ATTR_WEAK void gray_to_gray(const el_img_t* src, el_img_t* dst) {
     switch (dst->rotate) {
     case EL_PIXEL_ROTATE_90:
         for (uint16_t i = 0; i < dh; ++i) {
-            i_mul_bh_sw = static_cast<uint32_t>(i * beta_h) * sw;
+            i_mul_bh_sw = ((i * beta_h) >> 16) * sw;
 
             for (uint16_t j = 0; j < dw; ++j) {
-                init_index = j * beta_w + i_mul_bh_sw;
+                init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
                 index      = (index % dw) * dh + (dh - 1 - index / dw);
 
                 dst_p[index] = src_p[init_index];
@@ -860,10 +860,10 @@ EL_ATTR_WEAK void gray_to_gray(const el_img_t* src, el_img_t* dst) {
 
     case EL_PIXEL_ROTATE_180:
         for (uint16_t i = 0; i < dh; ++i) {
-            i_mul_bh_sw = static_cast<uint32_t>(i * beta_h) * sw;
+            i_mul_bh_sw = ((i * beta_h) >> 16) * sw;
 
             for (uint16_t j = 0; j < dw; ++j) {
-                init_index = j * beta_w + i_mul_bh_sw;
+                init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
                 index      = (dw - 1 - index % dw) + (dh - 1 - index / dw) * dw;
 
                 dst_p[index] = src_p[init_index];
@@ -873,10 +873,10 @@ EL_ATTR_WEAK void gray_to_gray(const el_img_t* src, el_img_t* dst) {
 
     case EL_PIXEL_ROTATE_270:
         for (uint16_t i = 0; i < dh; ++i) {
-            i_mul_bh_sw = static_cast<uint32_t>(i * beta_h) * sw;
+            i_mul_bh_sw = ((i * beta_h) >> 16) * sw;
 
             for (uint16_t j = 0; j < dw; ++j) {
-                init_index = j * beta_w + i_mul_bh_sw;
+                init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
                 index      = (dw - 1 - index % dw) * dh + index / dw;
 
                 dst_p[index] = src_p[init_index];

@@ -33,10 +33,8 @@
 #include "el_types.h"
 
 #ifdef CONFIG_EL_LIB_JPEGENC
-
     #include "JPEGENC.h"
 static JPEG jpg;  // static copy of JPEG encoder class
-
 #endif
 
 namespace edgelab {
@@ -64,6 +62,7 @@ typedef struct EL_ATTR_PACKED {
     uint8_t b16_24;
 } b24_t;
 
+// TODO: need to be optimized
 EL_ATTR_WEAK el_err_code_t yuv422p_to_rgb(const el_img_t* src, el_img_t* dst) {
     int32_t  y;
     int32_t  cr;
@@ -889,6 +888,7 @@ EL_ATTR_WEAK void gray_to_gray(const el_img_t* src, el_img_t* dst) {
     }
 }
 
+// Note: Current downscaling algorithm implementation is INTER_NEARST
 EL_ATTR_WEAK el_err_code_t rgb_to_rgb(const el_img_t* src, el_img_t* dst) {
     if (src->format == EL_PIXEL_FORMAT_RGB888) {
         if (dst->format == EL_PIXEL_FORMAT_RGB888)
@@ -967,6 +967,7 @@ exit:
 }
 #endif
 
+// TODO: need to be optimized
 EL_ATTR_WEAK el_err_code_t el_img_convert(const el_img_t* src, el_img_t* dst) {
     if (src == nullptr || dst == nullptr) {
         return EL_EINVAL;
@@ -991,6 +992,7 @@ EL_ATTR_WEAK el_err_code_t el_img_convert(const el_img_t* src, el_img_t* dst) {
     return EL_OK;
 }
 
+// TODO: need to be optimized
 EL_ATTR_WEAK void el_draw_point(el_img_t* img, int16_t x, int16_t y, uint32_t color) {
     int index = x + y * img->width;
     if (index >= img->width * img->height) {
@@ -1009,6 +1011,7 @@ EL_ATTR_WEAK void el_draw_point(el_img_t* img, int16_t x, int16_t y, uint32_t co
     }
 }
 
+// TODO: need to be optimized
 EL_ATTR_WEAK void el_fill_rect(el_img_t* img, int16_t x, int16_t y, int16_t w, int16_t h, uint32_t color) {
     int bytesPerPixel = 0;
     switch (img->format) {
@@ -1058,14 +1061,17 @@ EL_ATTR_WEAK void el_fill_rect(el_img_t* img, int16_t x, int16_t y, int16_t w, i
     }
 }
 
+// TODO: need to be optimized
 EL_ATTR_WEAK void el_draw_h_line(el_img_t* img, int16_t x0, int16_t x1, int16_t y, uint32_t color) {
     return el_fill_rect(img, x0, y, x1 - x0, 1, color);
 }
 
+// TODO: need to be optimized
 EL_ATTR_WEAK void el_draw_v_line(el_img_t* img, int16_t x, int16_t y0, int16_t y1, uint32_t color) {
     return el_fill_rect(img, x, y0, 1, y1 - y0, color);
 }
 
+// TODO: need to be optimized
 EL_ATTR_WEAK void el_draw_rect(
   el_img_t* img, int16_t x, int16_t y, int16_t w, int16_t h, uint32_t color, int16_t thickness) {
     for (int i = 0; i < thickness; i++) {

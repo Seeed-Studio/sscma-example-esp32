@@ -202,7 +202,7 @@ OpsResolver::OpsResolver() {
     #ifdef CONFIG_EL_TFLITE_OP_NOT_EQUAL
     AddNotEqual();
     #endif
-    #ifdef CONFIG_EL_TFLITE_OP_ONE_HOT
+    #ifdef CONFIG_EL_TFLITE_OP_PACK
     AddPack();
     #endif
     #ifdef CONFIG_EL_TFLITE_OP_PAD

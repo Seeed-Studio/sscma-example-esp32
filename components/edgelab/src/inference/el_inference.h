@@ -35,7 +35,7 @@
     #include <type_traits>
 
 namespace edgelab {
- 
+
 namespace inference {
 
 enum struct EngineName { TFLite };

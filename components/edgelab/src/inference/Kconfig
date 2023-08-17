@@ -350,11 +350,11 @@ menu "Inference Engine"
             help
                 NOT_EQUAL
 
-        config EL_TFLITE_OP_ONE_HOT
-            bool "ONE_HOT"
+        config EL_TFLITE_OP_PACK
+            bool "PACK"
             default n
             help
-                ONE_HOT
+                PACK
 
         config EL_TFLITE_OP_PAD
             bool "PAD"

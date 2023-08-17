@@ -26,31 +26,26 @@
 #include "el_repl.h"
 
 #include <algorithm>
+#include <cstring>
 #include <locale>
+#include <utility>
 
 namespace edgelab {
 
 ReplHistory::ReplHistory(int max_size) : _history_index(-1), _max_size(max_size) {}
 
-el_err_code_t ReplHistory::add(std::string& line) {
-    if (line.empty()) {
+el_err_code_t ReplHistory::add(const std::string& line) {
+    if (line.empty()) [[unlikely]]
         return EL_OK;
-    }
 
-    if (!_history.empty() && _history.back() == line) {
-        return EL_OK;
-    }
+    if (!_history.empty() && _history.back().compare(line) == 0) return EL_OK;
 
-    for (auto it = _history.begin(); it != _history.end(); ++it) {
-        if (*it == line) {
-            _history.erase(it);
-            break;
-        }
-    }
+    auto it = std::find_if(_history.begin(), _history.end(), [&](const auto& l) { return l.compare(line) == 0; });
 
-    while (_history.size() >= _max_size) {
-        _history.pop_front();
-    }
+    if (it != _history.end()) [[likely]]
+        _history.erase(it);
+
+    while (_history.size() >= _max_size) _history.pop_front();
 
     _history.push_back(line);
     _history_index = _history.size() - 1;
@@ -58,32 +53,26 @@ el_err_code_t ReplHistory::add(std::string& line) {
     return EL_OK;
 }
 
-el_err_code_t ReplHistory::add(const char* line) {
-    std::string str(line);
-    return add(str);
-}
+el_err_code_t ReplHistory::add(const char* line) { return add(std::string(line)); }
 
 el_err_code_t ReplHistory::get(std::string& line, int index) {
-    if (index < 0 || index >= _history.size()) {
+    if (index < 0 || index >= _history.size()) [[unlikely]]
         return EL_ELOG;
-    }
 
     line = _history[index];
+
     return EL_OK;
 }
 
 el_err_code_t ReplHistory::next(std::string& line) {
-    if (_history.empty()) {
+    if (_history.empty()) [[unlikely]]
         return EL_ELOG;
-    }
 
-    if (_history_index < 0) {
+    if (_history_index < 0) [[unlikely]]
         _history_index = _history.size() - 1;
-    }
 
-    if (_history_index < (_history.size() - 1)) {
+    if (_history_index < (_history.size() - 1)) [[likely]]
         ++_history_index;
-    }
 
     line = _history[_history_index];
 
@@ -91,13 +80,11 @@ el_err_code_t ReplHistory::next(std::string& line) {
 }
 
 el_err_code_t ReplHistory::prev(std::string& line) {
-    if (_history.empty()) {
+    if (_history.empty()) [[unlikely]]
         return EL_ELOG;
-    }
 
-    line = _history[_history_index];
-
-    if (_history_index > 0) {
+    if (_history_index >= 0) [[likely]] {
+        line = _history[_history_index];
         --_history_index;
     }
 
@@ -113,89 +100,89 @@ bool ReplHistory::reset() {
 
 el_err_code_t ReplHistory::clear() {
     _history.clear();
+    _history.shrink_to_fit();
     _history_index = -1;
 
     return EL_OK;
 }
 
-size_t ReplHistory::size() { return _history.size(); };
+size_t ReplHistory::size() const { return _history.size(); };
 
-void ReplHistory::print() {
-    for (auto& line : _history) el_printf("%s\n", line.c_str());
+void ReplHistory::print() const {
+    for (const auto& line : _history) el_printf("%s\n", line.c_str());
 }
 
 el_err_code_t ReplServer::register_cmd(const el_repl_cmd_t& cmd) {
-    if (cmd.cmd.empty()) return EL_ELOG;
+    if (cmd.cmd.empty()) [[unlikely]]
+        return EL_ELOG;
 
-    _cmd_list.push_back(cmd);
+    _cmd_list.push_back(std::move(cmd));
 
     return EL_OK;
 }
 
 el_err_code_t ReplServer::register_cmd(const char* cmd, const char* desc, const char* arg, el_repl_cmd_cb_t cmd_cb) {
-    if (!cmd) return EL_ELOG;
-
-    el_repl_cmd_t cmd_t;
+    el_repl_cmd_t cmd_t{};
     cmd_t.cmd  = cmd;
     cmd_t.desc = desc;
     if (arg) cmd_t.arg = arg;
     if (cmd_cb) cmd_t.cmd_cb = cmd_cb;
 
-    return register_cmd(cmd_t);
+    return register_cmd(std::move(cmd_t));
 }
 
-el_err_code_t ReplServer::register_cmds(const std::vector<el_repl_cmd_t>& cmd_list) {
-    for (const auto& cmd : cmd_list) {
-        register_cmd(cmd);
-    }
+size_t ReplServer::register_cmds(const std::vector<el_repl_cmd_t>& cmd_list) {
+    size_t registered_cmd_count = 0;
+    for (const auto& cmd : cmd_list)
+        if (register_cmd(cmd) == EL_OK) [[likely]]
+            ++registered_cmd_count;
 
-    return EL_OK;
+    return registered_cmd_count;
 }
 
-el_err_code_t ReplServer::register_cmds(const el_repl_cmd_t* cmd_list, size_t size) {
-    for (size_t i = 0; i < size; ++i) {
-        register_cmd(cmd_list[i]);
-    }
+size_t ReplServer::register_cmds(const el_repl_cmd_t* cmd_list, size_t size) {
+    size_t registered_cmd_count = 0;
+    for (size_t i = 0; i < size; ++i)
+        if (register_cmd(cmd_list[i]) == EL_OK) [[likely]]
+            ++registered_cmd_count;
 
-    return EL_OK;
+    return registered_cmd_count;
 }
 
 el_err_code_t ReplServer::unregister_cmd(const std::string& cmd) {
-    for (auto it = _cmd_list.begin(); it != _cmd_list.end(); ++it) {
-        if (it->cmd.compare(cmd) == 0) {
-            _cmd_list.erase(it);
-            return EL_OK;
-        }
+    auto it = std::find_if(_cmd_list.begin(), _cmd_list.end(), [&](const auto& c) { return c.cmd.compare(cmd) == 0; });
+    if (it != _cmd_list.end()) [[unlikely]] {
+        _cmd_list.erase(it);
         _cmd_list.shrink_to_fit();
-    }
+    } else
+        return EL_ELOG;
 
-    return EL_ELOG;
+    return EL_OK;
 }
 
 el_err_code_t ReplServer::unregister_cmd(const char* cmd) {
     std::string cmd_str(cmd);
+
     return unregister_cmd(cmd_str);
 }
 
 el_err_code_t ReplServer::print_help() {
     el_printf("Command list:\n");
     for (const auto& cmd : _cmd_list) {
-        if (cmd.arg.size()) {
+        if (cmd.arg.size())
             el_printf("  AT+%s=<%s>\n", cmd.cmd.c_str(), cmd.arg.c_str());
-        } else {
+        else
             el_printf("  AT+%s\n", cmd.cmd.c_str());
-        }
         el_printf("    %s\n", cmd.desc.c_str());
     }
+
     return EL_OK;
 }
 
-void ReplServer::loop(std::string& line) { loop(line.c_str(), line.size()); }
+void ReplServer::loop(const std::string& line) { loop(line.c_str(), line.size()); }
 
 void ReplServer::loop(const char* line, size_t len) {
-    for (int i = 0; i < len; ++i) {
-        loop(line[i]);
-    }
+    for (size_t i = 0; i < len; ++i) loop(line[i]);
 }
 
 void ReplServer::loop(char c) {
@@ -227,19 +214,20 @@ void ReplServer::loop(char c) {
                 _line_index = _line.size() - 1;
                 el_printf("\r\033[K> %s\033[%uG", _line.c_str(), _line_index + 4);
             } else if (_ctrl_line.compare("[3~") == 0) {
-                if (_line_index < (int)(_line.size() - 1)) {
+                if (_line_index < (_line.size() - 1)) {
                     if (!_line.empty() && _line_index >= 0) {
                         _line.erase(_line_index + 1, 1);
                         --_line_index;
                         el_printf("\r> %s\033[K\033[%uG", _line.c_str(), _line_index + 4);
                     }
                 }
-            } else {
+            } else
                 el_printf("\033%s", _ctrl_line.c_str());
-            }
+
             _ctrl_line.clear();
             _is_ctrl = false;
         }
+
         return;
     }
 
@@ -257,6 +245,7 @@ void ReplServer::loop(char c) {
         _history.reset();
         el_printf("\r> ");
         break;
+
     case '\b':
     case 0x7F:
         if (!_line.empty() && _line_index >= 0) {
@@ -265,6 +254,7 @@ void ReplServer::loop(char c) {
             el_printf("\r> %s\033[K\033[%uG", _line.c_str(), _line_index + 4);
         }
         break;
+
     case 0x1B:
         _is_ctrl = true;
         break;
@@ -273,11 +263,10 @@ void ReplServer::loop(char c) {
         if (std::isprint(c)) {
             ++_line_index;
             _line.insert(_line_index, 1, c);
-            if (_line_index == (int)(_line.size() - 1)) {
+            if (_line_index == (_line.size() - 1))
                 el_putchar(c);
-            } else {
+            else
                 el_printf("\r> %s\033[%uG", _line.c_str(), _line_index + 4);
-            }
         }
     }
 }
@@ -294,9 +283,8 @@ el_err_code_t ReplServer::m_exec_cmd(std::string& cmd) {
     if (pos != std::string::npos) {
         cmd_name = cmd.substr(0, pos);
         cmd_arg  = cmd.substr(pos + 1);
-    } else {
+    } else
         cmd_name = cmd;
-    }
 
     std::transform(cmd_name.begin(), cmd_name.end(), cmd_name.begin(), ::toupper);
 
@@ -318,7 +306,7 @@ el_err_code_t ReplServer::m_exec_cmd(std::string& cmd) {
     }
 
     do {
-        token = strtok(argc == 0 ? const_cast<char*>(cmd_arg.c_str()) : nullptr, ",");
+        token = std::strtok(argc == 0 ? const_cast<char*>(cmd_arg.c_str()) : nullptr, ",");
         if (token) {
             argv[argc++] = token;
         }
@@ -326,13 +314,10 @@ el_err_code_t ReplServer::m_exec_cmd(std::string& cmd) {
 
     for (const auto& repl_cmd : _cmd_list) {
         if (repl_cmd.cmd == cmd_name) {
-            if (repl_cmd.cmd_cb) {
-                ret = repl_cmd.cmd_cb(argc, argv);
-            }
+            if (repl_cmd.cmd_cb) ret = repl_cmd.cmd_cb(argc, argv);
 
-            if (ret != EL_OK) {
+            if (ret != EL_OK) [[unlikely]]
                 el_printf("Command %s failed.\n", cmd_name.c_str());
-            }
 
             return ret;
         }

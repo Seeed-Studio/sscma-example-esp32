@@ -53,7 +53,7 @@ class ReplHistory {
     ReplHistory(int max_size = 10);
     ~ReplHistory() = default;
 
-    el_err_code_t add(std::string& line);
+    el_err_code_t add(const std::string& line);
     el_err_code_t add(const char* line);
 
     el_err_code_t get(std::string& line, int index);
@@ -61,8 +61,8 @@ class ReplHistory {
     el_err_code_t prev(std::string& line);
     bool          reset();
     el_err_code_t clear();
-    size_t        size();
-    void          print();
+    size_t        size() const;
+    void          print() const;
 
    private:
     std::deque<std::string> _history;
@@ -84,7 +84,7 @@ class ReplServer {
 
     void init();
     void deinit();
-    void loop(std::string& line);
+    void loop(const std::string& line);
     void loop(const char* line, size_t len);
     void loop(char c);
 
@@ -94,8 +94,8 @@ class ReplServer {
     el_err_code_t unregister_cmd(const std::string& cmd);
     el_err_code_t unregister_cmd(const char* cmd);
 
-    el_err_code_t register_cmds(const std::vector<el_repl_cmd_t>& cmd_list);
-    el_err_code_t register_cmds(const el_repl_cmd_t* cmd_list, size_t size);
+    size_t register_cmds(const std::vector<el_repl_cmd_t>& cmd_list);
+    size_t register_cmds(const el_repl_cmd_t* cmd_list, size_t size);
 
     el_err_code_t print_help();
 

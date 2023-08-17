@@ -118,8 +118,6 @@ el_err_code_t PFLD::postprocess() {
 
     // get output
     auto*   data{static_cast<int8_t*>(this->__p_engine->get_output(0))};
-    auto    width{_input_img.width};
-    auto    height{_input_img.height};
     float   scale{this->__output_quant.scale};
     bool    rescale{scale < 0.1f ? true : false};
     int32_t zero_point{this->__output_quant.zero_point};
@@ -129,8 +127,8 @@ el_err_code_t PFLD::postprocess() {
 
     for (decltype(pred_l) i{0}; i < pred_l; i += 2) {
         _results.emplace_front(
-          PointType{.x      = static_cast<decltype(PointType::x)>(((data[i] - zero_point) * scale * width) * _w_scale),
-                    .y      = static_cast<decltype(PointType::y)>(((data[i + 1] - zero_point) * scale * height) * _h_scale),
+          PointType{.x      = static_cast<decltype(PointType::x)>(((data[i] - zero_point) * scale) * _w_scale),
+                    .y      = static_cast<decltype(PointType::y)>(((data[i + 1] - zero_point) * scale) * _h_scale),
                     .target = static_cast<decltype(PointType::target)>(i / 2)});
     }
 

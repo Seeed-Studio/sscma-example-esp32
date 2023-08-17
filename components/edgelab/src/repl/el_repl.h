@@ -50,21 +50,18 @@ typedef struct {
 
 class ReplHistory {
    public:
-    ReplHistory(int max_size = 10) : _max_size(max_size) { _history_index = -1; };
-    ~ReplHistory(){};
+    ReplHistory(int max_size = 10);
+    ~ReplHistory() = default;
 
     el_err_code_t add(std::string& line);
-    el_err_code_t add(const char* line) {
-        std::string str(line);
-        return add(str);
-    }
+    el_err_code_t add(const char* line);
 
     el_err_code_t get(std::string& line, int index);
     el_err_code_t next(std::string& line);
     el_err_code_t prev(std::string& line);
     bool          reset();
     el_err_code_t clear();
-    int           size() { return _history.size(); };
+    size_t        size();
     void          print();
 
    private:
@@ -75,36 +72,38 @@ class ReplHistory {
 
 class ReplServer {
    public:
-    ~ReplServer() = default;
+    ~ReplServer();
 
     static ReplServer* get_instance() {
-        if (!_instance) {
-            _instance = new ReplServer();
-        }
-        return _instance;
+        static ReplServer* instance = new ReplServer();
+        return instance;
     }
 
     ReplServer(ReplServer const&)            = delete;
     ReplServer& operator=(ReplServer const&) = delete;
 
     void init();
+    void deinit();
     void loop(std::string& line);
     void loop(const char* line, size_t len);
     void loop(char c);
 
-    el_err_code_t register_cmd(el_repl_cmd_t& cmd);
+    el_err_code_t register_cmd(const el_repl_cmd_t& cmd);
     el_err_code_t register_cmd(const char* cmd, const char* desc, const char* arg, el_repl_cmd_cb_t cmd_cb);
 
-    el_err_code_t register_cmds(std::vector<el_repl_cmd_t>& cmd_list);
-    el_err_code_t register_cmds(el_repl_cmd_t* cmd_list, int size);
-    el_err_code_t unregister_cmd(std::string& cmd);
+    el_err_code_t unregister_cmd(const std::string& cmd);
+    el_err_code_t unregister_cmd(const char* cmd);
+
+    el_err_code_t register_cmds(const std::vector<el_repl_cmd_t>& cmd_list);
+    el_err_code_t register_cmds(const el_repl_cmd_t* cmd_list, size_t size);
+
     el_err_code_t print_help();
 
    protected:
-    ReplServer() : _is_ctrl(false), _line_index(-1){};
+    ReplServer();
 
    private:
-    el_err_code_t _exec_cmd(std::string& line);
+    el_err_code_t m_exec_cmd(std::string& line);
 
     ReplHistory                _history;
     std::vector<el_repl_cmd_t> _cmd_list;
@@ -113,8 +112,6 @@ class ReplServer {
     std::string _ctrl_line;
     std::string _line;
     int         _line_index;
-
-    static ReplServer* _instance;
 };
 
 }  // namespace edgelab

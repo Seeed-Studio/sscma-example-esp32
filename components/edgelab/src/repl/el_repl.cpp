@@ -26,10 +26,11 @@
 #include "el_repl.h"
 
 #include <algorithm>
+#include <locale>
 
 namespace edgelab {
 
-ReplServer* ReplServer::_instance = nullptr;
+ReplHistory::ReplHistory(int max_size) : _history_index(-1), _max_size(max_size) {}
 
 el_err_code_t ReplHistory::add(std::string& line) {
     if (line.empty()) {
@@ -57,6 +58,11 @@ el_err_code_t ReplHistory::add(std::string& line) {
     return EL_OK;
 }
 
+el_err_code_t ReplHistory::add(const char* line) {
+    std::string str(line);
+    return add(str);
+}
+
 el_err_code_t ReplHistory::get(std::string& line, int index) {
     if (index < 0 || index >= _history.size()) {
         return EL_ELOG;
@@ -75,7 +81,7 @@ el_err_code_t ReplHistory::next(std::string& line) {
         _history_index = _history.size() - 1;
     }
 
-    if (_history_index != _history.size() - 1) {
+    if (_history_index < (_history.size() - 1)) {
         ++_history_index;
     }
 
@@ -91,7 +97,7 @@ el_err_code_t ReplHistory::prev(std::string& line) {
 
     line = _history[_history_index];
 
-    if (_history_index != 0) {
+    if (_history_index > 0) {
         --_history_index;
     }
 
@@ -99,65 +105,76 @@ el_err_code_t ReplHistory::prev(std::string& line) {
 }
 
 bool ReplHistory::reset() {
-    bool is_tail   = _history_index == _history.size() - 1;
+    bool is_tail   = _history_index == (_history.size() - 1);
     _history_index = _history.size() - 1;
+
     return is_tail;
 }
 
 el_err_code_t ReplHistory::clear() {
     _history.clear();
     _history_index = -1;
+
     return EL_OK;
 }
+
+size_t ReplHistory::size() { return _history.size(); };
 
 void ReplHistory::print() {
     for (auto& line : _history) el_printf("%s\n", line.c_str());
 }
 
-el_err_code_t ReplServer::register_cmd(el_repl_cmd_t& cmd) {
+el_err_code_t ReplServer::register_cmd(const el_repl_cmd_t& cmd) {
     if (cmd.cmd.empty()) return EL_ELOG;
 
-    std::transform(cmd.cmd.begin(), cmd.cmd.end(), cmd.cmd.begin(), ::toupper);
-
     _cmd_list.push_back(cmd);
+
     return EL_OK;
 }
 
 el_err_code_t ReplServer::register_cmd(const char* cmd, const char* desc, const char* arg, el_repl_cmd_cb_t cmd_cb) {
+    if (!cmd) return EL_ELOG;
+
     el_repl_cmd_t cmd_t;
     cmd_t.cmd  = cmd;
     cmd_t.desc = desc;
     if (arg) cmd_t.arg = arg;
-    cmd_t.cmd_cb = cmd_cb;
+    if (cmd_cb) cmd_t.cmd_cb = cmd_cb;
 
     return register_cmd(cmd_t);
 }
 
-el_err_code_t ReplServer::register_cmds(std::vector<el_repl_cmd_t>& cmd_list) {
-    for (auto& cmd : cmd_list) {
+el_err_code_t ReplServer::register_cmds(const std::vector<el_repl_cmd_t>& cmd_list) {
+    for (const auto& cmd : cmd_list) {
         register_cmd(cmd);
     }
 
     return EL_OK;
 }
 
-el_err_code_t ReplServer::register_cmds(el_repl_cmd_t* cmd_list, int size) {
-    for (int i = 0; i < size; ++i) {
+el_err_code_t ReplServer::register_cmds(const el_repl_cmd_t* cmd_list, size_t size) {
+    for (size_t i = 0; i < size; ++i) {
         register_cmd(cmd_list[i]);
     }
 
     return EL_OK;
 }
 
-el_err_code_t ReplServer::unregister_cmd(std::string& cmd) {
+el_err_code_t ReplServer::unregister_cmd(const std::string& cmd) {
     for (auto it = _cmd_list.begin(); it != _cmd_list.end(); ++it) {
-        if (it->cmd == cmd) {
+        if (it->cmd.compare(cmd) == 0) {
             _cmd_list.erase(it);
             return EL_OK;
         }
+        _cmd_list.shrink_to_fit();
     }
 
     return EL_ELOG;
+}
+
+el_err_code_t ReplServer::unregister_cmd(const char* cmd) {
+    std::string cmd_str(cmd);
+    return unregister_cmd(cmd_str);
 }
 
 el_err_code_t ReplServer::print_help() {
@@ -184,7 +201,7 @@ void ReplServer::loop(const char* line, size_t len) {
 void ReplServer::loop(char c) {
     if (_is_ctrl) {
         _ctrl_line.push_back(c);
-        if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c == '~')) {
+        if (std::isalpha(c) || (c == '~')) {
             if (_ctrl_line.compare("[A") == 0) {
                 _history.prev(_line);
                 _line_index = _line.size() - 1;
@@ -200,7 +217,7 @@ void ReplServer::loop(char c) {
                 }
             } else if (_ctrl_line.compare("[D") == 0) {
                 if (_line_index >= 0) {
-                    _line_index--;
+                    --_line_index;
                     el_printf("\033%s", _ctrl_line.c_str());
                 }
             } else if (_ctrl_line.compare("[H") == 0) {
@@ -213,7 +230,7 @@ void ReplServer::loop(char c) {
                 if (_line_index < (int)(_line.size() - 1)) {
                     if (!_line.empty() && _line_index >= 0) {
                         _line.erase(_line_index + 1, 1);
-                        _line_index--;
+                        --_line_index;
                         el_printf("\r> %s\033[K\033[%uG", _line.c_str(), _line_index + 4);
                     }
                 }
@@ -231,7 +248,7 @@ void ReplServer::loop(char c) {
     case '\r':
         el_printf("\r\n");
         if (!_line.empty()) {
-            if (_exec_cmd(_line) == EL_OK) {
+            if (m_exec_cmd(_line) == EL_OK) {
                 _history.add(_line);
             }
             _line.clear();
@@ -241,19 +258,19 @@ void ReplServer::loop(char c) {
         el_printf("\r> ");
         break;
     case '\b':
-    case 0x7f:
+    case 0x7F:
         if (!_line.empty() && _line_index >= 0) {
             _line.erase(_line_index, 1);
-            _line_index--;
+            --_line_index;
             el_printf("\r> %s\033[K\033[%uG", _line.c_str(), _line_index + 4);
         }
         break;
-    case 0x1b:
+    case 0x1B:
         _is_ctrl = true;
         break;
 
     default:
-        if (c >= 0x20 && c <= 0x7e) {
+        if (std::isprint(c)) {
             ++_line_index;
             _line.insert(_line_index, 1, c);
             if (_line_index == (int)(_line.size() - 1)) {
@@ -262,11 +279,10 @@ void ReplServer::loop(char c) {
                 el_printf("\r> %s\033[%uG", _line.c_str(), _line_index + 4);
             }
         }
-        break;
     }
 }
 
-el_err_code_t ReplServer::_exec_cmd(std::string& cmd) {
+el_err_code_t ReplServer::m_exec_cmd(std::string& cmd) {
     el_err_code_t ret = EL_ELOG;
     std::string   cmd_name;
     std::string   cmd_arg;
@@ -308,7 +324,7 @@ el_err_code_t ReplServer::_exec_cmd(std::string& cmd) {
         }
     } while (token != nullptr);
 
-    for (auto& repl_cmd : _cmd_list) {
+    for (const auto& repl_cmd : _cmd_list) {
         if (repl_cmd.cmd == cmd_name) {
             if (repl_cmd.cmd_cb) {
                 ret = repl_cmd.cmd_cb(argc, argv);
@@ -327,12 +343,27 @@ el_err_code_t ReplServer::_exec_cmd(std::string& cmd) {
     return ret;
 }
 
+ReplServer::ReplServer() : _is_ctrl(false), _line_index(-1){};
+
+ReplServer::~ReplServer() { deinit(); }
+
 void ReplServer::init() {
     _line.clear();
 
     el_printf("Welcome to EegeLab REPL.\n");
     el_printf("Type 'AT+HELP' for command list.\n");
     el_printf("> ");
+}
+
+void ReplServer::deinit() {
+    _history.clear();
+    _cmd_list.clear();
+    _cmd_list.shrink_to_fit();
+
+    _is_ctrl = false;
+    _ctrl_line.clear();
+    _line.clear();
+    _line_index = -1;
 }
 
 }  // namespace edgelab

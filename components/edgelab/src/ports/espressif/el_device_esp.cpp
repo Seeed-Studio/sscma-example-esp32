@@ -58,7 +58,7 @@ DeviceEsp::DeviceEsp() {
     this->_camera      = static_cast<CameraEsp*>(new CameraEsp());
     this->_display     = static_cast<DisplayEsp*>(new DisplayEsp());
     this->_serial      = static_cast<SerialEsp*>(new SerialEsp());
-    this->_repl        = nullptr;
+    this->_repl        = new ReplServer();
     this->_device_id   = device_id_from_efuse();
     this->_device_name = "Seeed Studio XIAO (ESP32-S3)";
     this->_revision_id = efuse_hal_chip_revision();

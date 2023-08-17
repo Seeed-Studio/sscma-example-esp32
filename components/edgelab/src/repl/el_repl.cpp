@@ -23,10 +23,12 @@
  *
  */
 
-#include "el_repl.h"
+#include "el_repl.hpp"
 
 #include <algorithm>
 #include <cstring>
+#include <deque>
+#include <forward_list>
 #include <locale>
 #include <utility>
 
@@ -48,6 +50,7 @@ el_err_code_t ReplHistory::add(const std::string& line) {
     while (_history.size() >= _max_size) _history.pop_front();
 
     _history.push_back(line);
+    _history.shrink_to_fit();
     _history_index = _history.size() - 1;
 
     return EL_OK;
@@ -113,25 +116,21 @@ void ReplHistory::print() const {
 }
 
 el_err_code_t ReplServer::register_cmd(const el_repl_cmd_t& cmd) {
-    if (cmd.cmd.empty()) [[unlikely]]
-        return EL_ELOG;
+    if (cmd._cmd.empty()) [[unlikely]]
+        return EL_EINVAL;
 
-    _cmd_list.push_back(std::move(cmd));
+    _cmd_list.emplace_front(std::move(cmd));
 
     return EL_OK;
 }
 
 el_err_code_t ReplServer::register_cmd(const char* cmd, const char* desc, const char* arg, el_repl_cmd_cb_t cmd_cb) {
-    el_repl_cmd_t cmd_t{};
-    cmd_t.cmd  = cmd;
-    cmd_t.desc = desc;
-    if (arg) cmd_t.arg = arg;
-    if (cmd_cb) cmd_t.cmd_cb = cmd_cb;
+    el_repl_cmd_t cmd_t(cmd, desc, arg, cmd_cb);
 
     return register_cmd(std::move(cmd_t));
 }
 
-size_t ReplServer::register_cmds(const std::vector<el_repl_cmd_t>& cmd_list) {
+size_t ReplServer::register_cmds(const std::forward_list<el_repl_cmd_t>& cmd_list) {
     size_t registered_cmd_count = 0;
     for (const auto& cmd : cmd_list)
         if (register_cmd(cmd) == EL_OK) [[likely]]
@@ -150,12 +149,7 @@ size_t ReplServer::register_cmds(const el_repl_cmd_t* cmd_list, size_t size) {
 }
 
 el_err_code_t ReplServer::unregister_cmd(const std::string& cmd) {
-    auto it = std::find_if(_cmd_list.begin(), _cmd_list.end(), [&](const auto& c) { return c.cmd.compare(cmd) == 0; });
-    if (it != _cmd_list.end()) [[unlikely]] {
-        _cmd_list.erase(it);
-        _cmd_list.shrink_to_fit();
-    } else
-        return EL_ELOG;
+    _cmd_list.remove_if([&](const auto& c) { return c._cmd.compare(cmd) == 0; });
 
     return EL_OK;
 }
@@ -169,11 +163,11 @@ el_err_code_t ReplServer::unregister_cmd(const char* cmd) {
 el_err_code_t ReplServer::print_help() {
     el_printf("Command list:\n");
     for (const auto& cmd : _cmd_list) {
-        if (cmd.arg.size())
-            el_printf("  AT+%s=<%s>\n", cmd.cmd.c_str(), cmd.arg.c_str());
+        if (cmd._args.size())
+            el_printf("  AT+%s=<%s>\n", cmd._cmd.c_str(), cmd._args.c_str());
         else
-            el_printf("  AT+%s\n", cmd.cmd.c_str());
-        el_printf("    %s\n", cmd.desc.c_str());
+            el_printf("  AT+%s\n", cmd._cmd.c_str());
+        el_printf("    %s\n", cmd._desc.c_str());
     }
 
     return EL_OK;
@@ -274,15 +268,15 @@ void ReplServer::loop(char c) {
 el_err_code_t ReplServer::m_exec_cmd(std::string& cmd) {
     el_err_code_t ret = EL_ELOG;
     std::string   cmd_name;
-    std::string   cmd_arg;
+    std::string   cmd_args;
     char*         token    = nullptr;
     int           argc     = 0;
     char*         argv[64] = {};
-    size_t        pos      = cmd.find_first_of("?=");
+    size_t        pos      = cmd.find_first_of("=");
 
     if (pos != std::string::npos) {
         cmd_name = cmd.substr(0, pos);
-        cmd_arg  = cmd.substr(pos + 1);
+        cmd_args = cmd.substr(pos + 1);
     } else
         cmd_name = cmd;
 
@@ -306,21 +300,28 @@ el_err_code_t ReplServer::m_exec_cmd(std::string& cmd) {
     }
 
     do {
-        token = std::strtok(argc == 0 ? const_cast<char*>(cmd_arg.c_str()) : nullptr, ",");
-        if (token) {
-            argv[argc++] = token;
-        }
+        token = std::strtok(argc == 0 ? const_cast<char*>(cmd_args.c_str()) : nullptr, ",");
+        if (token) argv[argc++] = token;
     } while (token != nullptr);
 
-    for (const auto& repl_cmd : _cmd_list) {
-        if (repl_cmd.cmd == cmd_name) {
-            if (repl_cmd.cmd_cb) ret = repl_cmd.cmd_cb(argc, argv);
+    auto it =
+      std::find_if(_cmd_list.begin(), _cmd_list.end(), [&](const auto& c) { return c._cmd.compare(cmd_name) == 0; });
 
-            if (ret != EL_OK) [[unlikely]]
-                el_printf("Command %s failed.\n", cmd_name.c_str());
+    if (it != _cmd_list.end()) [[likely]] {
+        if (it->_cmd_cb) {
+            if (it->_argc != argc) [[unlikely]] {
+                el_printf("Command %s got wrong arguements.\n", cmd_name.c_str());
 
-            return ret;
+                return ret;
+            }
+
+            ret = it->_cmd_cb(argc, argv);
         }
+
+        if (ret != EL_OK) [[unlikely]]
+            el_printf("Command %s failed.\n", cmd_name.c_str());
+
+        return ret;
     }
 
     el_printf("Unknown command: %s\n", cmd_name.c_str());
@@ -343,7 +344,6 @@ void ReplServer::init() {
 void ReplServer::deinit() {
     _history.clear();
     _cmd_list.clear();
-    _cmd_list.shrink_to_fit();
 
     _is_ctrl = false;
     _ctrl_line.clear();

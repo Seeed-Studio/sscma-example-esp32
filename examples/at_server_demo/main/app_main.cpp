@@ -38,20 +38,20 @@ extern "C" void app_main(void) {
     auto* camera             = device->get_camera();
     auto* display            = device->get_display();
     auto* serial             = device->get_serial();
+    auto* instance           = device->get_repl();
     auto* data_delegate      = DataDelegate::get_delegate();
     auto* models             = data_delegate->get_models_handler();
     auto* storage            = data_delegate->get_storage_handler();
     auto* algorithm_delegate = AlgorithmDelegate::get_delegate();
-    auto* instance           = ReplServer::get_instance();
     auto* engine             = new InferenceEngine<EngineName::TFLite>();
 
     // init resource (TODO: lazy init thus we can use config parameter to init device)
     camera->init(240, 240);
     display->init();
     serial->init();
+    instance->init();
     models->init();
     storage->init();
-    instance->init();
 
     // temporary variables
     uint8_t current_algorithm_id  = 0;
@@ -89,7 +89,7 @@ extern "C" void app_main(void) {
                                       << std::resetiosflags(std::ios_base::basefield)
                                       << "\", \"timestamp\": " << el_get_time_ms() << "}\n";
                                    auto str = os.str();
-                                   serial->write_bytes(str.c_str(), str.size());
+                                   serial->send_bytes(str.c_str(), str.size());
                                });
                                return EL_OK;
                            }));
@@ -103,7 +103,7 @@ extern "C" void app_main(void) {
                                    os << "{\"id\": \"" << device->get_device_name()
                                       << "\", \"timestamp\": " << el_get_time_ms() << "}\n";
                                    auto str = os.str();
-                                   serial->write_bytes(str.c_str(), str.size());
+                                   serial->send_bytes(str.c_str(), str.size());
                                });
                                return EL_OK;
                            }));
@@ -120,7 +120,7 @@ extern "C" void app_main(void) {
                                       << ", \"current_sensor_id\": " << unsigned(current_sensor_id)
                                       << ", \"timestamp\": " << el_get_time_ms() << "}\n";
                                    auto str = os.str();
-                                   serial->write_bytes(str.c_str(), str.size());
+                                   serial->send_bytes(str.c_str(), str.size());
                                });
                                return EL_OK;
                            }));
@@ -135,7 +135,7 @@ extern "C" void app_main(void) {
                                       << unsigned(device->get_chip_revision_id())
                                       << "\", \"timestamp\": " << el_get_time_ms() << "}\n";
                                    auto str = os.str();
-                                   serial->write_bytes(str.c_str(), str.size());
+                                   serial->send_bytes(str.c_str(), str.size());
                                });
                                return EL_OK;
                            }));
@@ -163,7 +163,7 @@ extern "C" void app_main(void) {
                                    }
                                    os << "], \"timestamp\": " << el_get_time_ms() << "}\n";
                                    auto str = os.str();
-                                   serial->write_bytes(str.c_str(), str.size());
+                                   serial->send_bytes(str.c_str(), str.size());
                                });
                                return EL_OK;
                            }));
@@ -184,7 +184,7 @@ extern "C" void app_main(void) {
                                    os << "{\"algorithm_id\": " << unsigned(algorithm_id) << ", \"status\": " << int(ret)
                                       << ", \"timestamp\": " << el_get_time_ms() << "}\n";
                                    auto str = os.str();
-                                   serial->write_bytes(str.c_str(), str.size());
+                                   serial->send_bytes(str.c_str(), str.size());
                                });
                                return EL_OK;
                            }));
@@ -205,7 +205,7 @@ extern "C" void app_main(void) {
                      << std::hex << unsigned(i.addr_flash) << ", \"size\": 0x" << unsigned(i.size) << "}, ";
               os << std::resetiosflags(std::ios_base::basefield) << "], \"timestamp\": " << el_get_time_ms() << "}\n";
               auto str = os.str();
-              serial->write_bytes(str.c_str(), str.size());
+              serial->send_bytes(str.c_str(), str.size());
           });
           return EL_OK;
       }));
@@ -240,7 +240,7 @@ extern "C" void app_main(void) {
                                    os << "{\"model_id\": " << unsigned(model_id) << ", \"status\": " << int(ret)
                                       << ", \"timestamp\": " << el_get_time_ms() << "}\n";
                                    auto str = os.str();
-                                   serial->write_bytes(str.c_str(), str.size());
+                                   serial->send_bytes(str.c_str(), str.size());
                                });
                                return EL_OK;
                            }));
@@ -262,7 +262,7 @@ extern "C" void app_main(void) {
                                    }
                                    os << "], \"timestamp\": " << el_get_time_ms() << "}\n";
                                    auto str = os.str();
-                                   serial->write_bytes(str.c_str(), str.size());
+                                   serial->send_bytes(str.c_str(), str.size());
                                });
                                return EL_OK;
                            }));
@@ -293,7 +293,7 @@ extern "C" void app_main(void) {
                                    os << "{\"sensor_id\": " << unsigned(sensor_id) << ", \"status\": " << int(ret)
                                       << ", \"timestamp\": " << el_get_time_ms() << "}\n";
                                    auto str = os.str();
-                                   serial->write_bytes(str.c_str(), str.size());
+                                   serial->send_bytes(str.c_str(), str.size());
                                });
                                return EL_OK;
                            }));
@@ -342,7 +342,7 @@ extern "C" void app_main(void) {
                  << ", \"size\": 0, \"data\": \"\", \"timestamp\": " << el_get_time_ms() << "}\n";
           SampleReply:
               auto str = os.str();
-              serial->write_bytes(str.c_str(), str.size());
+              serial->send_bytes(str.c_str(), str.size());
           });
           return EL_OK;
       }));
@@ -418,7 +418,7 @@ extern "C" void app_main(void) {
                                                          current_sensor_id,
                                                          ret);
 
-                      serial->write_bytes(str.c_str(), str.size());
+                      serial->send_bytes(str.c_str(), str.size());
                   }
 
                   break;
@@ -455,7 +455,7 @@ extern "C" void app_main(void) {
                                                          current_sensor_id,
                                                          ret);
 
-                      serial->write_bytes(str.c_str(), str.size());
+                      serial->send_bytes(str.c_str(), str.size());
                   }
 
                   break;
@@ -494,7 +494,7 @@ extern "C" void app_main(void) {
                                                          current_sensor_id,
                                                          ret);
 
-                      serial->write_bytes(str.c_str(), str.size());
+                      serial->send_bytes(str.c_str(), str.size());
                   }
 
                   break;
@@ -518,7 +518,7 @@ extern "C" void app_main(void) {
                  << ", \"preprocess_time\": " << unsigned(preprocess_time) << ", \"run_time\": " << unsigned(run_time)
                  << ", \"postprocess_time\": " << unsigned(postprocess_time) << ", \"results\": [], \"data\": \"\"}\n";
               auto str = os.str();
-              serial->write_bytes(str.c_str(), str.size());
+              serial->send_bytes(str.c_str(), str.size());
           });
 
           return EL_OK;

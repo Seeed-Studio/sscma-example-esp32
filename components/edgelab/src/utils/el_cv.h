@@ -52,7 +52,7 @@ extern "C" void el_resize_image(
 extern "C" void el_draw_box(el_img_t* img, const el_box_t* box, bool show_text = false);
 
 extern "C" void el_draw_rect(
-  el_img_t* img, int16_t x, int16_t y, int16_t w, int16_t h, uint32_t color, int16_t thickness = 1);
+  el_img_t* img, int16_t x, int16_t y, int16_t w, int16_t h, uint32_t color, uint8_t thickness = 1);
 
 extern "C" void el_fill_rect(el_img_t* img, int16_t x, int16_t y, int16_t w, int16_t h, uint32_t color);
 

@@ -993,91 +993,114 @@ EL_ATTR_WEAK el_err_code_t el_img_convert(const el_img_t* src, el_img_t* dst) {
 
 // TODO: need to be optimized
 EL_ATTR_WEAK void el_draw_point(el_img_t* img, int16_t x, int16_t y, uint32_t color) {
-    int index = x + y * img->width;
-    if (index >= img->width * img->height) {
-        return;
-    }
+    size_t   index = 0;
+    uint8_t* data  = img->data;
 
-    if (img->format == EL_PIXEL_FORMAT_GRAYSCALE) {
-        img->data[index] = color;
-    } else if (img->format == EL_PIXEL_FORMAT_RGB565) {
-        img->data[index * 2 + 0] = color & 0xFF;
-        img->data[index * 2 + 1] = color >> 8 & 0xFF;
-    } else if (img->format == EL_PIXEL_FORMAT_RGB888) {
-        img->data[index * 3 + 0] = color & 0xFF;
-        img->data[index * 3 + 1] = color >> 8 & 0xFF;
-        img->data[index * 3 + 2] = color >> 16 & 0xFF;
-    }
-}
-
-// TODO: need to be optimized
-EL_ATTR_WEAK void el_fill_rect(el_img_t* img, int16_t x, int16_t y, int16_t w, int16_t h, uint32_t color) {
-    int bytesPerPixel = 0;
     switch (img->format) {
     case EL_PIXEL_FORMAT_GRAYSCALE:
-        bytesPerPixel = 1;
+        index = x + y * img->width;
+        if (index >= img->size) return;
+        data[index] = color;
         break;
+
     case EL_PIXEL_FORMAT_RGB565:
-        bytesPerPixel = 2;
+        index = (x + y * img->width) * 2;
+        if (index >= img->size) return;
+        data[index]     = color & 0xFF;
+        data[index + 1] = (color >> 8) & 0xFF;
         break;
+
     case EL_PIXEL_FORMAT_RGB888:
-        bytesPerPixel = 3;
+        index = (x + y * img->width) * 3;
+        if (index >= img->size) return;
+        data[index]     = color & 0xFF;
+        data[index + 1] = (color >> 8) & 0xFF;
+        data[index + 2] = (color >> 16) & 0xFF;
         break;
+
     default:
         return;
     }
+}
 
-    w                  = x + w > (img->width - 1) ? img->width - x - 1 : w;
-    h                  = y + h > (img->height - 1) ? img->height - y - 1 : h;
-    int32_t  line_step = (img->width - w) * bytesPerPixel;
-    uint8_t* data      = img->data + ((x + (y * img->width)) * bytesPerPixel);
-    uint8_t  c0        = color >> 16;
-    uint8_t  c1        = color >> 8;
-    uint8_t  c2        = color;
+EL_ATTR_WEAK void el_fill_rect(el_img_t* img, int16_t x, int16_t y, int16_t w, int16_t h, uint32_t color) {
+    el_pixel_format_t format = img->format;
+    uint16_t          iw     = img->width;
+    uint16_t          ih     = img->height;
+    x                        = x >= iw ? iw : x;
+    y                        = y >= ih ? ih : y;
+    w                        = x + w >= iw ? iw - x : w;
+    h                        = y + h >= ih ? ih - y : h;
+    int32_t  line_step       = 0;
+    uint8_t* data            = nullptr;
+    uint8_t  c0              = (color >> 16) & 0xFF;
+    uint8_t  c1              = (color >> 8) & 0xFF;
+    uint8_t  c2              = color;
 
-    for (int i = 0; i < h; i++) {
-        for (int j = 0; j < w; j++) {
-            switch (bytesPerPixel) {
-            case 1:
-                data[0] = c2;
-                data++;
-                break;
-            case 2:
+    switch (format) {
+    case EL_PIXEL_FORMAT_GRAYSCALE:
+        line_step = iw - w;
+        data      = img->data + x + (y * iw);
+
+        for (int i = 0; i < h; ++i, data += line_step) {
+            memset(data, c2, w);
+        }
+        break;
+
+    case EL_PIXEL_FORMAT_RGB565:
+        line_step = (iw - w) * 2;
+        data      = img->data + ((x + (y * iw)) * 2);
+        for (int i = 0; i < h; ++i, data += line_step) {
+            for (int j = 0; j < w; ++j, data += 2) {
                 data[0] = c1;
                 data[1] = c2;
-                data += 2;
-                break;
-            case 3:
+            }
+        }
+        break;
+
+    case EL_PIXEL_FORMAT_RGB888:
+        line_step = (iw - w) * 3;
+        data      = img->data + ((x + (y * iw)) * 3);
+        for (int i = 0; i < h; ++i, data += line_step) {
+            for (int j = 0; j < w; ++j, data += 3) {
                 data[0] = c0;
                 data[1] = c1;
                 data[2] = c2;
-                data += 3;
-            default:
-                break;
             }
         }
-        data += line_step;
+        break;
+
+    default:
+        return;
     }
 }
 
 // TODO: need to be optimized
 EL_ATTR_WEAK void el_draw_h_line(el_img_t* img, int16_t x0, int16_t x1, int16_t y, uint32_t color) {
-    return el_fill_rect(img, x0, y, x1 - x0, 1, color);
+    el_fill_rect(img, x0, y, x1 - x0, 1, color);
 }
 
 // TODO: need to be optimized
 EL_ATTR_WEAK void el_draw_v_line(el_img_t* img, int16_t x, int16_t y0, int16_t y1, uint32_t color) {
-    return el_fill_rect(img, x, y0, 1, y1 - y0, color);
+    el_fill_rect(img, x, y0, 1, y1 - y0, color);
 }
 
 // TODO: need to be optimized
 EL_ATTR_WEAK void el_draw_rect(
-  el_img_t* img, int16_t x, int16_t y, int16_t w, int16_t h, uint32_t color, int16_t thickness) {
-    for (int i = 0; i < thickness; i++) {
-        el_draw_h_line(img, x + i, x + w - i, y + i, color);
-        el_draw_h_line(img, x + i, x + w - i, y + h - i, color);
-        el_draw_v_line(img, x + i, y + i, y + h - i, color);
-        el_draw_v_line(img, x + w - i, y + i, y + h - i, color);
+  el_img_t* img, int16_t x, int16_t y, int16_t w, int16_t h, uint32_t color, uint8_t thickness) {
+    int16_t x_add_i = 0;
+    int16_t x_sub_i = 0;
+    int16_t y_add_i = 0;
+    int16_t y_sub_i = 0;
+    for (uint8_t i = 0; i < thickness; ++i) {
+        x_add_i = x + i;
+        x_sub_i = x - i;
+        y_add_i = y + i;
+        y_sub_i = y - i;
+        el_draw_h_line(img, x_add_i, (x_sub_i + w), y_add_i, color);
+        el_draw_h_line(img, x_add_i, (x_sub_i + w) + 1, (y_sub_i + h), color);
+        el_draw_v_line(img, x_add_i, y_add_i, (y_sub_i + h), color);
+        el_draw_v_line(img, (x_sub_i + w), y_add_i, (y_sub_i + h) + 1, color);
     }
 }
 

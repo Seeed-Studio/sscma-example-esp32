@@ -23,32 +23,29 @@
  *
  */
 
-#ifndef _EL_SERIAL_ESP_H_
-#define _EL_SERIAL_ESP_H_
+#ifndef _EL_TRANSPORT_H_
+#define _EL_TRANSPORT_H_
 
-#include <driver/usb_serial_jtag.h>
-
-#include "el_serial.h"
+#include "el_types.h"
 
 namespace edgelab {
 
-class SerialEsp : public Serial {
+// No status transport protocol (framed), TCP alternative should have a server class, a connection could derive from Transport
+class Transport {
    public:
-    SerialEsp(usb_serial_jtag_driver_config_t driver_config = USB_SERIAL_JTAG_DRIVER_CONFIG_DEFAULT());
-    ~SerialEsp() override;
+    Transport()          = default;
+    virtual ~Transport() = default;
 
-    el_err_code_t init() override;
-    el_err_code_t deinit() override;
+    virtual el_err_code_t init()   = 0;
+    virtual el_err_code_t deinit() = 0;
 
-    char   echo(bool only_visible = true) override;
-    char   get_char() override;
-    size_t get_line(char* buffer, size_t size, const char delim = 0x0d) override;
+    virtual el_err_code_t read_bytes(char* buffer, size_t size)       = 0;
+    virtual el_err_code_t send_bytes(const char* buffer, size_t size) = 0;
 
-    el_err_code_t read_bytes(char* buffer, size_t size) override;
-    el_err_code_t send_bytes(const char* buffer, size_t size) override;
+    operator bool() { return _is_present; }
 
-   private:
-    usb_serial_jtag_driver_config_t _driver_config;
+   protected:
+    bool _is_present;
 };
 
 }  // namespace edgelab

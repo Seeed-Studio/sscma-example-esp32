@@ -165,6 +165,11 @@ template <typename T> std::string el_results_2_json(const std::forward_list<T>& 
             os << "{\"x\": " << unsigned(point.x) << ", \"y\": " << unsigned(point.y)
                << ", \"target\": " << unsigned(point.target) << "}";
         }
+    } else if constexpr (std::is_same<T, el_class_t>::value) {
+        for (const auto& cls : results) {
+            delim_f();
+            os << "{\"score\": " << unsigned(cls.score) << ", \"target\": " << unsigned(cls.target) << "}";
+        }
     }
     os << "]";
     return os.str();

@@ -136,10 +136,15 @@ typedef struct EL_ATTR_PACKED {
     uint32_t height;
 } el_res_t;
 
+typedef enum { SENSOR_TYPE_CAM = 1u } el_sensor_type_t;
+
+typedef enum { SENSOR_STA_REG = 0u, SENSOR_STA_AVAIL = 1u, SENSOR_STA_LOCKED = 2u } el_sensor_state_t;
+
 typedef struct EL_ATTR_PACKED {
-    uint8_t id;
-    uint8_t type;
-    uint8_t parameters[6];
+    uint8_t           id;
+    el_sensor_type_t  type;
+    el_sensor_state_t state;
+    uint8_t           parameters[6];
 } el_sensor_t;
 
 typedef enum { UNDEFINED_MODEL_FORMAT = 0u, PACKED_TFLITE = 1u, PLAIN_TFLITE = 2u } el_model_format_t;

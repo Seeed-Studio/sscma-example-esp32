@@ -76,7 +76,7 @@ el_err_code_t CameraEsp::init(size_t width, size_t height) {
 }
 
 el_err_code_t CameraEsp::deinit() {
-    this->_is_present = false;
+    this->_is_present = !(esp_camera_deinit() == ESP_OK);
     return EL_OK;
 }
 

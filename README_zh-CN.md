@@ -1,112 +1,116 @@
-# EdgeLab在Espressif芯片上的部署
+# EdgeLab 在 Espressif 芯片上的部署
 
 <div align="center">
   <img width="100%" src="https://user-images.githubusercontent.com/20147381/206665275-feceede2-c68c-4259-a4db-541b3bd25b2f.png">
-  <h3> <a href="https://edgelab.readthedocs.io/en/latest/"> Documentation </a> | <a href="https://edgelab.readthedocs.io/zh_CN/latest/"> 中文文档 </a>  </h3>
 </div>
 
 [English](README.md) | 简体中文
 
-- [简介](#简介)
-- [环境安装](#环境安装)
-  * [安装 ESP IDF](#安装-esp-idf)
-- [编译和部署](#编译和部署)
-  * [编译例程](#编译例程)
-  * [部署例程](#部署例程)
-
 ## 简介
 
-本项目提供了将[EdgeLab](https://github.com/Seeed-Studio/Edgelab/)中的模型部署到Espreessif芯片. 本项目基于 [ESP-IDF](https://github.com/espressif/esp-idf) 和 [tensorflow lite micro](https://github.com/tensorflow/tflite-micro). 
+该项目提供了如何将 EdgeLab 中的模型部署到 Espressif 芯片组的示例。它基于 [ESP-IDF](https://github.com/espressif/esp-idf) 和 [TFLite-Micro](https://github.com/tensorflow/tflite-micro)。
 
-
-## 环境安装
+## 开始使用
 
 ### 安装 ESP IDF
 
-请跟以下指导安装 [ESP-IDF get started guide](https://docs.espressif.com/projects/esp-idf/en/latest/get-started/index.html)以及配置工具链和ESP-IDF.
+按照这个指南中的说明进行操作：[ESP-IDF - 入门指南](https://docs.espressif.com/projects/esp-idf/en/latest/get-started/index.html)，以设置 EdgeLab 示例使用的构建工具链。目前我们使用的是最新版本 `v5.1`。
 
+### 克隆并设置仓库
 
-接下来的步骤假设该安装成功，并且
-[IDF环境变量已设置](https://docs.espressif.com/projects/esp-idf/en/latest/get-started/index.html#step-4-set-up-the-environment-variables),
-* 设置了`IDF_PATH`环境变量
-* `idf.py`和Xtensa-esp32工具（例如，`xtensa-esp32-elf-gcc`）都在`$PATH`。
+1. 克隆我们的仓库。
 
-### 获取子模块
+    ```sh
+    git clone https://github.com/Seeed-Studio/edgelab-example-esp32
+    ```
 
-进入到项目的根目录，运行下面的命令来获得子模块。
+2. 进入 `edgelab-example-esp32` 文件夹。
 
-```
-git submodule init
-git submodule update examples/esp32/compoents/esp-nn
-git submodule update examples/esp32/compoents/esp32-camera
-```
+    ```sh
+    cd edgelab-example-esp32
+    ```
 
+3. 获取子模块。
 
-## 编译和部署
+    ```sh
+    git submodule update --init
+    ```
 
-### 编译例程
+### 构建和运行示例
 
-进入例子目录（`examples/<example_name>`）并编译例程。
+1. 进入示例文件夹并列出所有可用的示例。
 
-设置IDF_TARGET（对于ESP32-S3目标，需要IDF版本`release/v4.4`）。
+    ```sh
+    cd examples && \
+    ls
+    ```
 
-```
-idf.py set-target esp32s3
-```
+2. 选择一个 `<demo>` 并进入其文件夹。
 
-编译
+    ```sh
+    cd '<demo>'
+    ```
 
-```
-idf.py build
-```
+3. 使用 ESP-IDF 生成构建配置。
 
-### 部署例程
+    目前我们在 [XIAO-ESP32S3](https://www.seeedstudio.com/XIAO-ESP32S3-p-5627.html) 模块上进行开发和测试。
 
-闪存（用设备的串口替换`/dev/ttyUSB0`）。
-```
-idf.py --port /dev/ttyUSB0 flash
-```
+    ```sh
+    # 设置构建目标
+    idf.py set-target esp32s3
+    ```
 
-监控串行输出。
-```
-idf.py --port /dev/ttyUSB0 monitor
-```
+    您可以使用 Menuconfig 更改显示驱动程序，启用或禁用 TFLite 运算符，如果需要的话。
 
-使用`Ctrl+]`来退出。
+    ```sh
+    # 更改设备或演示特定的配置
+    idf.py menuconfig
+    ```
 
-前面的两个命令可以合并使用。
-```
-idf.py --port /dev/ttyUSB0 flash monitor
-```
+4. 构建示例固件。
 
-```{tips}
-请按照相关例程的指导文档了解更多细节。
-```
+    ```sh
+    idf.py build
+    ```
 
+5. 将示例固件烧录到设备并运行。
 
-### 性能简介
+    要烧录固件（目标串口可能因操作系统而异，请用您的设备串口替换 `/dev/ttyACM0`）。
 
-通过在不同的芯片组上测量，对EdgeLab相关模型的性能总结如下表所示。
+    ```
+    idf.py --port /dev/ttyACM0 flash
+    ```
 
-| Target | Model | Dataset | Input Resolution | Peak RAM |Inferencing  Time | F1 Score|Link|
-| ---- | -----| ---| ---| -----------| --------| --------| --------|
-| ESP32-S3 |          Meter         | [custom](https://files.seeedstudio.com/wiki/Edgelab/meter.zip)|112x112 (RGB)| 320KB |     380ms    |  97% |[pfld_meter_int8.tflite](https://github.com/Seeed-Studio/edgelab-example-esp32/blob/main/model_zoo/pfld_meter_int8.tflite)|
-| ESP32-S3  |          Fomo          | [custom]()|96x96 (GRAY)| 244KB |    150ms    |  99.5%|[fomo_mask_int8.tflite](https://github.com/Seeed-Studio/edgelab-example-esp32/blob/main/model_zoo/fomo_mask_int8.tflite)|
-### 模型演示
+    监视串口输出。
 
-#### PFLD 模拟表计
-![meter_reading](./docs/_static/esp32/images/meter_reading.gif)
+    ```
+    idf.py --port /dev/ttyACM0 monitor
+    ```
+
+#### 提示
+
+- 使用 `Ctrl+]` 退出监视。
+
+- 前面两个命令可以合并。
+
+    ```sh
+    idf.py --port /dev/ttyACM0 flash monitor
+    ```
+
+### 支持的模型和性能
+
+请参阅 [EdgeLab 模型仓库](https://github.com/Seeed-Studio/edgelab-model-zoo) 获取详细信息。
 
 ## 贡献
-- 如果你在这些例子中发现了问题，或者希望提交一个增强请求，请使用Github上的问题部分。
-- 对于ESP-IDF相关的问题请参考[esp-idf](https://github.com/espressif/esp-idf)。
-- 对于TensorFlow相关的信息请参考[tflite-micro](https://github.com/tensorflow/tflite-micro)
-- 对于EdgeLab相关的信息请参考[EdgeLab](https://github.com/Seeed-Studio/Edgelab/)
 
-## 许可
+- 如果您在使用这些示例时遇到任何问题，或希望提交增强请求，请使用 [问题](https://github.com/Seeed-Studio/edgelab-example-esp32/issues) 或提交 [拉取请求](https://github.com/Seeed-Studio/edgelab-example-esp32/pulls)。
 
-这些例子是在MIT许可下进行的。
+## 许可证
 
-这些例子使用ESP-IDF，它是在Apache许可证2.0下覆盖的。
+```
+这些示例受 MIT 许可证保护。
 
-TensorFlow库代码和第三方代码包含他们自己的许可证，在各自的[repos](https://github.com/tensorflow/tflite-micro)中指定。
+这些示例使用的 ESP-IDF 受 Apache 许可证 2.0 保护。
+
+TensorFlow、FlashDB、JPEGENC 和其他第三方库使用其自己的许可证分发。
+```

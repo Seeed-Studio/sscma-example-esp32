@@ -34,7 +34,7 @@
 #include <type_traits>
 
 #include "el_debug.h"
-#include "el_inference_base.h"
+#include "el_inference_base.hpp"
 #include "el_types.h"
 
 namespace edgelab::algorithm {

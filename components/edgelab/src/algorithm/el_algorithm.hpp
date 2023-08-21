@@ -23,20 +23,18 @@
  *
  */
 
-#ifndef _EL_ALGORITHM_H_
-#define _EL_ALGORITHM_H_
+#ifndef _EL_ALGORITHM_HPP_
+#define _EL_ALGORITHM_HPP_
 
-#ifdef __cplusplus
+#include <algorithm>
+#include <forward_list>
 
-    #include <algorithm>
-    #include <forward_list>
-
-    #include "el_algorithm_cls.hpp"
-    #include "el_algorithm_fomo.hpp"
-    #include "el_algorithm_pfld.hpp"
-    #include "el_algorithm_yolo.hpp"
-    #include "el_inference_base.h"
-    #include "el_types.h"
+#include "el_algorithm_cls.hpp"
+#include "el_algorithm_fomo.hpp"
+#include "el_algorithm_pfld.hpp"
+#include "el_algorithm_yolo.hpp"
+#include "el_inference_base.hpp"
+#include "el_types.h"
 
 namespace edgelab {
 
@@ -57,25 +55,27 @@ class AlgorithmDelegate {
         return &data_delegate;
     }
 
-    const types::el_algorithm_info_t& get_algorithm(uint8_t id) const {
-        auto it = std::find_if(
-          _registered_algorithms.begin(), _registered_algorithms.end(), [&](const auto& i) { return i.id == id; });
+    const types::el_algorithm_info_t& get_algorithm_info(uint8_t id) const {
+        auto it = std::find_if(_registered_algorithms.begin(),
+                               _registered_algorithms.end(),
+                               [&](const types::el_algorithm_info_t& i) { return i.id == id; });
         if (it != _registered_algorithms.end()) return *it;
-        static types::el_algorithm_info_t algorithm{};
-        return algorithm;
+        static types::el_algorithm_info_t algorithm_info{};
+        return algorithm_info;
     }
 
-    const std::forward_list<types::el_algorithm_info_t>& get_registered_algorithms() const {
+    const std::forward_list<types::el_algorithm_info_t>& get_all_algorithm_info() const {
         return _registered_algorithms;
     }
 
-    size_t get_registered_algorithms_count() const {
+    size_t get_all_algorithm_info_count() const {
         return std::distance(_registered_algorithms.begin(), _registered_algorithms.end());
     }
 
     bool has_algorithm(uint8_t id) const {
-        auto it = std::find_if(
-          _registered_algorithms.begin(), _registered_algorithms.end(), [&](const auto& i) { return i.id == id; });
+        auto it = std::find_if(_registered_algorithms.begin(),
+                               _registered_algorithms.end(),
+                               [&](const types::el_algorithm_info_t& i) { return i.id == id; });
         return it != _registered_algorithms.end();
     }
 
@@ -85,42 +85,41 @@ class AlgorithmDelegate {
     AlgorithmDelegate() {
         static uint8_t i = 0u;
 
-    #ifdef _EL_ALGORITHM_FOMO_HPP_
+#ifdef _EL_ALGORITHM_FOMO_HPP_
         _registered_algorithms.emplace_front(types::el_algorithm_info_t{
           .id         = ++i,
-          .type       = el_algorithm_type_t::ALGORITHM_FOMO,
+          .type       = EL_ALGO_TYPE_FOMO,
           .categroy   = 1u,
           .input_type = 1u,
         });
-    #endif
+#endif
 
-    #ifdef _EL_ALGORITHM_PFLD_HPP_
+#ifdef _EL_ALGORITHM_PFLD_HPP_
         _registered_algorithms.emplace_front(types::el_algorithm_info_t{
           .id         = ++i,
-          .type       = el_algorithm_type_t::ALGORITHM_PFLD,
+          .type       = EL_ALGO_TYPE_PFLD,
           .categroy   = 1u,
           .input_type = 1u,
         });
-    #endif
+#endif
 
-    #ifdef _EL_ALGORITHM_YOLO_HPP_
+#ifdef _EL_ALGORITHM_YOLO_HPP_
         _registered_algorithms.emplace_front(types::el_algorithm_info_t{
           .id         = ++i,
-          .type       = el_algorithm_type_t::ALGORITHM_YOLO,
+          .type       = EL_ALGO_TYPE_YOLO,
           .categroy   = 1u,
           .input_type = 1u,
         });
-    #endif
+#endif
 
-    #ifdef _EL_ALGORITHM_CLS_HPP_
+#ifdef _EL_ALGORITHM_CLS_HPP_
         _registered_algorithms.emplace_front(types::el_algorithm_info_t{
           .id         = ++i,
-          .type       = el_algorithm_type_t::ALGORITHM_CLS,
+          .type       = EL_ALGO_TYPE_CLS,
           .categroy   = 2u,
           .input_type = 1u,
         });
-    #endif
-
+#endif
     }
 
     std::forward_list<types::el_algorithm_info_t> _registered_algorithms;
@@ -131,7 +130,5 @@ class AlgorithmDelegate {
 // TODO: avoid expose this name space globally
 using namespace edgelab::algorithm::types;
 using namespace edgelab::algorithm::utility;
-
-#endif
 
 #endif

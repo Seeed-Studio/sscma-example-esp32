@@ -66,7 +66,7 @@ class YOLO : public edgelab::algorithm::base::Algorithm {
     el_err_code_t set_score_threshold(ScoreType threshold);
     ScoreType     get_score_threshold() const;
 
-    el_err_code_t    set_nms_threshold(ScoreType threshold);
+    el_err_code_t    set_nms_threshold(NMSThresholdType threshold);
     NMSThresholdType get_nms_threshold() const;
 
    protected:

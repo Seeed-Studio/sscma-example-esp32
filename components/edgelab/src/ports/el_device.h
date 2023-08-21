@@ -29,7 +29,6 @@
 #include "el_camera.h"
 #include "el_common.h"
 #include "el_display.h"
-#include "el_repl.h"
 #include "el_serial.h"
 
 namespace edgelab {
@@ -40,16 +39,14 @@ class Device {
     uint32_t    _device_id;
     uint32_t    _revision_id;
 
-    ReplServer* _repl;
-    Camera*     _camera;
-    Display*    _display;
-    Serial*     _serial;
+    Camera*  _camera;
+    Display* _display;
+    Serial*  _serial;
 
    public:
     Device(/* args */){};
     ~Device(){};
 
-    ReplServer* get_repl() { return _repl; }
     Camera*     get_camera() { return _camera; }
     Display*    get_display() { return _display; }
     Serial*     get_serial() { return _serial; }
@@ -64,4 +61,4 @@ class Device {
 
 }  // namespace edgelab
 
-#endif /* _EL_Device_H_ */
+#endif

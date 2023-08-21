@@ -166,31 +166,3 @@ IndentWrappedFunctionNames: true
 # /* second veryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryLongComment with plenty of
 #  * information */
 ReflowComments: false
-
-# struct test demo[] =
-# {
-#     {56,    23, "hello"},
-#     {-1, 93463, "world"},
-#     { 7,     5,    "!!"}
-# };
-ArrayInitializerAlignmentStyle: Right
-
-# #define SHORT_NAME       42
-# #define LONGER_NAME      0x007f
-# #define EVEN_LONGER_NAME (2)
-# #define foo(x)           (x * x)
-# #define bar(y, z)        (y + z)
-AlignConsecutiveMacros:
-  Enabled: true
-  AcrossEmptyLines: true
-  AcrossComments: false
-
-# #define A   \
-#   int aaaa; \
-#   int b;    \
-#   int dddddddddd;
-EscapedNewlineAlignmentStyle: Left
-
-# int aaa = bbbbbbbbbbbbbbb
-#         + ccccccccccccccc;
-OperandAlignmentStyle: AlignAfterOperator

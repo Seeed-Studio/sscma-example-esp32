@@ -23,10 +23,12 @@
  *
  */
 
-#ifndef _EL_INFERENCE_TFLITE_H_
-#define _EL_INFERENCE_TFLITE_H_
+#ifndef _EL_INFERENCE_TFLITE_HPP_
+#define _EL_INFERENCE_TFLITE_HPP_
 
-#include "el_inference_base.h"
+#include <cstdint>
+
+#include "el_inference_base.hpp"
 #include "tensorflow/lite/core/c/common.h"
 #include "tensorflow/lite/micro/compatibility.h"
 #include "tensorflow/lite/micro/micro_interpreter.h"
@@ -344,15 +346,6 @@ class OpsResolver : public MicroMutableOpResolver<OpsCount::OpsTail - OpsCount::
 namespace edgelab::inference {
 
 class TFLiteEngine : public edgelab::inference::base::Engine {
-   private:
-    static tflite::OpsResolver resolver;
-    tflite::MicroInterpreter*  interpreter;
-    const tflite::Model*       model;
-    el_memory_pool_t           memory_pool;
-#ifdef CONFIG_EL_FILESYSTEM
-    const char* model_file;
-#endif
-
    public:
     TFLiteEngine();
     ~TFLiteEngine();
@@ -366,6 +359,7 @@ class TFLiteEngine : public edgelab::inference::base::Engine {
 #ifdef CONFIG_EL_FILESYSTEM
     el_err_code_t load_model(const char* model_path) override;
 #endif
+
     el_err_code_t    load_model(const void* model_data, size_t model_size) override;
     el_err_code_t    set_input(size_t index, const void* input_data, size_t input_size) override;
     void*            get_input(size_t index) override;
@@ -374,6 +368,7 @@ class TFLiteEngine : public edgelab::inference::base::Engine {
     el_shape_t       get_output_shape(size_t index) override;
     el_quant_param_t get_input_quant_param(size_t index) override;
     el_quant_param_t get_output_quant_param(size_t index) override;
+
 #ifdef CONFIG_EL_INFERENCER_TENSOR_NAME
     size_t           get_input_index(const char* input_name) override;
     size_t           get_output_index(const char* output_name) override;
@@ -384,6 +379,16 @@ class TFLiteEngine : public edgelab::inference::base::Engine {
     el_shape_t       get_output_shape(const char* output_name) override;
     el_quant_param_t get_input_quant_param(const char* input_name) override;
     el_quant_param_t get_output_quant_param(const char* output_name) override;
+#endif
+
+   private:
+    static tflite::OpsResolver resolver;
+    tflite::MicroInterpreter*  interpreter;
+    const tflite::Model*       model;
+    el_memory_pool_t           memory_pool;
+
+#ifdef CONFIG_EL_FILESYSTEM
+    const char* model_file;
 #endif
 };
 

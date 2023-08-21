@@ -23,7 +23,7 @@
  *
  */
 
-#include "el_inference_tflite.h"
+#include "el_inference_tflite.hpp"
 
 #ifdef CONFIG_EL_TFLITE
 

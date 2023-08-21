@@ -23,10 +23,10 @@
  *
  */
 
-#ifndef _EL_INFERENCE_BASE_H_
-#define _EL_INFERENCE_BASE_H_
+#ifndef _EL_INFERENCE_BASE_HPP_
+#define _EL_INFERENCE_BASE_HPP_
 
-#include <stdio.h>
+#include <cstdint>
 
 #include "el_common.h"
 #include "el_compiler.h"
@@ -58,6 +58,7 @@ class Engine {
     virtual el_err_code_t load_model(const char* model_path) = 0;
     #endif
 #endif
+
     virtual el_err_code_t load_model(const void* model_data, size_t model_size) = 0;
 
     virtual el_err_code_t set_input(size_t index, const void* input_data, size_t input_size) = 0;
@@ -68,6 +69,7 @@ class Engine {
     virtual el_shape_t       get_output_shape(size_t index)       = 0;
     virtual el_quant_param_t get_input_quant_param(size_t index)  = 0;
     virtual el_quant_param_t get_output_quant_param(size_t index) = 0;
+
 #ifdef CONFIG_EL_INFERENCER_TENSOR_NAME
     #ifdef __cplusplus
     virtual size_t           get_input_index(const char* input_name)                                      = 0;

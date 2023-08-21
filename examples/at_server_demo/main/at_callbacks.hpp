@@ -64,9 +64,9 @@ void at_get_version() {
 void at_get_available_algorithms() {
     auto* serial                = Device::get_device()->get_serial();
     auto* algorithm_delegate    = AlgorithmDelegate::get_delegate();
-    auto  registered_algorithms = algorithm_delegate->get_registered_algorithms();
+    auto  registered_algorithms = algorithm_delegate->get_all_algorithm_info();
     auto  os                    = std::ostringstream(std::ios_base::ate);
-    os << "{\"count\": " << algorithm_delegate->get_registered_algorithms_count() << ", \"algorithms\": [";
+    os << "{\"count\": " << algorithm_delegate->get_all_algorithm_info_count() << ", \"algorithms\": [";
     DELIM_RESET;
     for (const auto& i : registered_algorithms) {
         DELIM_PRINT(os);
@@ -183,9 +183,9 @@ void at_set_sensor(uint8_t sensor_id, bool enable, uint8_t& current_sensor_id, a
     if (ret != EL_OK) [[unlikely]]
         goto SensorReply;
     // camera
-    if (it->type == el_sensor_type_t::SENSOR_TYPE_CAM) {
+    if (it->type == el_sensor_type_t::EL_SENSOR_TYPE_CAM) {
         auto* camera = device->get_camera();
-        it->state    = el_sensor_state_t::SENSOR_STA_LOCKED;
+        it->state    = el_sensor_state_t::EL_SENSOR_STA_LOCKED;
         if (static_cast<bool>(*camera)) ret = camera->deinit();
         if (ret != EL_OK) [[unlikely]]
             goto SensorError;
@@ -193,7 +193,7 @@ void at_set_sensor(uint8_t sensor_id, bool enable, uint8_t& current_sensor_id, a
             ret = camera->init(it->parameters[0], it->parameters[1]);
         if (ret != EL_OK) [[unlikely]]
             goto SensorError;
-        it->state = SENSOR_STA_AVAIL;
+        it->state = EL_SENSOR_STA_AVAIL;
         if (current_sensor_id != sensor_id) {
             current_sensor_id = sensor_id;
             *storage << el_make_storage_kv("current_sensor_id", current_sensor_id);
@@ -220,9 +220,9 @@ void at_run_sample(uint8_t sensor_id, const auto& registered_sensors) {
     el_err_code_t ret   = found ? EL_OK : EL_EINVAL;
     if (ret != EL_OK) [[unlikely]]
         goto SampleReplyError;
-    if (it->state != el_sensor_state_t::SENSOR_STA_AVAIL) [[unlikely]]
+    if (it->state != el_sensor_state_t::EL_SENSOR_STA_AVAIL) [[unlikely]]
         goto SampleReplyError;
-    if (it->type == el_sensor_type_t::SENSOR_TYPE_CAM) {
+    if (it->type == el_sensor_type_t::EL_SENSOR_TYPE_CAM) {
         auto* camera = device->get_camera();
         ret          = camera->start_stream();
         if (ret != EL_OK) [[unlikely]]
@@ -451,12 +451,12 @@ void at_run_invoke(auto*              engine,
     uint32_t            postprocess_time   = 0;
     el_algorithm_info_t algorithm_info{};
     auto sensor_config_it = std::find_if(registered_sensors.begin(), registered_sensors.end(), [&](const auto& sensor) {
-        return sensor.id == current_sensor_id && sensor.state == el_sensor_state_t::SENSOR_STA_AVAIL;
+        return sensor.id == current_sensor_id && sensor.state == el_sensor_state_t::EL_SENSOR_STA_AVAIL;
     });
     bool is_config_ok     = algorithm_delegate->has_algorithm(current_algorithm_id) &&
                         models->has_model(current_model_id) && (sensor_config_it != registered_sensors.end()) &&
                         [&]() -> bool {
-        algorithm_info = algorithm_delegate->get_algorithm(current_algorithm_id);
+        algorithm_info = algorithm_delegate->get_algorithm_info(current_algorithm_id);
         return algorithm_info.type == models->get_model_info(current_model_id).type &&
                algorithm_info.input_type == sensor_config_it->type;
     }();
@@ -465,22 +465,22 @@ void at_run_invoke(auto*              engine,
         goto InvokeErrorReply;
 
     switch (algorithm_info.type) {
-    case el_algorithm_type_t::ALGORITHM_CLS:
+    case EL_ALGO_TYPE_CLS:
         at_run_invoke_cls_algorithm(
           engine, n_times, stop_token, current_algorithm_id, current_model_id, current_sensor_id);
         break;
 
-    case el_algorithm_type_t::ALGORITHM_FOMO:
+    case EL_ALGO_TYPE_FOMO:
         at_run_invoke_fomo_algorithm(
           engine, n_times, stop_token, current_algorithm_id, current_model_id, current_sensor_id);
         break;
 
-    case el_algorithm_type_t::ALGORITHM_PFLD:
+    case EL_ALGO_TYPE_PFLD:
         at_run_invoke_pfld_algorithm(
           engine, n_times, stop_token, current_algorithm_id, current_model_id, current_sensor_id);
         break;
 
-    case el_algorithm_type_t::ALGORITHM_YOLO:
+    case EL_ALGO_TYPE_YOLO:
         at_run_invoke_yolo_algorithm(
           engine, n_times, stop_token, current_algorithm_id, current_model_id, current_sensor_id);
         break;

@@ -57,7 +57,7 @@ extern "C" void app_main()
     printf(
         "Seek all plain TFLite model info again from flash and print (default is packed TFLite "
         "mode) ->\n");
-    models->seek_models_from_flash(el_model_format_t::PLAIN_TFLITE);
+    models->seek_models_from_flash(el_model_format_t::EL_MODEL_FMT_PLAIN_TFLITE);
     all_model_info = models->get_all_model_info();
     for (const auto& i : all_model_info)
         printf(
@@ -71,7 +71,7 @@ extern "C" void app_main()
     printf(
         "Seek all packed TFLite model info again from flash and print (faster than plain TFLite "
         "mode) ->\n");
-    models->seek_models_from_flash(el_model_format_t::PACKED_TFLITE);
+    models->seek_models_from_flash(el_model_format_t::EL_MODEL_FMT_PACKED_TFLITE);
     all_model_info = models->get_all_model_info();
     for (const auto& i : all_model_info)
         printf(
@@ -83,8 +83,8 @@ extern "C" void app_main()
             i.addr_memory);
 
     printf("Seek all model info again from flash and print (all models have a unique memory address) ->\n");
-    models->seek_models_from_flash(el_model_format_t::PACKED_TFLITE |
-                                   el_model_format_t::PLAIN_TFLITE);
+    models->seek_models_from_flash(el_model_format_t::EL_MODEL_FMT_PACKED_TFLITE |
+                                   el_model_format_t::EL_MODEL_FMT_PLAIN_TFLITE);
     all_model_info = models->get_all_model_info();
     for (const auto& i : all_model_info)
         printf(

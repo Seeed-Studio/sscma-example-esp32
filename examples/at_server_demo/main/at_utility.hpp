@@ -4,7 +4,7 @@
 #include <sstream>
 #include <string>
 
-#include "el_algorithm.h"
+#include "el_algorithm.hpp"
 #include "el_base64.h"
 #include "el_cv.h"
 #include "el_types.h"

@@ -2,19 +2,19 @@
 #include "at_utility.hpp"
 #include "edgelab.h"
 #include "el_device_esp.h"
-#include "task_executor.hpp"
 
 extern "C" void app_main(void) {
     // get resource handler and init resources
     auto* device        = Device::get_device();
     auto* display       = device->get_display();
     auto* serial        = device->get_serial();
-    auto* instance      = device->get_repl();
+    auto* repl          = ReplDelegate::get_delegate();
+    auto* instance      = repl->get_server_handler();
+    auto* executor      = repl->get_executor_handler();
     auto* data_delegate = DataDelegate::get_delegate();
     auto* models        = data_delegate->get_models_handler();
     auto* storage       = data_delegate->get_storage_handler();
     auto* engine        = new InferenceEngine<EngineName::TFLite>();
-    auto* executor      = new TaskExecutor(CONFIG_PTHREAD_TASK_STACK_SIZE_DEFAULT, CONFIG_PTHREAD_TASK_PRIO_DEFAULT);
 
     // init resource
     display->init();
@@ -28,9 +28,9 @@ extern "C" void app_main(void) {
     uint8_t current_algorithm_id = 0;
     uint8_t current_model_id     = 0;
     uint8_t current_sensor_id    = 0;
-    auto    registered_sensors   = std::forward_list<el_sensor_t>({el_sensor_t{.id    = 1,
-                                                                               .type  = el_sensor_type_t::SENSOR_TYPE_CAM,
-                                                                               .state = el_sensor_state_t::SENSOR_STA_REG,
+    auto    registered_sensors   = std::forward_list<el_sensor_t>({el_sensor_t{.id   = 1,
+                                                                               .type = el_sensor_type_t::EL_SENSOR_TYPE_CAM,
+                                                                               .state = el_sensor_state_t::EL_SENSOR_STA_REG,
                                                                                .parameters = {240, 240, 0, 0, 0, 0}}});
     // init configs
     if (!storage->contains("edgelab")) {

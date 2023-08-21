@@ -23,21 +23,18 @@
  *
  */
 
-#ifndef _EL_DATA_H_
-#define _EL_DATA_H_
+#ifndef _EL_DATA_HPP_
+#define _EL_DATA_HPP_
 
-// TODO: add C wrapper that allows API call from C
-#ifdef __cplusplus
-
-    #include "el_data_models.hpp"
-    #include "el_data_storage.hpp"
+#include "el_data_models.hpp"
+#include "el_data_storage.hpp"
 
 namespace edgelab {
 
 using Models = data::Models;
-    #ifdef CONFIG_EL_LIB_FLASHDB
+#ifdef CONFIG_EL_LIB_FLASHDB
 using Storage = data::Storage;
-    #endif
+#endif
 
 class DataDelegate {
    public:
@@ -52,12 +49,13 @@ class DataDelegate {
         static Models* models_handler = new Models{};
         return models_handler;
     }
-    #ifdef CONFIG_EL_LIB_FLASHDB
+
+#ifdef CONFIG_EL_LIB_FLASHDB
     Storage* get_storage_handler() {
         static Storage* storage_handler = new Storage{};
         return storage_handler;
     }
-    #endif
+#endif
 
    private:
     DataDelegate() = default;
@@ -65,10 +63,8 @@ class DataDelegate {
 
 }  // namespace edgelab
 
-// TODO: avoid expose the namespace to global
-using namespace edgelab::data::utility;
+// TODO: avoid expose this name space globally
 using namespace edgelab::data::types;
-
-#endif
+using namespace edgelab::data::utility;
 
 #endif

@@ -46,11 +46,11 @@ class Models {
     Models(const Models&)            = delete;
     Models& operator=(const Models&) = delete;
 
-    el_err_code_t init(const char*            partition_name = CONFIG_EL_MODEL_PARTITION_NAME,
-                       const el_model_format& model_format   = el_model_format_t::PACKED_TFLITE);
+    el_err_code_t init(const char*              partition_name = CONFIG_EL_MODEL_PARTITION_NAME,
+                       const el_model_format_v& model_format   = EL_MODEL_FMT_PACKED_TFLITE);
     void          deinit();
 
-    size_t                                    seek_models_from_flash(const el_model_format& model_format);
+    size_t                                    seek_models_from_flash(const el_model_format_v& model_format);
     bool                                      has_model(el_model_id_t model_id) const;
     el_err_code_t                             get(el_model_id_t model_id, el_model_info_t& model_info) const;
     const el_model_info_t&                    get_model_info(el_model_id_t model_id) const;

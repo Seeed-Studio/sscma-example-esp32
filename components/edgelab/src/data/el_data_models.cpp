@@ -37,7 +37,7 @@ Models::Models()
 
 Models::~Models() { deinit(); }
 
-el_err_code_t Models::init(const char* partition_name, const el_model_format& model_format) {
+el_err_code_t Models::init(const char* partition_name, const el_model_format_v& model_format) {
     el_err_code_t ret = el_model_partition_mmap_init(
       partition_name, &__partition_start_addr, &__partition_size, &__flash_2_memory_map, &__mmap_handler);
     if (ret != EL_OK) return ret;
@@ -52,7 +52,7 @@ void Models::deinit() {
     __model_info.clear();
 }
 
-size_t Models::seek_models_from_flash(const el_model_format& model_format) {
+size_t Models::seek_models_from_flash(const el_model_format_v& model_format) {
     if (!__flash_2_memory_map) [[unlikely]]
         return 0u;
 
@@ -60,13 +60,13 @@ size_t Models::seek_models_from_flash(const el_model_format& model_format) {
     __model_info.clear();
 
     switch (model_format) {
-    case el_model_format_t::PACKED_TFLITE:
+    case EL_MODEL_FMT_PACKED_TFLITE:
         m_seek_packed_models_from_flash();
         return std::distance(__model_info.begin(), __model_info.end());
-    case el_model_format_t::PLAIN_TFLITE:
+    case EL_MODEL_FMT_PLAIN_TFLITE:
         m_seek_plain_models_from_flash();
         return std::distance(__model_info.begin(), __model_info.end());
-    case el_model_format_t::PACKED_TFLITE | el_model_format_t::PLAIN_TFLITE:
+    case EL_MODEL_FMT_PACKED_TFLITE | EL_MODEL_FMT_PLAIN_TFLITE:
         m_seek_packed_models_from_flash();
         m_seek_plain_models_from_flash();
         return std::distance(__model_info.begin(), __model_info.end());
@@ -111,7 +111,7 @@ void Models::m_seek_plain_models_from_flash() {
         if (el_ntohl(header->b4[1]) != CONFIG_EL_MODEL_TFLITE_MAGIC) [[likely]]
             continue;
 
-        if (std::find_if(__model_info.begin(), __model_info.end(), [&](const auto& v) {
+        if (std::find_if(__model_info.begin(), __model_info.end(), [&](const el_model_info_t& v) {
                 return v.addr_memory == mem_addr;
             }) != __model_info.end())
             break;
@@ -121,7 +121,7 @@ void Models::m_seek_plain_models_from_flash() {
                 return;
 
         __model_info.emplace_front(el_model_info_t{.id          = model_id,
-                                                   .type        = el_algorithm_type_t::UNDEFINED_ALGORITHM_TYPE,
+                                                   .type        = EL_ALGO_TYPE_UNDEFINED,
                                                    .addr_flash  = __partition_start_addr + it,
                                                    .size        = 0u,
                                                    .addr_memory = mem_addr});
@@ -132,7 +132,8 @@ void Models::m_seek_plain_models_from_flash() {
 bool Models::has_model(el_model_id_t model_id) const { return __model_id_mask & (1u << model_id); }
 
 el_err_code_t Models::get(el_model_id_t model_id, el_model_info_t& model_info) const {
-    auto it = std::find_if(__model_info.begin(), __model_info.end(), [&](const auto& v) { return v.id == model_id; });
+    auto it = std::find_if(
+      __model_info.begin(), __model_info.end(), [&](const el_model_info_t& v) { return v.id == model_id; });
     if (it != __model_info.end()) [[likely]] {
         model_info = *it;
         return EL_OK;
@@ -141,7 +142,8 @@ el_err_code_t Models::get(el_model_id_t model_id, el_model_info_t& model_info) c
 }
 
 const el_model_info_t& Models::get_model_info(el_model_id_t model_id) const {
-    auto it = std::find_if(__model_info.begin(), __model_info.end(), [&](const auto& v) { return v.id == model_id; });
+    auto it = std::find_if(
+      __model_info.begin(), __model_info.end(), [&](const el_model_info_t& v) { return v.id == model_id; });
     if (it != __model_info.end()) [[likely]] {
         return *it;
     }

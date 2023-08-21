@@ -32,10 +32,6 @@
 #include "el_misc.h"
 #include "el_types.h"
 
-#ifdef __cplusplus
-namespace edgelab {}
-#endif
-
 #define EL_VERSION "0.0.1"
 
 #define EL_CONCAT(a, b) a##b

@@ -29,10 +29,6 @@
 #define EL_LITTLE_ENDIAN (0x12u)
 #define EL_BIG_ENDIAN (0x21u)
 
-//--------------------------------------------------------------------+
-// Compiler porting with Attribute and Endian
-//--------------------------------------------------------------------+
-
 // TODO refactor since __attribute__ is supported across many compiler
 #if defined(__GNUC__)
     #define EL_ATTR_ALIGNED(Bytes) __attribute__((aligned(Bytes)))
@@ -102,6 +98,7 @@
 
 #elif defined(__ICCARM__)
     #include <intrinsics.h>
+
     #define EL_ATTR_ALIGNED(Bytes) __attribute__((aligned(Bytes)))
     #define EL_ATTR_SECTION(sec_name) __attribute__((section(#sec_name)))
     #define EL_ATTR_PACKED __attribute__((packed))
@@ -191,4 +188,4 @@
     #error Byte order is undefined
 #endif
 
-#endif /* _EL_COMPILER_H_ */
+#endif

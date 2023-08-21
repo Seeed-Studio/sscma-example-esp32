@@ -29,21 +29,6 @@
 #include "el_common.h"
 #include "el_misc.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-//--------------------------------------------------------------------+
-// Debug
-//--------------------------------------------------------------------+
-
-// CONFIG_EL_DEBUG for debugging
-// 0 : no debug
-// 1 : print error
-// 2 : print warning
-// 3 : print info
-// 4 : print verbose
-// #define CONFIG_EL_DEBUG 0
 #if CONFIG_EL_DEBUG
 
     #if CONFIG_EL_DEBUG_COLOR
@@ -138,8 +123,4 @@ extern "C" {
     #define EL_ASSERT(expr)
 #endif
 
-#ifdef __cplusplus
-}
 #endif
-
-#endif /* _EL_DEBUG_H_ */

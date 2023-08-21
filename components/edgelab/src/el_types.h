@@ -33,14 +33,7 @@
 
 #include "el_compiler.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-/*------------------------------------------------------------------*/
-/* CONSTANTS
- *------------------------------------------------------------------*/
-enum {
+typedef enum {
     EL_OK      = 0,  // success
     EL_AGAIN   = 1,  // try again
     EL_ELOG    = 2,  // general error
@@ -51,30 +44,24 @@ enum {
     EL_EBUSY   = 7,  // busy
     EL_ENOTSUP = 8,  // not supported
     EL_EPERM   = 9,  // operation not permitted
-};
+} el_err_code_t;
 
-typedef uint8_t el_err_code_t;
-
-/*------------------------------------------------------------------*/
-/* STRUCTURES
- *------------------------------------------------------------------*/
-
-typedef struct EL_ATTR_PACKED {
+typedef struct EL_ATTR_PACKED el_shape_t {
     size_t size;
     int*   dims;
 } el_shape_t;
 
-typedef struct EL_ATTR_PACKED {
+typedef struct EL_ATTR_PACKED el_quant_param_t {
     float   scale;
     int32_t zero_point;
 } el_quant_param_t;
 
-typedef struct EL_ATTR_PACKED {
+typedef struct EL_ATTR_PACKED el_memory_pool_t {
     void*  pool;
     size_t size;
 } el_memory_pool_t;
 
-typedef struct EL_ATTR_PACKED {
+typedef struct EL_ATTR_PACKED el_box_t {
     uint16_t x;
     uint16_t y;
     uint16_t w;
@@ -83,24 +70,24 @@ typedef struct EL_ATTR_PACKED {
     uint8_t  target;
 } el_box_t;
 
-typedef struct EL_ATTR_PACKED {
+typedef struct EL_ATTR_PACKED el_point_t {
     uint16_t x;
     uint16_t y;
     uint8_t  target;
 } el_point_t;
 
-typedef struct EL_ATTR_PACKED {
+typedef struct EL_ATTR_PACKED el_class_t {
     uint16_t score;
     uint16_t target;
 } el_class_t;
 
-typedef struct EL_ATTR_PACKED {
+typedef struct EL_ATTR_PACKED el_tensor_t {
     size_t index;
     void*  data;
     size_t size;
 } el_tensor_t;
 
-typedef struct EL_ATTR_PACKED {
+typedef struct EL_ATTR_PACKED el_input_t {
     el_tensor_t* tensor;
     size_t       length;
 } el_input_t;
@@ -114,7 +101,7 @@ typedef enum {
     EL_PIXEL_FORMAT_UNKNOWN,
 } el_pixel_format_t;
 
-typedef enum {
+typedef enum el_pixel_rotate_t {
     EL_PIXEL_ROTATE_0 = 0,
     EL_PIXEL_ROTATE_90,
     EL_PIXEL_ROTATE_180,
@@ -131,35 +118,39 @@ typedef struct EL_ATTR_PACKED {
     el_pixel_rotate_t rotate;
 } el_img_t;
 
-typedef struct EL_ATTR_PACKED {
+typedef struct EL_ATTR_PACKED el_res_t {
     uint32_t width;
     uint32_t height;
 } el_res_t;
 
-typedef enum { SENSOR_TYPE_CAM = 1u } el_sensor_type_t;
+typedef enum { EL_SENSOR_TYPE_CAM = 1u } el_sensor_type_t;
 
-typedef enum { SENSOR_STA_REG = 0u, SENSOR_STA_AVAIL = 1u, SENSOR_STA_LOCKED = 2u } el_sensor_state_t;
+typedef enum { EL_SENSOR_STA_REG = 0u, EL_SENSOR_STA_AVAIL = 1u, EL_SENSOR_STA_LOCKED = 2u } el_sensor_state_t;
 
-typedef struct EL_ATTR_PACKED {
+typedef struct EL_ATTR_PACKED el_sensor_t {
     uint8_t           id;
     el_sensor_type_t  type;
     el_sensor_state_t state;
     uint8_t           parameters[6];
 } el_sensor_t;
 
-typedef enum { UNDEFINED_MODEL_FORMAT = 0u, PACKED_TFLITE = 1u, PLAIN_TFLITE = 2u } el_model_format_t;
+typedef enum {
+    EL_MODEL_FMT_UNDEFINED     = 0u,
+    EL_MODEL_FMT_PACKED_TFLITE = 1u,
+    EL_MODEL_FMT_PLAIN_TFLITE  = 2u
+} el_model_format_t;
 
-typedef int el_model_format;
+typedef int el_model_format_v;
 
 /**
  * @brief Algorithm Types
  */
 typedef enum {
-    UNDEFINED_ALGORITHM_TYPE = 0u,
-    ALGORITHM_FOMO           = 1u,
-    ALGORITHM_PFLD           = 2u,
-    ALGORITHM_YOLO           = 3u,
-    ALGORITHM_CLS            = 4u
+    EL_ALGO_TYPE_UNDEFINED = 0u,
+    EL_ALGO_TYPE_FOMO      = 1u,
+    EL_ALGO_TYPE_PFLD      = 2u,
+    EL_ALGO_TYPE_YOLO      = 3u,
+    EL_ALGO_TYPE_CLS       = 4u
 } el_algorithm_type_t;
 
 /**
@@ -168,7 +159,7 @@ typedef enum {
  *      [ 24 bits magic code | 4 bits id | 4 bits type | 24 bits size (unsigned) | 8 bits unused padding ]
  *      big-endian in file
  */
-typedef union EL_ATTR_PACKED {
+typedef union EL_ATTR_PACKED el_model_header_t {
     unsigned char b1[8];
     uint32_t      b4[2];
 } el_model_header_t;
@@ -185,7 +176,7 @@ typedef union EL_ATTR_PACKED {
  *          2 -> PFLD
  *          3 -> YOLO
  */
-typedef struct EL_ATTR_PACKED {
+typedef struct EL_ATTR_PACKED el_model_info_t {
     uint8_t             id;
     el_algorithm_type_t type;
     uint32_t            addr_flash;
@@ -194,9 +185,5 @@ typedef struct EL_ATTR_PACKED {
 } el_model_info_t;
 
 typedef uint8_t el_model_id_t;
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

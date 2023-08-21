@@ -22,8 +22,11 @@
  * THE SOFTWARE.
  *
  */
-
 #include "el_base64.h"
+
+#include <cstring>
+#include <iostream>
+#include <string>
 
 namespace edgelab {
 
@@ -31,14 +34,6 @@ static const char* base64_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
                                   "abcdefghijklmnopqrstuvwxyz"
                                   "0123456789+/";
 
-/**
- * @brief Base64 encode and write to a putc function
- *
- * @param in
- * @param in_len
- * @param putc_func
- * @return void
- */
 void el_base64_encode_output(const unsigned char* in, int in_len, int (*putc_func)(int)) {
     int           i = 0;
     int           j = 0;
@@ -80,14 +75,6 @@ void el_base64_encode_output(const unsigned char* in, int in_len, int (*putc_fun
     }
 }
 
-/**
- * @brief Base64 encode
- *
- * @param in
- * @param in_len
- * @param out
- * @return void
- */
 void el_base64_encode(const unsigned char* in, int in_len, char* out) {
     int           i = 0;
     int           j = 0;

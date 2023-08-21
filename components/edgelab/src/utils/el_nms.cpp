@@ -67,4 +67,5 @@ EL_ATTR_WEAK int el_nms(std::forward_list<el_box_t>& boxes,
     boxes.remove_if([](const el_box_t& box) { return box.score == 0; });
     return std::distance(boxes.begin(), boxes.end());
 }
+
 }  // namespace edgelab

@@ -23,24 +23,25 @@
  *
  */
 
-#ifndef _EDGELAB_H
-#define _EDGELAB_H
+#ifndef _EDGELAB_H_
+#define _EDGELAB_H_
 
-#include "el_algorithm.h"
 #include "el_base64.h"
-#include "el_camera.h"
 #include "el_common.h"
 #include "el_cv.h"
-#include "el_data.h"
 #include "el_device.h"
-#include "el_display.h"
-#include "el_inference.h"
 #include "el_misc.h"
 #include "el_nms.h"
-#include "el_repl.h"
 
 #ifdef __cplusplus
+
+    #include "el_algorithm.hpp"
+    #include "el_data.hpp"
+    #include "el_inference.hpp"
+    #include "el_repl.hpp"
+
 using namespace edgelab;
+
 #endif
 
-#endif /* EDGELAB_H */
+#endif

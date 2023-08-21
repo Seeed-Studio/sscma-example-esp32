@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef _EL_NMS_H
-#define _EL_NMS_H
+#ifndef _EL_NMS_H_
+#define _EL_NMS_H_
 
 #include <forward_list>
 
@@ -36,17 +36,6 @@ extern "C" {
 namespace edgelab {
 #endif
 
-/**
- * @brief Non-maximum suppression
- *
- * @param boxes
- * @param nms_iou_thresh
- * @param nms_score_thresh
- * @param nms_box_num
- * @param soft_nms
- * @param multi_label
- * @return int
- */
 int el_nms(std::forward_list<el_box_t>& boxes,
            uint8_t                      nms_iou_thresh,
            uint8_t                      nms_score_thresh,
@@ -54,8 +43,8 @@ int el_nms(std::forward_list<el_box_t>& boxes,
            bool                         multi_target = false);
 
 #ifdef __cplusplus
-}  // namespace edgelab
+}
 }
 #endif
 
-#endif /* EL_NMS_H */
+#endif

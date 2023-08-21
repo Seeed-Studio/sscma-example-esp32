@@ -23,11 +23,45 @@
  *
  */
 
-#ifndef _EL_REPL_H_
-#define _EL_REPL_H_
+#ifndef _EL_REPL_HISTORY_HPP_
+#define _EL_REPL_HISTORY_HPP_
 
-#ifdef __cplusplus
-    #include "el_repl.hpp"
-#endif
+#include <cstdint>
+#include <deque>
+#include <string>
+
+#include "el_compiler.h"
+#include "el_debug.h"
+#include "el_types.h"
+
+#define CONFIG_EL_REPL_HISTORY_MAX (8)
+
+namespace edgelab::repl {
+
+class ReplHistory {
+   public:
+    ReplHistory(int max_size = CONFIG_EL_REPL_HISTORY_MAX);
+    ~ReplHistory() = default;
+
+    el_err_code_t add(const std::string& line);
+    el_err_code_t add(const char* line);
+
+    el_err_code_t get(std::string& line, int index);
+    el_err_code_t next(std::string& line);
+    el_err_code_t prev(std::string& line);
+    bool          reset();
+
+    el_err_code_t clear();
+    size_t        size() const;
+
+    void print() const;
+
+   private:
+    std::deque<std::string> _history;
+    int                     _history_index;
+    int                     _max_size;
+};
+
+}  // namespace edgelab::repl
 
 #endif

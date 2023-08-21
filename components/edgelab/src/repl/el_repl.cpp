@@ -30,6 +30,7 @@
 #include <deque>
 #include <forward_list>
 #include <locale>
+#include <string>
 #include <utility>
 
 namespace edgelab {
@@ -265,15 +266,14 @@ void ReplServer::loop(char c) {
     }
 }
 
-el_err_code_t ReplServer::m_exec_cmd(std::string& cmd) {
-    el_err_code_t ret = EL_ELOG;
+el_err_code_t ReplServer::m_exec_cmd(const std::string& cmd) {
+    el_err_code_t ret = EL_EINVAL;
     std::string   cmd_name;
     std::string   cmd_args;
-    char*         token    = nullptr;
-    int           argc     = 0;
-    char*         argv[64] = {};
-    size_t        pos      = cmd.find_first_of("=");
+    int           argc                            = 0;
+    char*         argv[EL_CONFIG_AT_CMD_ARGC_MAX] = {};
 
+    size_t pos = cmd.find_first_of("=");
     if (pos != std::string::npos) {
         cmd_name = cmd.substr(0, pos);
         cmd_args = cmd.substr(pos + 1);
@@ -284,52 +284,48 @@ el_err_code_t ReplServer::m_exec_cmd(std::string& cmd) {
 
     if (cmd_name.rfind("AT+", 0) != 0) {
         el_printf("Unknown command: %s\n", cmd_name.c_str());
-        return EL_ELOG;
+        return EL_EINVAL;
     }
 
     cmd_name = cmd_name.substr(3);
 
-    if (cmd_name == "HELP") {
-        print_help();
-        return EL_OK;
-    }
+    auto it = std::find_if(_cmd_list.begin(), _cmd_list.end(), [&](const auto& c) {
+        size_t cmd_body_pos = cmd_name.rfind("|");
+        return c._cmd.compare(cmd_name.substr(cmd_body_pos != std::string::npos ? cmd_body_pos + 1 : 0)) == 0;
+    });
 
-    if (_cmd_list.empty()) {
+    if (it == _cmd_list.end()) [[unlikely]] {
         el_printf("Unknown command: %s\n", cmd_name.c_str());
-        return EL_ELOG;
-    }
-
-    do {
-        token = std::strtok(argc == 0 ? const_cast<char*>(cmd_args.c_str()) : nullptr, ",");
-        if (token) argv[argc++] = token;
-    } while (token != nullptr);
-
-    auto it =
-      std::find_if(_cmd_list.begin(), _cmd_list.end(), [&](const auto& c) { return c._cmd.compare(cmd_name) == 0; });
-
-    if (it != _cmd_list.end()) [[likely]] {
-        if (it->_cmd_cb) {
-            if (it->_argc != argc) [[unlikely]] {
-                el_printf("Command %s got wrong arguements.\n", cmd_name.c_str());
-
-                return ret;
-            }
-
-            ret = it->_cmd_cb(argc, argv);
-        }
-
-        if (ret != EL_OK) [[unlikely]]
-            el_printf("Command %s failed.\n", cmd_name.c_str());
-
         return ret;
     }
 
-    el_printf("Unknown command: %s\n", cmd_name.c_str());
+    argv[argc++] = const_cast<char*>(cmd_name.c_str());
+    char* token  = std::strtok(const_cast<char*>(cmd_args.c_str()), ",");
+    while (token && argc < EL_CONFIG_AT_CMD_ARGC_MAX) {
+        argv[argc++] = token;
+        token        = std::strtok(nullptr, ",");
+    }
 
+    if (it->_cmd_cb) {
+        if (it->_argc != argc - 1) [[unlikely]] {
+            el_printf("Command %s got wrong arguements.\n", cmd_name.c_str());
+            return ret;
+        }
+
+        ret = it->_cmd_cb(argc, argv);
+    }
+
+    if (ret != EL_OK) [[unlikely]]
+        el_printf("Command %s failed.\n", cmd_name.c_str());
     return ret;
 }
 
-ReplServer::ReplServer() : _is_ctrl(false), _line_index(-1){};
+ReplServer::ReplServer() : _is_ctrl(false), _line_index(-1) {
+    register_cmd("HELP", "List available commands", "", [this](int, char**) -> el_err_code_t {
+        this->print_help();
+        return EL_OK;
+    });
+};
 
 ReplServer::~ReplServer() { deinit(); }
 

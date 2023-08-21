@@ -32,15 +32,20 @@
 #include <functional>
 #include <iostream>
 #include <string>
+// #include <vector>
 
 #include "el_common.h"
 #include "el_compiler.h"
 #include "el_debug.h"
 #include "el_types.h"
 
+#define EL_CONFIG_AT_CMD_ARGC_MAX (8)
+
 namespace edgelab {
 
 typedef std::function<el_err_code_t(int, char**)> el_repl_cmd_cb_t;
+
+// typedef std::function<el_err_code_t(std::vector<std::string>)> el_repl_cmd_cb_t;
 
 struct el_repl_cmd_t {
     el_repl_cmd_t(std::string cmd, std::string desc, std::string args, el_repl_cmd_cb_t cmd_cb)
@@ -76,7 +81,7 @@ class ReplHistory {
     el_err_code_t clear();
     size_t        size() const;
 
-    void          print() const;
+    void print() const;
 
    private:
     std::deque<std::string> _history;
@@ -111,7 +116,7 @@ class ReplServer {
     el_err_code_t print_help();
 
    private:
-    el_err_code_t m_exec_cmd(std::string& line);
+    el_err_code_t m_exec_cmd(const std::string& line);
 
     ReplHistory                      _history;
     std::forward_list<el_repl_cmd_t> _cmd_list;

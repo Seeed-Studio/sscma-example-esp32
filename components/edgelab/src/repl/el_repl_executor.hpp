@@ -59,9 +59,8 @@ class ReplExecutor {
     inline void m_lock();
     inline void m_unlock();
 
-    void run();
-
-    static void c_run(void* this_pointer) { static_cast<ReplExecutor*>(this_pointer)->run(); }
+    void        run();
+    static void c_run(void* this_pointer);
 
    private:
     SemaphoreHandle_t _task_queue_lock;

@@ -98,4 +98,6 @@ void ReplExecutor::run() {
     }
 }
 
+void ReplExecutor::c_run(void* this_pointer) { static_cast<ReplExecutor*>(this_pointer)->run(); }
+
 }  // namespace edgelab::repl

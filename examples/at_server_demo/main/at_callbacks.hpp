@@ -337,8 +337,8 @@ void at_run_invoke(InferenceEngine*           engine,
         goto InvokeErrorReply;
 
     switch (algorithm_info.type) {
-    case EL_ALGO_TYPE_CLS:
-        run_invoke_algorithm<AlgorithmCLS>(
+    case EL_ALGO_TYPE_IMCLS:
+        run_invoke_algorithm<AlgorithmIMCLS>(
           engine, n_times, stop_token, current_algorithm_id, current_model_id, current_sensor_id);
         break;
 

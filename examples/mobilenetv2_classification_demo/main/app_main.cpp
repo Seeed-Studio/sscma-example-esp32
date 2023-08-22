@@ -20,7 +20,7 @@ extern "C" void app_main(void) {
     auto* tensor_arena = heap_caps_malloc(kTensorArenaSize, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     engine->init(tensor_arena, kTensorArenaSize);
     engine->load_model(g_mobilenetv2_model_data, g_mobilenetv2_model_data_len);
-    auto* algorithm = new AlgorithmCLS(engine, 20); // we already have softmax
+    auto* algorithm = new AlgorithmIMCLS(engine, 20); // we already have softmax
 
     while (true) {
         el_img_t img;

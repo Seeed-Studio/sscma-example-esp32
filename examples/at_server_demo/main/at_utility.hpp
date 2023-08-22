@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <forward_list>
 #include <sstream>
 #include <string>
 
@@ -30,6 +31,23 @@ inline uint32_t color_literal(uint8_t i) {
     return color[i % 5];
 }
 
+inline void draw_results_on_image(const std::forward_list<el_class_t>& results, el_img_t* img) {}
+
+inline void draw_results_on_image(const std::forward_list<el_point_t>& results, el_img_t* img) {
+    uint8_t i = 0;
+    for (const auto& point : results) edgelab::el_draw_point(img, point.x, point.y, color_literal(++i));
+}
+
+inline void draw_results_on_image(const std::forward_list<el_box_t>& results, el_img_t* img) {
+    uint8_t i = 0;
+    for (const auto& box : results) {
+        int16_t y = box.y - box.h / 2;
+        int16_t x = box.x - box.w / 2;
+        edgelab::el_draw_rect(img, x, y, box.w, box.h, color_literal(++i), 4);
+    }
+}
+
+// TODO: avoid repeatly allocate/release memory in for loop
 std::string el_img_2_base64_string(const el_img_t* img) {
     using namespace edgelab;
     if (!img) [[unlikely]]
@@ -53,7 +71,7 @@ std::string el_img_2_base64_string(const el_img_t* img) {
     if (ret != EL_OK) [[unlikely]]
         return {};
     delete[] rgb_img.data;
-    auto buffer = new char[((jpeg_img.size + 2) / 3) * 4 + 1]{};
+    auto* buffer = new char[((jpeg_img.size + 2) / 3) * 4 + 1]{};
     el_base64_encode(jpeg_img.data, jpeg_img.size, buffer);
     delete[] jpeg_img.data;
     std::string data(buffer);

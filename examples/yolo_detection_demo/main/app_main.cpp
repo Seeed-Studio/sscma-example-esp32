@@ -24,7 +24,7 @@ extern "C" void app_main(void) {
     display->init();
     camera->init(240, 240);
 
-    auto* engine       = new InferenceEngine<EngineName::TFLite>();
+    auto* engine       = new InferenceEngine();
     auto* tensor_arena = heap_caps_malloc(kTensorArenaSize, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     engine->init(tensor_arena, kTensorArenaSize);
     engine->load_model(g_yolo_model_data, g_yolo_model_data_len);

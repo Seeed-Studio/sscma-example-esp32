@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef _EL_ALGORITHM_CLS_HPP_
-#define _EL_ALGORITHM_CLS_HPP_
+#ifndef _EL_ALGORITHM_IMCLS_HPP_
+#define _EL_ALGORITHM_IMCLS_HPP_
 
 #include <cstdint>
 #include <type_traits>
@@ -40,23 +40,25 @@ namespace edgelab::algorithm {
 namespace types {
 
 // we're not using inheritance since it not standard layout
-struct el_algorithm_cls_config_t {
+struct el_algorithm_imcls_config_t {
     el_algorithm_info_t info;
 };
 
 }  // namespace types
 
-class CLS : public edgelab::algorithm::base::Algorithm {
+class IMCLS : public edgelab::algorithm::base::Algorithm {
     using ImageType = el_img_t;
     using ClassType = el_class_t;
     using ScoreType = uint8_t;
 
    public:
-    template <typename InferenceEngine> CLS(InferenceEngine* engine, ScoreType score_threshold = 50);
-    ~CLS();
+    IMCLS(EngineType* engine, ScoreType score_threshold = 50);
+    ~IMCLS();
 
-    template <typename InputType> el_err_code_t run(InputType* input);
-    const std::forward_list<ClassType>&         get_results() const;
+    static bool is_model_valid(const EngineType* engine);
+
+    el_err_code_t                       run(ImageType* input);
+    const std::forward_list<ClassType>& get_results() const;
 
     el_err_code_t set_score_threshold(ScoreType threshold);
     ScoreType     get_score_threshold() const;
@@ -72,9 +74,10 @@ class CLS : public edgelab::algorithm::base::Algorithm {
     std::forward_list<ClassType> _results;
 };
 
-template <typename InferenceEngine>
-CLS::CLS(InferenceEngine* engine, ScoreType score_threshold)
+IMCLS::IMCLS(EngineType* engine, ScoreType score_threshold)
     : edgelab::algorithm::base::Algorithm(engine), _score_threshold(score_threshold) {
+    EL_ASSERT(is_model_valid(engine));
+
     _input_img.data   = static_cast<decltype(ImageType::data)>(this->__p_engine->get_input(0));
     _input_img.width  = static_cast<decltype(ImageType::width)>(this->__input_shape.dims[1]),
     _input_img.height = static_cast<decltype(ImageType::height)>(this->__input_shape.dims[2]),
@@ -93,14 +96,34 @@ CLS::CLS(InferenceEngine* engine, ScoreType score_threshold)
     EL_ASSERT(_input_img.rotate != EL_PIXEL_ROTATE_UNKNOWN);
 }
 
-CLS::~CLS() { _results.clear(); }
+IMCLS::~IMCLS() { _results.clear(); }
 
-template <typename InputType> el_err_code_t CLS::run(InputType* input) {
+bool IMCLS::is_model_valid(const EngineType* engine) {
+    const auto& input_shape{engine->get_input_shape(0)};
+    if (input_shape.size != 4 ||      // B, W, H, C
+        input_shape.dims[0] != 1 ||   // B = 1
+        input_shape.dims[1] < 16 ||   // W >= 16
+        input_shape.dims[2] < 16 ||   // H >= 16
+        (input_shape.dims[3] != 3 &&  // C = RGB or Gray
+         input_shape.dims[3] != 1))
+        return false;
+
+    const auto& output_shape{engine->get_output_shape(0)};
+    if (output_shape.size != 2 ||     // B, C
+        output_shape.dims[0] != 1 ||  // B = 1
+        output_shape.dims[1] < 2      // C >= 2
+    )
+        return false;
+
+    return true;
+}
+
+el_err_code_t IMCLS::run(ImageType* input) {
     // TODO: image type conversion before underlying_run, because underlying_run doing a type erasure
     return underlying_run(input);
 };
 
-el_err_code_t CLS::preprocess() {
+el_err_code_t IMCLS::preprocess() {
     auto* i_img{static_cast<ImageType*>(this->__p_input)};
 
     // convert image
@@ -114,7 +137,7 @@ el_err_code_t CLS::preprocess() {
     return EL_OK;
 }
 
-el_err_code_t CLS::postprocess() {
+el_err_code_t IMCLS::postprocess() {
     _results.clear();
 
     // get output
@@ -136,14 +159,14 @@ el_err_code_t CLS::postprocess() {
     return EL_OK;
 }
 
-const std::forward_list<CLS::ClassType>& CLS::get_results() const { return _results; }
+const std::forward_list<IMCLS::ClassType>& IMCLS::get_results() const { return _results; }
 
-el_err_code_t CLS::set_score_threshold(ScoreType threshold) {
+el_err_code_t IMCLS::set_score_threshold(ScoreType threshold) {
     _score_threshold = threshold;
     return EL_OK;
 }
 
-CLS::ScoreType CLS::get_score_threshold() const { return _score_threshold; }
+IMCLS::ScoreType IMCLS::get_score_threshold() const { return _score_threshold; }
 
 }  // namespace edgelab::algorithm
 

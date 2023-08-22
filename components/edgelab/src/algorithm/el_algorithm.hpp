@@ -38,13 +38,46 @@
 
 namespace edgelab {
 
-using namespace edgelab::algorithm;
+namespace algorithm::utility {
 
-using Algorithm     = class base::Algorithm;
-using AlgorithmCLS  = class CLS;
-using AlgorithmFOMO = class FOMO;
-using AlgorithmPFLD = class PFLD;
-using AlgorithmYOLO = class YOLO;
+template <typename T> constexpr std::string el_results_2_json(const std::forward_list<T>& results) {
+    auto os{std::ostringstream(std::ios_base::ate)};
+    using F                = std::function<void(void)>;
+    static F delim_f       = []() {};
+    static F print_delim_f = [&os]() { os << ", "; };
+    static F print_void_f  = [&]() { delim_f = print_delim_f; };
+    delim_f                = print_void_f;
+    os << "[";
+    if constexpr (std::is_same<T, el_box_t>::value) {
+        for (const auto& box : results) {
+            delim_f();
+            os << "{\"x\": " << unsigned(box.x) << ", \"y\": " << unsigned(box.y) << ", \"w\": " << unsigned(box.w)
+               << ", \"h\": " << unsigned(box.h) << ", \"target\": " << unsigned(box.target)
+               << ", \"score\": " << unsigned(box.score) << "}";
+        }
+    } else if constexpr (std::is_same<T, el_point_t>::value) {
+        for (const auto& point : results) {
+            delim_f();
+            os << "{\"x\": " << unsigned(point.x) << ", \"y\": " << unsigned(point.y)
+               << ", \"target\": " << unsigned(point.target) << "}";
+        }
+    } else if constexpr (std::is_same<T, el_class_t>::value) {
+        for (const auto& cls : results) {
+            delim_f();
+            os << "{\"score\": " << unsigned(cls.score) << ", \"target\": " << unsigned(cls.target) << "}";
+        }
+    }
+    os << "]";
+    return os.str();
+}
+
+}  // namespace algorithm::utility
+
+using Algorithm     = class algorithm::base::Algorithm;
+using AlgorithmCLS  = class algorithm::CLS;
+using AlgorithmFOMO = class algorithm::FOMO;
+using AlgorithmPFLD = class algorithm::PFLD;
+using AlgorithmYOLO = class algorithm::YOLO;
 
 class AlgorithmDelegate {
    public:
@@ -55,16 +88,16 @@ class AlgorithmDelegate {
         return &data_delegate;
     }
 
-    const types::el_algorithm_info_t& get_algorithm_info(uint8_t id) const {
+    const algorithm::types::el_algorithm_info_t& get_algorithm_info(uint8_t id) const {
         auto it = std::find_if(_registered_algorithms.begin(),
                                _registered_algorithms.end(),
-                               [&](const types::el_algorithm_info_t& i) { return i.id == id; });
+                               [&](const algorithm::types::el_algorithm_info_t& i) { return i.id == id; });
         if (it != _registered_algorithms.end()) return *it;
-        static types::el_algorithm_info_t algorithm_info{};
+        static algorithm::types::el_algorithm_info_t algorithm_info{};
         return algorithm_info;
     }
 
-    const std::forward_list<types::el_algorithm_info_t>& get_all_algorithm_info() const {
+    const std::forward_list<algorithm::types::el_algorithm_info_t>& get_all_algorithm_info() const {
         return _registered_algorithms;
     }
 
@@ -75,7 +108,7 @@ class AlgorithmDelegate {
     bool has_algorithm(uint8_t id) const {
         auto it = std::find_if(_registered_algorithms.begin(),
                                _registered_algorithms.end(),
-                               [&](const types::el_algorithm_info_t& i) { return i.id == id; });
+                               [&](const algorithm::types::el_algorithm_info_t& i) { return i.id == id; });
         return it != _registered_algorithms.end();
     }
 
@@ -86,7 +119,7 @@ class AlgorithmDelegate {
         static uint8_t i = 0u;
 
 #ifdef _EL_ALGORITHM_FOMO_HPP_
-        _registered_algorithms.emplace_front(types::el_algorithm_info_t{
+        _registered_algorithms.emplace_front(algorithm::types::el_algorithm_info_t{
           .id         = ++i,
           .type       = EL_ALGO_TYPE_FOMO,
           .categroy   = 1u,
@@ -95,7 +128,7 @@ class AlgorithmDelegate {
 #endif
 
 #ifdef _EL_ALGORITHM_PFLD_HPP_
-        _registered_algorithms.emplace_front(types::el_algorithm_info_t{
+        _registered_algorithms.emplace_front(algorithm::types::el_algorithm_info_t{
           .id         = ++i,
           .type       = EL_ALGO_TYPE_PFLD,
           .categroy   = 1u,
@@ -104,7 +137,7 @@ class AlgorithmDelegate {
 #endif
 
 #ifdef _EL_ALGORITHM_YOLO_HPP_
-        _registered_algorithms.emplace_front(types::el_algorithm_info_t{
+        _registered_algorithms.emplace_front(algorithm::types::el_algorithm_info_t{
           .id         = ++i,
           .type       = EL_ALGO_TYPE_YOLO,
           .categroy   = 1u,
@@ -113,7 +146,7 @@ class AlgorithmDelegate {
 #endif
 
 #ifdef _EL_ALGORITHM_CLS_HPP_
-        _registered_algorithms.emplace_front(types::el_algorithm_info_t{
+        _registered_algorithms.emplace_front(algorithm::types::el_algorithm_info_t{
           .id         = ++i,
           .type       = EL_ALGO_TYPE_CLS,
           .categroy   = 2u,
@@ -122,7 +155,7 @@ class AlgorithmDelegate {
 #endif
     }
 
-    std::forward_list<types::el_algorithm_info_t> _registered_algorithms;
+    std::forward_list<algorithm::types::el_algorithm_info_t> _registered_algorithms;
 };
 
 }  // namespace edgelab

@@ -142,40 +142,7 @@ uint32_t Algorithm::get_postprocess_time() const { return __postprocess_time; }
 
 }  // namespace base
 
-namespace utility {
 
-template <typename T> std::string el_results_2_json(const std::forward_list<T>& results) {
-    auto os{std::ostringstream(std::ios_base::ate)};
-    using F                = std::function<void(void)>;
-    static F delim_f       = []() {};
-    static F print_delim_f = [&os]() { os << ", "; };
-    static F print_void_f  = [&]() { delim_f = print_delim_f; };
-    delim_f                = print_void_f;
-    os << "[";
-    if constexpr (std::is_same<T, el_box_t>::value) {
-        for (const auto& box : results) {
-            delim_f();
-            os << "{\"x\": " << unsigned(box.x) << ", \"y\": " << unsigned(box.y) << ", \"w\": " << unsigned(box.w)
-               << ", \"h\": " << unsigned(box.h) << ", \"target\": " << unsigned(box.target)
-               << ", \"score\": " << unsigned(box.score) << "}";
-        }
-    } else if constexpr (std::is_same<T, el_point_t>::value) {
-        for (const auto& point : results) {
-            delim_f();
-            os << "{\"x\": " << unsigned(point.x) << ", \"y\": " << unsigned(point.y)
-               << ", \"target\": " << unsigned(point.target) << "}";
-        }
-    } else if constexpr (std::is_same<T, el_class_t>::value) {
-        for (const auto& cls : results) {
-            delim_f();
-            os << "{\"score\": " << unsigned(cls.score) << ", \"target\": " << unsigned(cls.target) << "}";
-        }
-    }
-    os << "]";
-    return os.str();
-}
-
-}  // namespace utility
 
 }  // namespace edgelab::algorithm
 

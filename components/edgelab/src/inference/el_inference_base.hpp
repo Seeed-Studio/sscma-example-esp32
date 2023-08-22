@@ -64,23 +64,24 @@ class Engine {
     virtual el_err_code_t set_input(size_t index, const void* input_data, size_t input_size) = 0;
     virtual void*         get_input(size_t index)                                            = 0;
 
-    virtual void*            get_output(size_t index)             = 0;
-    virtual el_shape_t       get_input_shape(size_t index)        = 0;
-    virtual el_shape_t       get_output_shape(size_t index)       = 0;
-    virtual el_quant_param_t get_input_quant_param(size_t index)  = 0;
-    virtual el_quant_param_t get_output_quant_param(size_t index) = 0;
+    virtual void* get_output(size_t index) = 0;
+
+    virtual el_shape_t       get_input_shape(size_t index) const        = 0;
+    virtual el_shape_t       get_output_shape(size_t index) const       = 0;
+    virtual el_quant_param_t get_input_quant_param(size_t index) const  = 0;
+    virtual el_quant_param_t get_output_quant_param(size_t index) const = 0;
 
 #ifdef CONFIG_EL_INFERENCER_TENSOR_NAME
     #ifdef __cplusplus
-    virtual size_t           get_input_index(const char* input_name)                                      = 0;
-    virtual size_t           get_output_index(const char* output_name)                                    = 0;
+    virtual size_t           get_input_index(const char* input_name) const                                = 0;
+    virtual size_t           get_output_index(const char* output_name) const                              = 0;
     virtual void*            get_input(const char* input_name)                                            = 0;
     virtual el_err_code_t    set_input(const char* input_name, const void* input_data, size_t input_size) = 0;
     virtual void*            get_output(const char* output_name)                                          = 0;
-    virtual el_shape_t       get_input_shape(const char* input_name)                                      = 0;
-    virtual el_shape_t       get_output_shape(const char* output_name)                                    = 0;
-    virtual el_quant_param_t get_input_quant_param(const char* input_name)                                = 0;
-    virtual el_quant_param_t get_output_quant_param(const char* output_name)                              = 0;
+    virtual el_shape_t       get_input_shape(const char* input_name) const                                = 0;
+    virtual el_shape_t       get_output_shape(const char* output_name) const                              = 0;
+    virtual el_quant_param_t get_input_quant_param(const char* input_name) const                          = 0;
+    virtual el_quant_param_t get_output_quant_param(const char* output_name) const                        = 0;
     #endif
 #endif
 };

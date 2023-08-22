@@ -447,7 +447,7 @@ void* TFLiteEngine::get_output(size_t index) {
     return output->data.data;
 }
 
-el_shape_t TFLiteEngine::get_input_shape(size_t index) {
+el_shape_t TFLiteEngine::get_input_shape(size_t index) const {
     el_shape_t shape;
 
     EL_ASSERT(interpreter != nullptr);
@@ -465,7 +465,7 @@ el_shape_t TFLiteEngine::get_input_shape(size_t index) {
     return shape;
 }
 
-el_shape_t TFLiteEngine::get_output_shape(size_t index) {
+el_shape_t TFLiteEngine::get_output_shape(size_t index) const {
     el_shape_t shape;
     shape.size = 0;
 
@@ -483,7 +483,7 @@ el_shape_t TFLiteEngine::get_output_shape(size_t index) {
     return shape;
 }
 
-el_quant_param_t TFLiteEngine::get_input_quant_param(size_t index) {
+el_quant_param_t TFLiteEngine::get_input_quant_param(size_t index) const {
     el_quant_param_t quant_param;
     quant_param.scale      = 0;
     quant_param.zero_point = 0;
@@ -502,7 +502,7 @@ el_quant_param_t TFLiteEngine::get_input_quant_param(size_t index) {
     return quant_param;
 }
 
-el_quant_param_t TFLiteEngine::get_output_quant_param(size_t index) {
+el_quant_param_t TFLiteEngine::get_output_quant_param(size_t index) const {
     el_quant_param_t quant_param;
     quant_param.scale      = 0;
     quant_param.zero_point = 0;

@@ -360,25 +360,28 @@ class TFLiteEngine : public edgelab::inference::base::Engine {
     el_err_code_t load_model(const char* model_path) override;
 #endif
 
-    el_err_code_t    load_model(const void* model_data, size_t model_size) override;
-    el_err_code_t    set_input(size_t index, const void* input_data, size_t input_size) override;
-    void*            get_input(size_t index) override;
-    void*            get_output(size_t index) override;
-    el_shape_t       get_input_shape(size_t index) override;
-    el_shape_t       get_output_shape(size_t index) override;
-    el_quant_param_t get_input_quant_param(size_t index) override;
-    el_quant_param_t get_output_quant_param(size_t index) override;
+    el_err_code_t load_model(const void* model_data, size_t model_size) override;
+
+    el_err_code_t set_input(size_t index, const void* input_data, size_t input_size) override;
+    void*         get_input(size_t index) override;
+
+    void* get_output(size_t index) override;
+
+    el_shape_t       get_input_shape(size_t index) const override;
+    el_shape_t       get_output_shape(size_t index) const override;
+    el_quant_param_t get_input_quant_param(size_t index) const override;
+    el_quant_param_t get_output_quant_param(size_t index) const override;
 
 #ifdef CONFIG_EL_INFERENCER_TENSOR_NAME
-    size_t           get_input_index(const char* input_name) override;
-    size_t           get_output_index(const char* output_name) override;
+    size_t           get_input_index(const char* input_name) const override;
+    size_t           get_output_index(const char* output_name) const override;
     el_err_code_t    set_input(const char* input_name, const void* input_data, size_t input_size) override;
     void*            get_input(const char* input_name) override;
     void*            get_output(const char* output_name) override;
-    el_shape_t       get_input_shape(const char* input_name) override;
-    el_shape_t       get_output_shape(const char* output_name) override;
-    el_quant_param_t get_input_quant_param(const char* input_name) override;
-    el_quant_param_t get_output_quant_param(const char* output_name) override;
+    el_shape_t       get_input_shape(const char* input_name) const override;
+    el_shape_t       get_output_shape(const char* output_name) const override;
+    el_quant_param_t get_input_quant_param(const char* input_name) const override;
+    el_quant_param_t get_output_quant_param(const char* output_name) const override;
 #endif
 
    private:

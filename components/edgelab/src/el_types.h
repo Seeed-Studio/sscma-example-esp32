@@ -109,7 +109,7 @@ typedef enum el_pixel_rotate_t {
     EL_PIXEL_ROTATE_UNKNOWN,
 } el_pixel_rotate_t;
 
-typedef struct EL_ATTR_PACKED {
+typedef struct EL_ATTR_PACKED el_img_t {
     uint8_t*          data;
     size_t            size;
     uint16_t          width;
@@ -150,7 +150,7 @@ typedef enum {
     EL_ALGO_TYPE_FOMO      = 1u,
     EL_ALGO_TYPE_PFLD      = 2u,
     EL_ALGO_TYPE_YOLO      = 3u,
-    EL_ALGO_TYPE_CLS       = 4u
+    EL_ALGO_TYPE_IMCLS     = 4u
 } el_algorithm_type_t;
 
 /**

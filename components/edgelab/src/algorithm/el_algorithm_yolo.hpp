@@ -56,12 +56,13 @@ class YOLO : public edgelab::algorithm::base::Algorithm {
     using NMSThresholdType = uint8_t;
 
    public:
-    template <typename InferenceEngine>
-    YOLO(InferenceEngine* engine, ScoreType score_threshold = 50, NMSThresholdType nms_threshold = 45);
+    YOLO(EngineType* engine, ScoreType score_threshold = 50, NMSThresholdType nms_threshold = 45);
     ~YOLO();
 
-    template <typename InputType> el_err_code_t run(InputType* input);
-    const std::forward_list<BoxType>&           get_results() const;
+    static bool is_model_valid(const EngineType* engine);
+
+    el_err_code_t                     run(ImageType* input);
+    const std::forward_list<BoxType>& get_results() const;
 
     el_err_code_t set_score_threshold(ScoreType threshold);
     ScoreType     get_score_threshold() const;
@@ -92,13 +93,14 @@ class YOLO : public edgelab::algorithm::base::Algorithm {
     std::forward_list<BoxType> _results;
 };
 
-template <typename InferenceEngine>
-YOLO::YOLO(InferenceEngine* engine, ScoreType score_threshold, NMSThresholdType nms_threshold)
+YOLO::YOLO(EngineType* engine, ScoreType score_threshold, NMSThresholdType nms_threshold)
     : edgelab::algorithm::base::Algorithm(engine),
       _w_scale(1.f),
       _h_scale(1.f),
       _score_threshold(score_threshold),
       _nms_threshold(nms_threshold) {
+    EL_ASSERT(is_model_valid(engine));
+
     _input_img.data   = static_cast<decltype(ImageType::data)>(this->__p_engine->get_input(0));
     _input_img.width  = static_cast<decltype(ImageType::width)>(this->__input_shape.dims[1]),
     _input_img.height = static_cast<decltype(ImageType::height)>(this->__input_shape.dims[2]),
@@ -122,7 +124,37 @@ YOLO::~YOLO() {
     this->__p_engine = nullptr;
 }
 
-template <typename InputType> el_err_code_t YOLO::run(InputType* input) {
+bool YOLO::is_model_valid(const EngineType* engine) {
+    const auto& input_shape{engine->get_input_shape(0)};
+    if (input_shape.size != 4 ||                      // B, W, H, C
+        input_shape.dims[0] != 1 ||                   // B = 1
+        input_shape.dims[1] ^ input_shape.dims[2] ||  // W = H
+        input_shape.dims[1] < 32 ||                   // W, H >= 32
+        input_shape.dims[1] % 32 ||                   // W or H is multiply of 32
+        (input_shape.dims[3] != 3 &&                  // C = RGB or Gray
+         input_shape.dims[3] != 1))
+        return false;
+
+    auto ibox_len{[&]() {
+        auto r{static_cast<uint16_t>(input_shape.dims[1])};
+        auto s{r >> 5};  // r / 32
+        auto m{r >> 4};  // r / 16
+        auto l{r >> 3};  // r / 8
+        return (s * s + m * m + l * l) * input_shape.dims[3];
+    }()};
+
+    const auto& output_shape{engine->get_output_shape(0)};
+    if (output_shape.size != 3 ||            // B, IB, BC...
+        output_shape.dims[0] != 1 ||         // B = 1
+        output_shape.dims[1] != ibox_len ||  // IB is based on input shape
+        output_shape.dims[2] < 6 ||          // 6 <= BC - 5[XYWHC] <= 80
+        output_shape.dims[2] > 85)
+        return false;
+
+    return true;
+}
+
+el_err_code_t YOLO::run(ImageType* input) {
     _w_scale = static_cast<float>(input->width) / static_cast<float>(_input_img.width);
     _h_scale = static_cast<float>(input->height) / static_cast<float>(_input_img.height);
 

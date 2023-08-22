@@ -29,16 +29,32 @@
 #include <algorithm>
 #include <forward_list>
 
-#include "el_algorithm_cls.hpp"
 #include "el_algorithm_fomo.hpp"
+#include "el_algorithm_imcls.hpp"
 #include "el_algorithm_pfld.hpp"
 #include "el_algorithm_yolo.hpp"
-#include "el_inference_base.hpp"
+#include "el_inference.hpp"
 #include "el_types.h"
 
 namespace edgelab {
 
 namespace algorithm::utility {
+
+el_algorithm_type_t el_algorithm_type_from_engine(const edgelab::InferenceEngine* engine) {
+#ifdef _EL_ALGORITHM_FOMO_HPP_
+    if (algorithm::FOMO::is_model_valid(engine)) return EL_ALGO_TYPE_FOMO;
+#endif
+#ifdef _EL_ALGORITHM_PFLD_HPP_
+    if (algorithm::PFLD::is_model_valid(engine)) return EL_ALGO_TYPE_PFLD;
+#endif
+#ifdef _EL_ALGORITHM_YOLO_HPP_
+    if (algorithm::YOLO::is_model_valid(engine)) return EL_ALGO_TYPE_YOLO;
+#endif
+#ifdef _EL_ALGORITHM_IMCLS_HPP_
+    if (algorithm::IMCLS::is_model_valid(engine)) return EL_ALGO_TYPE_IMCLS;
+#endif
+    return EL_ALGO_TYPE_UNDEFINED;
+}
 
 template <typename T> constexpr std::string el_results_2_json(const std::forward_list<T>& results) {
     auto os{std::ostringstream(std::ios_base::ate)};
@@ -73,11 +89,11 @@ template <typename T> constexpr std::string el_results_2_json(const std::forward
 
 }  // namespace algorithm::utility
 
-using Algorithm     = class algorithm::base::Algorithm;
-using AlgorithmCLS  = class algorithm::CLS;
-using AlgorithmFOMO = class algorithm::FOMO;
-using AlgorithmPFLD = class algorithm::PFLD;
-using AlgorithmYOLO = class algorithm::YOLO;
+using Algorithm      = class algorithm::base::Algorithm;
+using AlgorithmIMCLS = class algorithm::IMCLS;
+using AlgorithmFOMO  = class algorithm::FOMO;
+using AlgorithmPFLD  = class algorithm::PFLD;
+using AlgorithmYOLO  = class algorithm::YOLO;
 
 class AlgorithmDelegate {
    public:
@@ -145,10 +161,10 @@ class AlgorithmDelegate {
         });
 #endif
 
-#ifdef _EL_ALGORITHM_CLS_HPP_
+#ifdef _EL_ALGORITHM_IMCLS_HPP_
         _registered_algorithms.emplace_front(algorithm::types::el_algorithm_info_t{
           .id         = ++i,
-          .type       = EL_ALGO_TYPE_CLS,
+          .type       = EL_ALGO_TYPE_IMCLS,
           .categroy   = 2u,
           .input_type = 1u,
         });

@@ -51,11 +51,13 @@ class PFLD : public edgelab::algorithm::base::Algorithm {
     using PointType = el_point_t;
 
    public:
-    template <typename InferenceEngine> PFLD(InferenceEngine* engine);
+    PFLD(EngineType* engine);
     ~PFLD();
 
-    template <typename InputType> el_err_code_t run(InputType* input);
-    const std::forward_list<PointType>&         get_results() const;
+    static bool is_model_valid(const EngineType* engine);
+
+    el_err_code_t                       run(ImageType* input);
+    const std::forward_list<PointType>& get_results() const;
 
    protected:
     el_err_code_t preprocess() override;
@@ -69,8 +71,9 @@ class PFLD : public edgelab::algorithm::base::Algorithm {
     std::forward_list<PointType> _results;
 };
 
-template <typename InferenceEngine>
-PFLD::PFLD(InferenceEngine* engine) : edgelab::algorithm::base::Algorithm(engine), _w_scale(1.f), _h_scale(1.f) {
+PFLD::PFLD(EngineType* engine) : edgelab::algorithm::base::Algorithm(engine), _w_scale(1.f), _h_scale(1.f) {
+    EL_ASSERT(is_model_valid(engine));
+
     _input_img.data   = static_cast<decltype(ImageType::data)>(this->__p_engine->get_input(0));
     _input_img.width  = static_cast<decltype(ImageType::width)>(this->__input_shape.dims[1]),
     _input_img.height = static_cast<decltype(ImageType::height)>(this->__input_shape.dims[2]),
@@ -91,7 +94,27 @@ PFLD::PFLD(InferenceEngine* engine) : edgelab::algorithm::base::Algorithm(engine
 
 PFLD::~PFLD() { _results.clear(); }
 
-template <typename InputType> el_err_code_t PFLD::run(InputType* input) {
+bool PFLD::is_model_valid(const EngineType* engine) {
+    const auto& input_shape{engine->get_input_shape(0)};
+    if (input_shape.size != 4 ||      // B, W, H, C
+        input_shape.dims[0] != 1 ||   // B = 1
+        input_shape.dims[1] < 32 ||   // W >= 32
+        input_shape.dims[2] < 32 ||   // H >= 32
+        (input_shape.dims[3] != 3 &&  // C = RGB or Gray
+         input_shape.dims[3] != 1))
+        return false;
+
+    const auto& output_shape{engine->get_output_shape(0)};
+    if (output_shape.size != 2 ||     // B, PTS
+        output_shape.dims[0] != 1 ||  // B = 1
+        output_shape.dims[1] % 2      // PTS should be multiply of 2
+    )
+        return false;
+
+    return true;
+}
+
+el_err_code_t PFLD::run(ImageType* input) {
     _w_scale = static_cast<float>(input->width) / static_cast<float>(_input_img.width);
     _h_scale = static_cast<float>(input->height) / static_cast<float>(_input_img.height);
 

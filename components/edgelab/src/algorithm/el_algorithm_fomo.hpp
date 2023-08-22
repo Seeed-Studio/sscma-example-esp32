@@ -53,11 +53,13 @@ class FOMO : public edgelab::algorithm::base::Algorithm {
     using ScoreType = uint8_t;
 
    public:
-    template <typename InferenceEngine> FOMO(InferenceEngine* engine, ScoreType score_threshold = 50);
+    FOMO(EngineType* engine, ScoreType score_threshold = 50);
     ~FOMO();
 
-    template <typename InputType> el_err_code_t run(InputType* input);
-    const std::forward_list<BoxType>&           get_results() const;
+    static bool is_model_valid(const EngineType* engine);
+
+    el_err_code_t                     run(ImageType* input);
+    const std::forward_list<BoxType>& get_results() const;
 
     el_err_code_t set_score_threshold(ScoreType threshold);
     ScoreType     get_score_threshold() const;
@@ -75,9 +77,10 @@ class FOMO : public edgelab::algorithm::base::Algorithm {
     std::forward_list<BoxType> _results;
 };
 
-template <typename InferenceEngine>
-FOMO::FOMO(InferenceEngine* engine, ScoreType score_threshold)
+FOMO::FOMO(EngineType* engine, ScoreType score_threshold)
     : edgelab::algorithm::base::Algorithm(engine), _w_scale(1.f), _h_scale(1.f), _score_threshold(score_threshold) {
+    EL_ASSERT(is_model_valid(engine));
+
     _input_img.data   = static_cast<decltype(ImageType::data)>(this->__p_engine->get_input(0));
     _input_img.width  = static_cast<decltype(ImageType::width)>(this->__input_shape.dims[1]),
     _input_img.height = static_cast<decltype(ImageType::height)>(this->__input_shape.dims[2]),
@@ -98,7 +101,31 @@ FOMO::FOMO(InferenceEngine* engine, ScoreType score_threshold)
 
 FOMO::~FOMO() { _results.clear(); }
 
-template <typename InputType> el_err_code_t FOMO::run(InputType* input) {
+bool FOMO::is_model_valid(const EngineType* engine) {
+    const auto& input_shape{engine->get_input_shape(0)};
+    if (input_shape.size != 4 ||      // B, W, H, C
+        input_shape.dims[0] != 1 ||   // B = 1
+        input_shape.dims[1] < 16 ||   // W >= 16
+        input_shape.dims[2] < 16 ||   // H >= 16
+        (input_shape.dims[3] != 3 &&  // C = RGB or Gray
+         input_shape.dims[3] != 1))
+        return false;
+
+    const auto& output_shape{engine->get_output_shape(0)};
+    if (output_shape.size != 4 ||                      // B, W, H, PC
+        output_shape.dims[0] != 1 ||                   // B = 1
+        output_shape.dims[1] < 2 ||                    // W >= 2
+        output_shape.dims[1] > input_shape.dims[1] ||  // W <= IW
+        output_shape.dims[2] < 2 ||                    // H >= 2
+        output_shape.dims[2] > input_shape.dims[2] ||  // H <= IH
+        output_shape.dims[3] < 2                       // PC >= 2
+    )
+        return false;
+
+    return true;
+}
+
+el_err_code_t FOMO::run(ImageType* input) {
     _w_scale = static_cast<float>(input->width) / static_cast<float>(_input_img.width);
     _h_scale = static_cast<float>(input->height) / static_cast<float>(_input_img.height);
 

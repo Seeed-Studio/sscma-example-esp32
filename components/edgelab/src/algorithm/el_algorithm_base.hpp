@@ -53,8 +53,11 @@ struct el_algorithm_info_t {
 namespace base {
 
 class Algorithm {
+   protected:
+    using EngineType = edgelab::inference::base::Engine;
+
    public:
-    Algorithm(edgelab::inference::base::Engine* engine);
+    Algorithm(EngineType* engine);
     virtual ~Algorithm();
 
     uint32_t get_preprocess_time() const;
@@ -67,12 +70,12 @@ class Algorithm {
     virtual el_err_code_t preprocess()  = 0;
     virtual el_err_code_t postprocess() = 0;
 
-    edgelab::inference::base::Engine* __p_engine;
-    void*                             __p_input;
-    el_shape_t                        __input_shape;
-    el_shape_t                        __output_shape;
-    el_quant_param_t                  __input_quant;
-    el_quant_param_t                  __output_quant;
+    EngineType*      __p_engine;
+    void*            __p_input;
+    el_shape_t       __input_shape;
+    el_shape_t       __output_shape;
+    el_quant_param_t __input_quant;
+    el_quant_param_t __output_quant;
 
    private:
     uint32_t __preprocess_time;   // ms
@@ -80,7 +83,7 @@ class Algorithm {
     uint32_t __postprocess_time;  // ms
 };
 
-Algorithm::Algorithm(edgelab::inference::base::Engine* engine)
+Algorithm::Algorithm(EngineType* engine)
     : __p_engine(engine), __p_input(nullptr), __preprocess_time(0), __run_time(0), __postprocess_time(0) {
     __input_shape  = engine->get_input_shape(0);
     __output_shape = engine->get_output_shape(0);
@@ -141,8 +144,6 @@ uint32_t Algorithm::get_run_time() const { return __run_time; }
 uint32_t Algorithm::get_postprocess_time() const { return __postprocess_time; }
 
 }  // namespace base
-
-
 
 }  // namespace edgelab::algorithm
 

@@ -4,7 +4,7 @@ menu "Inference Engine"
         default y
         help
             Enable TFLite inference engine
-    menu "TFLite options"
+    menu "TFLite Options"
         depends on EL_TFLITE
 
         config EL_TFLITE_OP_ABS

@@ -26,6 +26,7 @@
 #ifndef _EL_ALGORITHM_YOLO_HPP_
 #define _EL_ALGORITHM_YOLO_HPP_
 
+#include <atomic>
 #include <cstdint>
 #include <type_traits>
 #include <utility>
@@ -94,11 +95,12 @@ class YOLO : public base::Algorithm {
         INDEX_T = 5,
     };
 
-    ImageType        _input_img;
-    float            _w_scale;
-    float            _h_scale;
-    ScoreType        _score_threshold;
-    NMSThresholdType _nms_threshold;
+    ImageType _input_img;
+    float     _w_scale;
+    float     _h_scale;
+
+    std::atomic<ScoreType>        _score_threshold;
+    std::atomic<NMSThresholdType> _nms_threshold;
 
     std::forward_list<BoxType> _results;
 };
@@ -109,7 +111,6 @@ YOLO::YOLO(EngineType* engine, ScoreType score_threshold, NMSThresholdType nms_t
       _h_scale(1.f),
       _score_threshold(score_threshold),
       _nms_threshold(nms_threshold) {
-    EL_ASSERT(is_model_valid(engine));
     init();
 }
 
@@ -119,7 +120,6 @@ YOLO::YOLO(EngineType* engine, const ConfigType& config)
       _h_scale(1.f),
       _score_threshold(config.score_threshold),
       _nms_threshold(config.nms_threshold) {
-    EL_ASSERT(is_model_valid(engine));
     init();
 }
 
@@ -159,6 +159,10 @@ bool YOLO::is_model_valid(const EngineType* engine) {
 }
 
 inline void YOLO::init() {
+    EL_ASSERT(is_model_valid(this->__p_engine));
+    EL_ASSERT(_score_threshold.is_lock_free());
+    EL_ASSERT(_nms_threshold.is_lock_free());
+
     _input_img.data   = static_cast<decltype(ImageType::data)>(this->__p_engine->get_input(0));
     _input_img.width  = static_cast<decltype(ImageType::width)>(this->__input_shape.dims[1]),
     _input_img.height = static_cast<decltype(ImageType::height)>(this->__input_shape.dims[2]),
@@ -166,13 +170,11 @@ inline void YOLO::init() {
       static_cast<decltype(ImageType::size)>(_input_img.width * _input_img.height * this->__input_shape.dims[3]);
     _input_img.format = EL_PIXEL_FORMAT_UNKNOWN;
     _input_img.rotate = EL_PIXEL_ROTATE_0;
-
     if (this->__input_shape.dims[3] == 3) {
         _input_img.format = EL_PIXEL_FORMAT_RGB888;
     } else if (this->__input_shape.dims[3] == 1) {
         _input_img.format = EL_PIXEL_FORMAT_GRAYSCALE;
     }
-
     EL_ASSERT(_input_img.format != EL_PIXEL_FORMAT_UNKNOWN);
     EL_ASSERT(_input_img.rotate != EL_PIXEL_ROTATE_UNKNOWN);
 }
@@ -203,22 +205,29 @@ el_err_code_t YOLO::postprocess() {
     _results.clear();
 
     // get output
-    auto*   data{static_cast<int8_t*>(this->__p_engine->get_output(0))};
-    auto    width{this->__input_shape.dims[1]};
-    auto    height{this->__input_shape.dims[2]};
-    float   scale{this->__output_quant.scale};
-    bool    rescale{scale < 0.1f ? true : false};
+    auto* data{static_cast<int8_t*>(this->__p_engine->get_output(0))};
+
+    auto width{this->__input_shape.dims[1]};
+    auto height{this->__input_shape.dims[2]};
+
+    float scale{this->__output_quant.scale};
+    bool  rescale{scale < 0.1f ? true : false};
+
     int32_t zero_point{this->__output_quant.zero_point};
-    auto    num_record{this->__output_shape.dims[1]};
-    auto    num_element{this->__output_shape.dims[2]};
-    auto    num_class{static_cast<uint8_t>(num_element - 5)};
+
+    auto num_record{this->__output_shape.dims[1]};
+    auto num_element{this->__output_shape.dims[2]};
+    auto num_class{static_cast<uint8_t>(num_element - 5)};
+
+    ScoreType        score_threshold{get_score_threshold()};
+    NMSThresholdType nms_threshold{get_nms_threshold()};
 
     // parse output
     for (decltype(num_record) i{0}; i < num_record; ++i) {
         auto idx{i * num_element};
         auto score{static_cast<decltype(scale)>(data[idx + INDEX_S] - zero_point) * scale};
         score = rescale ? score * 100.f : score;
-        if (score > _score_threshold) {
+        if (score > score_threshold) {
             BoxType box{
               .x      = 0,
               .y      = 0,
@@ -251,7 +260,7 @@ el_err_code_t YOLO::postprocess() {
             _results.emplace_front(std::move(box));
         }
     }
-    el_nms(_results, _nms_threshold, _score_threshold, false, true);
+    el_nms(_results, nms_threshold, score_threshold, false, true);
 
     _results.sort([](const BoxType& a, const BoxType& b) { return a.x < b.x; });
 
@@ -260,13 +269,13 @@ el_err_code_t YOLO::postprocess() {
 
 const std::forward_list<YOLO::BoxType>& YOLO::get_results() const { return _results; }
 
-void YOLO::set_score_threshold(ScoreType threshold) { _score_threshold = threshold; }
+void YOLO::set_score_threshold(ScoreType threshold) { _score_threshold.store(threshold); }
 
-YOLO::ScoreType YOLO::get_score_threshold() const { return _score_threshold; }
+YOLO::ScoreType YOLO::get_score_threshold() const { return _score_threshold.load(); }
 
-void YOLO::set_nms_threshold(NMSThresholdType threshold) { _nms_threshold = threshold; }
+void YOLO::set_nms_threshold(NMSThresholdType threshold) { _nms_threshold.store(threshold); }
 
-YOLO::NMSThresholdType YOLO::get_nms_threshold() const { return _nms_threshold; }
+YOLO::NMSThresholdType YOLO::get_nms_threshold() const { return _nms_threshold.load(); }
 
 void YOLO::set_algorithm_config(const ConfigType& config) {
     set_score_threshold(config.score_threshold);
@@ -274,7 +283,7 @@ void YOLO::set_algorithm_config(const ConfigType& config) {
 }
 
 YOLO::ConfigType YOLO::get_algorithm_config() const {
-    return ConfigType{.score_threshold = _score_threshold, .nms_threshold = _nms_threshold};
+    return ConfigType{.score_threshold = get_score_threshold(), .nms_threshold = get_nms_threshold()};
 }
 
 }  // namespace edgelab::algorithm

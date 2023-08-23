@@ -26,6 +26,7 @@
 #ifndef _EL_ALGORITHM_FOMO_HPP_
 #define _EL_ALGORITHM_FOMO_HPP_
 
+#include <atomic>
 #include <cstdint>
 #include <type_traits>
 #include <utility>
@@ -66,8 +67,8 @@ class FOMO : public edgelab::algorithm::base::Algorithm {
     el_err_code_t                     run(ImageType* input);
     const std::forward_list<BoxType>& get_results() const;
 
-    el_err_code_t set_score_threshold(ScoreType threshold);
-    ScoreType     get_score_threshold() const;
+    void      set_score_threshold(ScoreType threshold);
+    ScoreType get_score_threshold() const;
 
     void       set_algorithm_config(const ConfigType& config);
     ConfigType get_algorithm_config() const;
@@ -82,7 +83,8 @@ class FOMO : public edgelab::algorithm::base::Algorithm {
     ImageType _input_img;
     float     _w_scale;
     float     _h_scale;
-    ScoreType _score_threshold;
+
+    std::atomic<ScoreType> _score_threshold;
 
     std::forward_list<BoxType> _results;
 };
@@ -92,7 +94,6 @@ FOMO::FOMO(EngineType* engine, ScoreType score_threshold)
       _w_scale(1.f),
       _h_scale(1.f),
       _score_threshold(score_threshold) {
-    EL_ASSERT(is_model_valid(engine));
     init();
 }
 
@@ -101,7 +102,6 @@ FOMO::FOMO(EngineType* engine, const ConfigType& config)
       _w_scale(1.f),
       _h_scale(1.f),
       _score_threshold(config.score_threshold) {
-    EL_ASSERT(is_model_valid(engine));
     init();
 }
 
@@ -132,6 +132,9 @@ bool FOMO::is_model_valid(const EngineType* engine) {
 }
 
 inline void FOMO::init() {
+    EL_ASSERT(is_model_valid(this->__p_engine));
+    EL_ASSERT(_score_threshold.is_lock_free());
+
     _input_img.data   = static_cast<decltype(ImageType::data)>(this->__p_engine->get_input(0));
     _input_img.width  = static_cast<decltype(ImageType::width)>(this->__input_shape.dims[1]),
     _input_img.height = static_cast<decltype(ImageType::height)>(this->__input_shape.dims[2]),
@@ -139,13 +142,11 @@ inline void FOMO::init() {
       static_cast<decltype(ImageType::size)>(_input_img.width * _input_img.height * this->__input_shape.dims[3]);
     _input_img.format = EL_PIXEL_FORMAT_UNKNOWN;
     _input_img.rotate = EL_PIXEL_ROTATE_0;
-
     if (this->__input_shape.dims[3] == 3) {
         _input_img.format = EL_PIXEL_FORMAT_RGB888;
     } else if (this->__input_shape.dims[3] == 1) {
         _input_img.format = EL_PIXEL_FORMAT_GRAYSCALE;
     }
-
     EL_ASSERT(_input_img.format != EL_PIXEL_FORMAT_UNKNOWN);
     EL_ASSERT(_input_img.rotate != EL_PIXEL_ROTATE_UNKNOWN);
 }
@@ -176,17 +177,23 @@ el_err_code_t FOMO::postprocess() {
     _results.clear();
 
     // get output
-    auto*   data{static_cast<int8_t*>(this->__p_engine->get_output(0))};
-    auto    width{_input_img.width};
-    auto    height{_input_img.height};
-    float   scale{this->__output_quant.scale};
+    auto* data{static_cast<int8_t*>(this->__p_engine->get_output(0))};
+
+    auto width{_input_img.width};
+    auto height{_input_img.height};
+
+    float scale{this->__output_quant.scale};
+
     int32_t zero_point{this->__output_quant.zero_point};
-    auto    pred_w{this->__output_shape.dims[2]};
-    auto    pred_h{this->__output_shape.dims[1]};
-    auto    pred_t{this->__output_shape.dims[3]};
+
+    auto pred_w{this->__output_shape.dims[2]};
+    auto pred_h{this->__output_shape.dims[1]};
+    auto pred_t{this->__output_shape.dims[3]};
 
     auto bw{static_cast<decltype(BoxType::w)>(width / pred_w)};
     auto bh{static_cast<decltype(BoxType::h)>(height / pred_h)};
+
+    ScoreType score_threshold{get_score_threshold()};
 
     for (decltype(pred_h) i{0}; i < pred_h; ++i) {
         for (decltype(pred_w) j{0}; j < pred_w; ++j) {
@@ -200,7 +207,7 @@ el_err_code_t FOMO::postprocess() {
                     max_target = t;
                 }
             }
-            if (max_score > _score_threshold && max_target != 0) {
+            if (max_score > score_threshold && max_target != 0) {
                 // only unsigned is supported for fast div by 2 (>> 1)
                 static_assert(std::is_unsigned<decltype(bw)>::value && std::is_unsigned<decltype(bh)>::value);
                 _results.emplace_front(BoxType{.x = static_cast<decltype(BoxType::x)>((j * bw + (bw >> 1)) * _w_scale),
@@ -219,16 +226,13 @@ el_err_code_t FOMO::postprocess() {
 
 const std::forward_list<FOMO::BoxType>& FOMO::get_results() const { return _results; }
 
-el_err_code_t FOMO::set_score_threshold(ScoreType threshold) {
-    _score_threshold = threshold;
-    return EL_OK;
-}
+void FOMO::set_score_threshold(ScoreType threshold) { _score_threshold.store(threshold); }
 
-FOMO::ScoreType FOMO::get_score_threshold() const { return _score_threshold; }
+FOMO::ScoreType FOMO::get_score_threshold() const { return _score_threshold.load(); }
 
 void FOMO::set_algorithm_config(const ConfigType& config) { set_score_threshold(config.score_threshold); }
 
-FOMO::ConfigType FOMO::get_algorithm_config() const { return ConfigType{.score_threshold = _score_threshold}; }
+FOMO::ConfigType FOMO::get_algorithm_config() const { return ConfigType{.score_threshold = get_score_threshold()}; }
 
 }  // namespace edgelab::algorithm
 

@@ -180,7 +180,7 @@ el_err_code_t PFLD::postprocess() {
 
 const std::forward_list<PFLD::PointType>& PFLD::get_results() const { return _results; }
 
-void PFLD::set_algorithm_config(const ConfigType& config) {}
+void PFLD::set_algorithm_config(const ConfigType& config [[maybe_unused]]) {}
 
 PFLD::ConfigType PFLD::get_algorithm_config() const { return ConfigType{}; }
 

@@ -63,8 +63,8 @@ template <typename T> constexpr std::string el_results_2_json(const std::forward
     static F print_delim_f = [&os]() { os << ", "; };
     static F print_void_f  = [&]() { delim_f = print_delim_f; };
     delim_f                = print_void_f;
-    os << "[";
     if constexpr (std::is_same<T, el_box_t>::value) {
+        os << "\"boxes\": [";
         for (const auto& box : results) {
             delim_f();
             os << "{\"x\": " << unsigned(box.x) << ", \"y\": " << unsigned(box.y) << ", \"w\": " << unsigned(box.w)
@@ -72,12 +72,14 @@ template <typename T> constexpr std::string el_results_2_json(const std::forward
                << ", \"score\": " << unsigned(box.score) << "}";
         }
     } else if constexpr (std::is_same<T, el_point_t>::value) {
+        os << "\"points\": [";
         for (const auto& point : results) {
             delim_f();
             os << "{\"x\": " << unsigned(point.x) << ", \"y\": " << unsigned(point.y)
                << ", \"target\": " << unsigned(point.target) << "}";
         }
     } else if constexpr (std::is_same<T, el_class_t>::value) {
+        os << "\"classes\": [";
         for (const auto& cls : results) {
             delim_f();
             os << "{\"score\": " << unsigned(cls.score) << ", \"target\": " << unsigned(cls.target) << "}";

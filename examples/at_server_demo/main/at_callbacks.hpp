@@ -226,46 +226,49 @@ void at_run_sample(const std::string& cmd, int n_times, std::atomic<bool>& stop_
                                  .rotate = EL_PIXEL_ROTATE_UNKNOWN};
     el_err_code_t ret = sensor_info.id ? EL_OK : EL_EINVAL;
     if (ret != EL_OK) [[unlikely]]
-        goto SampleReplyError;
+        goto SampleReply;
 
     if (sensor_info.state != EL_SENSOR_STA_AVAIL) [[unlikely]]
-        goto SampleReplyError;
+        goto SampleReply;
 
     if (sensor_info.type == EL_SENSOR_TYPE_CAM) {
         auto* camera = device->get_camera();
         while ((n_times < 0 || --n_times >= 0) && !stop_token.load()) {
             ret = camera->start_stream();
             if (ret != EL_OK) [[unlikely]]
-                goto SampleLoopReply;
+                goto SampleLoopErrorReply;
 
             ret = camera->get_frame(&img);
             if (ret != EL_OK) [[unlikely]]
-                goto SampleLoopReply;
+                goto SampleLoopErrorReply;
+
+            const auto& jpeg_str = img_2_base64_string(&img);
 
             ret = camera->stop_stream();
             if (ret != EL_OK) [[unlikely]]
-                goto SampleLoopReply;
+                goto SampleLoopErrorReply;
 
         SampleLoopReply:
             os << "\r{\"event\": {\"from\": \"" << cmd << "\", \"status\": " << err_code_2_str(ret)
-               << ", \"contents\": {\"jpeg\": \"" << img_2_base64_string(&img)
-               << "\"}}, \"timestamp\": " << el_get_time_ms() << "}\n";
+               << ", \"contents\": {\"jpeg\": \"" << jpeg_str << "\"}}, \"timestamp\": " << el_get_time_ms() << "}\n";
+            goto SampleLoopSendReply;
+        
+        SampleLoopErrorReply:
+            os << "\r{\"event\": {\"from\": \"" << cmd << "\", \"status\": " << err_code_2_str(ret)
+               << ", \"contents\": {}}, \"timestamp\": " << el_get_time_ms() << "}\n";
+        
+        SampleLoopSendReply:
             auto str = os.str();
             serial->send_bytes(str.c_str(), str.size());
-            if (ret != EL_OK) [[unlikely]]
-                break;
+            break;
         }
-
-        if (ret != EL_OK) [[unlikely]]
-            goto SampleReplyError;
         return;
     } else
         ret = EL_EINVAL;
 
-SampleReplyError:
+SampleReply:
     os << "\r{\"" << cmd << "\": {\"status\": " << err_code_2_str(ret)
        << ", \"sensor_id\": " << unsigned(current_sensor_id) << "}}\n";
-
     auto str = os.str();
     serial->send_bytes(str.c_str(), str.size());
 }
@@ -282,12 +285,12 @@ void run_invoke_algorithm(const std::string& cmd,
     auto*         camera    = device->get_camera();
     auto*         display   = device->get_display();
     auto*         serial    = device->get_serial();
-    auto*         img       = new el_img_t{.data   = nullptr,
-                                           .size   = 0,
-                                           .width  = 0,
-                                           .height = 0,
-                                           .format = EL_PIXEL_FORMAT_UNKNOWN,
-                                           .rotate = EL_PIXEL_ROTATE_UNKNOWN};
+    auto          img       = el_img_t{.data   = nullptr,
+                                       .size   = 0,
+                                       .width  = 0,
+                                       .height = 0,
+                                       .format = EL_PIXEL_FORMAT_UNKNOWN,
+                                       .rotate = EL_PIXEL_ROTATE_UNKNOWN};
     auto*         algorithm = new T(engine);
     el_err_code_t ret       = EL_EIO;
 
@@ -298,27 +301,27 @@ void run_invoke_algorithm(const std::string& cmd,
         if (ret != EL_OK) [[unlikely]]
             goto InvokeLoopReply;
 
-        ret = camera->get_frame(img);
+        ret = camera->get_frame(&img);
         if (ret != EL_OK) [[unlikely]]
             goto InvokeLoopReply;
+
+        ret = algorithm->run(&img);
+        if (ret != EL_OK) [[unlikely]]
+            goto InvokeLoopReply;
+
+        if (!result_only) {
+            draw_results_on_image(algorithm->get_results(), &img);
+            ret = display->show(&img);
+            if (ret != EL_OK) [[unlikely]]
+                goto InvokeLoopReply;
+        }
 
         ret = camera->stop_stream();
         if (ret != EL_OK) [[unlikely]]
             goto InvokeLoopReply;
 
-        ret = algorithm->run(img);
-        if (ret != EL_OK) [[unlikely]]
-            goto InvokeLoopReply;
-
-        if (!result_only) {
-            draw_results_on_image(algorithm->get_results(), img);
-            ret = display->show(img);
-            if (ret != EL_OK) [[unlikely]]
-                goto InvokeLoopReply;
-        }
-
     InvokeLoopReply:
-        const auto& str = invoke_results_2_string(cmd, result_only, algorithm, img, model_id, sensor_id, ret);
+        const auto& str = invoke_results_2_string(cmd, result_only, algorithm, &img, model_id, sensor_id, ret);
         serial->send_bytes(str.c_str(), str.size());
         if (ret != EL_OK) [[unlikely]]
             break;
@@ -326,8 +329,6 @@ void run_invoke_algorithm(const std::string& cmd,
 
     if (algorithm) [[likely]]
         delete algorithm;
-    if (img) [[likely]]
-        delete img;
 }
 
 void at_run_invoke(const std::string& cmd,

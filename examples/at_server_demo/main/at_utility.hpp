@@ -43,7 +43,7 @@ inline const char* err_code_2_str(el_err_code_t ec) {
     case EL_EPERM:
         return "\"Operation not permitted\"";
     default:
-        return "\"unknown\"";
+        return "\"Unknown\"";
     }
 }
 
@@ -127,7 +127,7 @@ inline void draw_results_on_image(const std::forward_list<el_box_t>& results, el
 // TODO: avoid repeatly allocate/release memory in for loop
 std::string img_2_base64_string(const el_img_t* img) {
     using namespace edgelab;
-    if (!img) [[unlikely]]
+    if (!img || !img->data) [[unlikely]]
         return "";
     size_t size    = img->width * img->height * 3;
     auto   rgb_img = el_img_t{.data   = new uint8_t[size]{},

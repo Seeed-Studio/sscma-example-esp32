@@ -89,11 +89,20 @@ template <typename T> constexpr std::string el_results_2_json(const std::forward
 
 }  // namespace algorithm::utility
 
-using Algorithm      = class algorithm::base::Algorithm;
+using Algorithm = class algorithm::base::Algorithm;
+
+#ifdef _EL_ALGORITHM_FOMO_HPP_
+using AlgorithmFOMO = class algorithm::FOMO;
+#endif
+#ifdef _EL_ALGORITHM_PFLD_HPP_
+using AlgorithmPFLD = class algorithm::PFLD;
+#endif
+#ifdef _EL_ALGORITHM_YOLO_HPP_
+using AlgorithmYOLO = class algorithm::YOLO;
+#endif
+#ifdef _EL_ALGORITHM_IMCLS_HPP_
 using AlgorithmIMCLS = class algorithm::IMCLS;
-using AlgorithmFOMO  = class algorithm::FOMO;
-using AlgorithmPFLD  = class algorithm::PFLD;
-using AlgorithmYOLO  = class algorithm::YOLO;
+#endif
 
 class AlgorithmDelegate {
    public:
@@ -104,10 +113,10 @@ class AlgorithmDelegate {
         return &data_delegate;
     }
 
-    const algorithm::types::el_algorithm_info_t& get_algorithm_info(uint8_t id) const {
+    const algorithm::types::el_algorithm_info_t& get_algorithm_info(el_algorithm_type_t type) const {
         auto it = std::find_if(_registered_algorithms.begin(),
                                _registered_algorithms.end(),
-                               [&](const algorithm::types::el_algorithm_info_t& i) { return i.id == id; });
+                               [&](const algorithm::types::el_algorithm_info_t& i) { return i.type == type; });
         if (it != _registered_algorithms.end()) return *it;
         static algorithm::types::el_algorithm_info_t algorithm_info{};
         return algorithm_info;
@@ -121,10 +130,10 @@ class AlgorithmDelegate {
         return std::distance(_registered_algorithms.begin(), _registered_algorithms.end());
     }
 
-    bool has_algorithm(uint8_t id) const {
+    bool has_algorithm(el_algorithm_type_t type) const {
         auto it = std::find_if(_registered_algorithms.begin(),
                                _registered_algorithms.end(),
-                               [&](const algorithm::types::el_algorithm_info_t& i) { return i.id == id; });
+                               [&](const algorithm::types::el_algorithm_info_t& i) { return i.type == type; });
         return it != _registered_algorithms.end();
     }
 
@@ -132,42 +141,17 @@ class AlgorithmDelegate {
 
    private:
     AlgorithmDelegate() {
-        static uint8_t i = 0u;
-
 #ifdef _EL_ALGORITHM_FOMO_HPP_
-        _registered_algorithms.emplace_front(algorithm::types::el_algorithm_info_t{
-          .id         = ++i,
-          .type       = EL_ALGO_TYPE_FOMO,
-          .categroy   = 1u,
-          .input_type = 1u,
-        });
+        _registered_algorithms.emplace_front(AlgorithmFOMO::algorithm_info);
 #endif
-
 #ifdef _EL_ALGORITHM_PFLD_HPP_
-        _registered_algorithms.emplace_front(algorithm::types::el_algorithm_info_t{
-          .id         = ++i,
-          .type       = EL_ALGO_TYPE_PFLD,
-          .categroy   = 1u,
-          .input_type = 1u,
-        });
+        _registered_algorithms.emplace_front(AlgorithmPFLD::algorithm_info);
 #endif
-
 #ifdef _EL_ALGORITHM_YOLO_HPP_
-        _registered_algorithms.emplace_front(algorithm::types::el_algorithm_info_t{
-          .id         = ++i,
-          .type       = EL_ALGO_TYPE_YOLO,
-          .categroy   = 1u,
-          .input_type = 1u,
-        });
+        _registered_algorithms.emplace_front(AlgorithmYOLO::algorithm_info);
 #endif
-
 #ifdef _EL_ALGORITHM_IMCLS_HPP_
-        _registered_algorithms.emplace_front(algorithm::types::el_algorithm_info_t{
-          .id         = ++i,
-          .type       = EL_ALGO_TYPE_IMCLS,
-          .categroy   = 2u,
-          .input_type = 1u,
-        });
+        _registered_algorithms.emplace_front(AlgorithmIMCLS::algorithm_info);
 #endif
     }
 

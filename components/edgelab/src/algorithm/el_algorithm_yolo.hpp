@@ -42,21 +42,26 @@ namespace types {
 
 // we're not using inheritance since it not standard layout
 struct el_algorithm_yolo_config_t {
-    el_algorithm_info_t info;
-    uint8_t             score_threshold;
-    uint8_t             nms_threshold;
+    static constexpr el_algorithm_info_t info{
+      .type = EL_ALGO_TYPE_YOLO, .categroy = EL_ALGO_CAT_DET, .input_from = EL_SENSOR_TYPE_CAM};
+    uint8_t score_threshold;
+    uint8_t nms_threshold;
 };
 
 }  // namespace types
 
-class YOLO : public edgelab::algorithm::base::Algorithm {
+class YOLO : public base::Algorithm {
     using ImageType        = el_img_t;
     using BoxType          = el_box_t;
-    using ScoreType        = uint8_t;
-    using NMSThresholdType = uint8_t;
+    using ConfigType       = types::el_algorithm_yolo_config_t;
+    using ScoreType        = decltype(types::el_algorithm_yolo_config_t::score_threshold);
+    using NMSThresholdType = decltype(types::el_algorithm_yolo_config_t::nms_threshold);
 
    public:
+    static constexpr InfoType algorithm_info{types::el_algorithm_yolo_config_t::info};
+
     YOLO(EngineType* engine, ScoreType score_threshold = 50, NMSThresholdType nms_threshold = 45);
+    YOLO(EngineType* engine, const ConfigType& config);
     ~YOLO();
 
     static bool is_model_valid(const EngineType* engine);
@@ -64,13 +69,18 @@ class YOLO : public edgelab::algorithm::base::Algorithm {
     el_err_code_t                     run(ImageType* input);
     const std::forward_list<BoxType>& get_results() const;
 
-    el_err_code_t set_score_threshold(ScoreType threshold);
-    ScoreType     get_score_threshold() const;
+    void      set_score_threshold(ScoreType threshold);
+    ScoreType get_score_threshold() const;
 
-    el_err_code_t    set_nms_threshold(NMSThresholdType threshold);
+    void             set_nms_threshold(NMSThresholdType threshold);
     NMSThresholdType get_nms_threshold() const;
 
+    void       set_algorithm_config(const ConfigType& config);
+    ConfigType get_algorithm_config() const;
+
    protected:
+    inline void init();
+
     el_err_code_t preprocess() override;
     el_err_code_t postprocess() override;
 
@@ -94,29 +104,23 @@ class YOLO : public edgelab::algorithm::base::Algorithm {
 };
 
 YOLO::YOLO(EngineType* engine, ScoreType score_threshold, NMSThresholdType nms_threshold)
-    : edgelab::algorithm::base::Algorithm(engine),
+    : edgelab::algorithm::base::Algorithm(engine, YOLO::algorithm_info),
       _w_scale(1.f),
       _h_scale(1.f),
       _score_threshold(score_threshold),
       _nms_threshold(nms_threshold) {
     EL_ASSERT(is_model_valid(engine));
+    init();
+}
 
-    _input_img.data   = static_cast<decltype(ImageType::data)>(this->__p_engine->get_input(0));
-    _input_img.width  = static_cast<decltype(ImageType::width)>(this->__input_shape.dims[1]),
-    _input_img.height = static_cast<decltype(ImageType::height)>(this->__input_shape.dims[2]),
-    _input_img.size =
-      static_cast<decltype(ImageType::size)>(_input_img.width * _input_img.height * this->__input_shape.dims[3]);
-    _input_img.format = EL_PIXEL_FORMAT_UNKNOWN;
-    _input_img.rotate = EL_PIXEL_ROTATE_0;
-
-    if (this->__input_shape.dims[3] == 3) {
-        _input_img.format = EL_PIXEL_FORMAT_RGB888;
-    } else if (this->__input_shape.dims[3] == 1) {
-        _input_img.format = EL_PIXEL_FORMAT_GRAYSCALE;
-    }
-
-    EL_ASSERT(_input_img.format != EL_PIXEL_FORMAT_UNKNOWN);
-    EL_ASSERT(_input_img.rotate != EL_PIXEL_ROTATE_UNKNOWN);
+YOLO::YOLO(EngineType* engine, const ConfigType& config)
+    : edgelab::algorithm::base::Algorithm(engine, config.info),
+      _w_scale(1.f),
+      _h_scale(1.f),
+      _score_threshold(config.score_threshold),
+      _nms_threshold(config.nms_threshold) {
+    EL_ASSERT(is_model_valid(engine));
+    init();
 }
 
 YOLO::~YOLO() {
@@ -152,6 +156,25 @@ bool YOLO::is_model_valid(const EngineType* engine) {
         return false;
 
     return true;
+}
+
+inline void YOLO::init() {
+    _input_img.data   = static_cast<decltype(ImageType::data)>(this->__p_engine->get_input(0));
+    _input_img.width  = static_cast<decltype(ImageType::width)>(this->__input_shape.dims[1]),
+    _input_img.height = static_cast<decltype(ImageType::height)>(this->__input_shape.dims[2]),
+    _input_img.size =
+      static_cast<decltype(ImageType::size)>(_input_img.width * _input_img.height * this->__input_shape.dims[3]);
+    _input_img.format = EL_PIXEL_FORMAT_UNKNOWN;
+    _input_img.rotate = EL_PIXEL_ROTATE_0;
+
+    if (this->__input_shape.dims[3] == 3) {
+        _input_img.format = EL_PIXEL_FORMAT_RGB888;
+    } else if (this->__input_shape.dims[3] == 1) {
+        _input_img.format = EL_PIXEL_FORMAT_GRAYSCALE;
+    }
+
+    EL_ASSERT(_input_img.format != EL_PIXEL_FORMAT_UNKNOWN);
+    EL_ASSERT(_input_img.rotate != EL_PIXEL_ROTATE_UNKNOWN);
 }
 
 el_err_code_t YOLO::run(ImageType* input) {
@@ -237,19 +260,22 @@ el_err_code_t YOLO::postprocess() {
 
 const std::forward_list<YOLO::BoxType>& YOLO::get_results() const { return _results; }
 
-el_err_code_t YOLO::set_score_threshold(ScoreType threshold) {
-    _score_threshold = threshold;
-    return EL_OK;
-}
+void YOLO::set_score_threshold(ScoreType threshold) { _score_threshold = threshold; }
 
 YOLO::ScoreType YOLO::get_score_threshold() const { return _score_threshold; }
 
-el_err_code_t YOLO::set_nms_threshold(NMSThresholdType threshold) {
-    _nms_threshold = threshold;
-    return EL_OK;
-}
+void YOLO::set_nms_threshold(NMSThresholdType threshold) { _nms_threshold = threshold; }
 
 YOLO::NMSThresholdType YOLO::get_nms_threshold() const { return _nms_threshold; }
+
+void YOLO::set_algorithm_config(const ConfigType& config) {
+    set_score_threshold(config.score_threshold);
+    set_nms_threshold(config.nms_threshold);
+}
+
+YOLO::ConfigType YOLO::get_algorithm_config() const {
+    return ConfigType{.score_threshold = _score_threshold, .nms_threshold = _nms_threshold};
+}
 
 }  // namespace edgelab::algorithm
 

@@ -154,6 +154,16 @@ typedef enum {
 } el_algorithm_type_t;
 
 /**
+ * @brief Algorithm Catagories
+ */
+typedef enum {
+    EL_ALGO_CAT_UNDEFINED = 0u,
+    EL_ALGO_CAT_DET       = 1u,
+    EL_ALGO_CAT_POSE      = 2u,
+    EL_ALGO_CAT_CLS       = 3u,
+} el_algorithm_cat_t;
+
+/**
  * @brief Model Header Specification
  * @details
  *      [ 24 bits magic code | 4 bits id | 4 bits type | 24 bits size (unsigned) | 8 bits unused padding ]

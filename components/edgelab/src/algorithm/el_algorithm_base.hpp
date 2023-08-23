@@ -42,10 +42,9 @@ namespace edgelab::algorithm {
 namespace types {
 
 struct el_algorithm_info_t {
-    uint8_t             id;
     el_algorithm_type_t type;
-    uint8_t             categroy;
-    uint8_t             input_type;
+    el_algorithm_cat_t  categroy;
+    el_sensor_type_t    input_from;
 };
 
 }  // namespace types
@@ -55,10 +54,13 @@ namespace base {
 class Algorithm {
    protected:
     using EngineType = edgelab::inference::base::Engine;
+    using InfoType   = types::el_algorithm_info_t;
 
    public:
-    Algorithm(EngineType* engine);
+    Algorithm(EngineType* engine, const InfoType& info);
     virtual ~Algorithm();
+
+    InfoType get_algorithm_info() const;
 
     uint32_t get_preprocess_time() const;
     uint32_t get_run_time() const;
@@ -70,21 +72,31 @@ class Algorithm {
     virtual el_err_code_t preprocess()  = 0;
     virtual el_err_code_t postprocess() = 0;
 
-    EngineType*      __p_engine;
-    void*            __p_input;
-    el_shape_t       __input_shape;
-    el_shape_t       __output_shape;
+    EngineType* __p_engine;
+
+    void* __p_input;
+
+    el_shape_t __input_shape;
+    el_shape_t __output_shape;
+
     el_quant_param_t __input_quant;
     el_quant_param_t __output_quant;
 
    private:
+    InfoType __algorithm_info;
+
     uint32_t __preprocess_time;   // ms
     uint32_t __run_time;          // ms
     uint32_t __postprocess_time;  // ms
 };
 
-Algorithm::Algorithm(EngineType* engine)
-    : __p_engine(engine), __p_input(nullptr), __preprocess_time(0), __run_time(0), __postprocess_time(0) {
+Algorithm::Algorithm(EngineType* engine, const InfoType& info)
+    : __p_engine(engine),
+      __p_input(nullptr),
+      __algorithm_info(info),
+      __preprocess_time(0),
+      __run_time(0),
+      __postprocess_time(0) {
     __input_shape  = engine->get_input_shape(0);
     __output_shape = engine->get_output_shape(0);
     __input_quant  = engine->get_input_quant_param(0);
@@ -92,11 +104,12 @@ Algorithm::Algorithm(EngineType* engine)
 }
 
 Algorithm::~Algorithm() {
+    __p_engine = nullptr;
+    __p_input  = nullptr;
+
     __preprocess_time  = 0;
     __run_time         = 0;
     __postprocess_time = 0;
-    __p_engine         = nullptr;
-    __p_input          = nullptr;
 }
 
 el_err_code_t Algorithm::underlying_run(void* input) {
@@ -136,6 +149,8 @@ el_err_code_t Algorithm::underlying_run(void* input) {
 
     return ret;
 }
+
+Algorithm::InfoType Algorithm::get_algorithm_info() const { return __algorithm_info; };
 
 uint32_t Algorithm::get_preprocess_time() const { return __preprocess_time; }
 

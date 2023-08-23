@@ -99,7 +99,7 @@ void ReplExecutor::run() {
             m_unlock();
         }
         if (task) task(_task_stop_requested);
-        vTaskDelay(15 / portTICK_PERIOD_MS);
+        vTaskDelay(15 / portTICK_PERIOD_MS);  // TODO: use yield
     }
 }
 

@@ -113,16 +113,15 @@ class AlgorithmDelegate {
         return &data_delegate;
     }
 
-    const algorithm::types::el_algorithm_info_t& get_algorithm_info(el_algorithm_type_t type) const {
+    algorithm::types::el_algorithm_info_t get_algorithm_info(el_algorithm_type_t type) const {
         auto it = std::find_if(_registered_algorithms.begin(),
                                _registered_algorithms.end(),
-                               [&](const algorithm::types::el_algorithm_info_t& i) { return i.type == type; });
-        if (it != _registered_algorithms.end()) return *it;
-        static algorithm::types::el_algorithm_info_t algorithm_info{};
-        return algorithm_info;
+                               [&](const algorithm::types::el_algorithm_info_t* i) { return i->type == type; });
+        if (it != _registered_algorithms.end()) return **it;
+        return {};
     }
 
-    const std::forward_list<algorithm::types::el_algorithm_info_t>& get_all_algorithm_info() const {
+    const std::forward_list<const algorithm::types::el_algorithm_info_t*>& get_all_algorithm_info() const {
         return _registered_algorithms;
     }
 
@@ -133,7 +132,7 @@ class AlgorithmDelegate {
     bool has_algorithm(el_algorithm_type_t type) const {
         auto it = std::find_if(_registered_algorithms.begin(),
                                _registered_algorithms.end(),
-                               [&](const algorithm::types::el_algorithm_info_t& i) { return i.type == type; });
+                               [&](const algorithm::types::el_algorithm_info_t* i) { return i->type == type; });
         return it != _registered_algorithms.end();
     }
 
@@ -142,20 +141,20 @@ class AlgorithmDelegate {
    private:
     AlgorithmDelegate() {
 #ifdef _EL_ALGORITHM_FOMO_HPP_
-        _registered_algorithms.emplace_front(AlgorithmFOMO::algorithm_info);
+        _registered_algorithms.emplace_front(&AlgorithmFOMO::algorithm_info);
 #endif
 #ifdef _EL_ALGORITHM_PFLD_HPP_
-        _registered_algorithms.emplace_front(AlgorithmPFLD::algorithm_info);
+        _registered_algorithms.emplace_front(&AlgorithmPFLD::algorithm_info);
 #endif
 #ifdef _EL_ALGORITHM_YOLO_HPP_
-        _registered_algorithms.emplace_front(AlgorithmYOLO::algorithm_info);
+        _registered_algorithms.emplace_front(&AlgorithmYOLO::algorithm_info);
 #endif
 #ifdef _EL_ALGORITHM_IMCLS_HPP_
-        _registered_algorithms.emplace_front(AlgorithmIMCLS::algorithm_info);
+        _registered_algorithms.emplace_front(&AlgorithmIMCLS::algorithm_info);
 #endif
     }
 
-    std::forward_list<algorithm::types::el_algorithm_info_t> _registered_algorithms;
+    std::forward_list<const algorithm::types::el_algorithm_info_t*> _registered_algorithms;
 };
 
 }  // namespace edgelab

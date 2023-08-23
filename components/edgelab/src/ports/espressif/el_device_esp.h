@@ -34,7 +34,7 @@ namespace edgelab {
 class DeviceEsp : public Device {
    public:
     DeviceEsp();
-    ~DeviceEsp();
+    ~DeviceEsp() = default;
 
     void restart() override;
 };

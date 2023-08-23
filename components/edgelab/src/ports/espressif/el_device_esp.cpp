@@ -55,15 +55,18 @@ static inline uint32_t device_id_from_efuse() {
 namespace edgelab {
 
 DeviceEsp::DeviceEsp() {
-    this->_camera      = static_cast<CameraEsp*>(new CameraEsp());
-    this->_display     = static_cast<DisplayEsp*>(new DisplayEsp());
-    this->_serial      = static_cast<SerialEsp*>(new SerialEsp());
-    this->_device_id   = device_id_from_efuse();
     this->_device_name = "Seeed Studio XIAO (ESP32-S3)";
+    this->_device_id   = device_id_from_efuse();
     this->_revision_id = efuse_hal_chip_revision();
-}
 
-DeviceEsp::~DeviceEsp() {}
+    this->_camera  = static_cast<CameraEsp*>(new CameraEsp());
+    this->_display = static_cast<DisplayEsp*>(new DisplayEsp());
+    this->_serial  = static_cast<SerialEsp*>(new SerialEsp());
+
+    uint8_t sensor_id = 0;
+    this->_registered_sensors.emplace_front(el_sensor_info_t{
+      .id = ++sensor_id, .type = el_sensor_type_t::EL_SENSOR_TYPE_CAM, .state = el_sensor_state_t::EL_SENSOR_STA_REG});
+}
 
 Device* Device::get_device() {
     static DeviceEsp device;

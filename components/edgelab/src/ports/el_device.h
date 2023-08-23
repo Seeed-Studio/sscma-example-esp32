@@ -26,6 +26,9 @@
 #ifndef _EL_DEVICE_H_
 #define _EL_DEVICE_H_
 
+#include <algorithm>
+#include <forward_list>
+
 #include "el_camera.h"
 #include "el_common.h"
 #include "el_display.h"
@@ -34,7 +37,69 @@
 namespace edgelab {
 
 class Device {
+   public:
+    ~Device() = default;
+
+    static Device* get_device();
+
+    const char* get_device_name() { return _device_name; }
+    uint32_t    get_device_id() { return _device_id; }
+    uint32_t    get_chip_revision_id() { return _revision_id; }
+
+    Camera*  get_camera() { return _camera; }
+    Display* get_display() { return _display; }
+    Serial*  get_serial() { return _serial; }
+
+    virtual void restart() = 0;
+
+    el_sensor_info_t get_sensor_info(uint8_t id) {
+        auto it = std::find_if(_registered_sensors.begin(), _registered_sensors.end(), [&](const el_sensor_info_t& s) {
+            return s.id == id;
+        });
+        if (it != _registered_sensors.end()) return *it;
+        return {};
+    }
+
+    el_sensor_info_t get_sensor_info(uint8_t id, el_sensor_type_t type) {
+        auto it = std::find_if(_registered_sensors.begin(), _registered_sensors.end(), [&](const el_sensor_info_t& s) {
+            return s.id == id && s.type == type;
+        });
+        if (it != _registered_sensors.end()) return *it;
+        return {};
+    }
+
+    const std::forward_list<el_sensor_info_t>& get_all_sensor_info() const { return _registered_sensors; }
+
+    size_t get_all_sensor_info_count() const {
+        return std::distance(_registered_sensors.begin(), _registered_sensors.end());
+    }
+
+    bool has_sensor(uint8_t id) const {
+        auto it = std::find_if(_registered_sensors.begin(), _registered_sensors.end(), [&](const el_sensor_info_t& s) {
+            return s.id == id;
+        });
+        return it != _registered_sensors.end();
+    }
+
+    bool has_sensor(uint8_t id, el_sensor_type_t type) const {
+        auto it = std::find_if(_registered_sensors.begin(), _registered_sensors.end(), [&](const el_sensor_info_t& s) {
+            return s.id == id && s.type == type;
+        });
+        return it != _registered_sensors.end();
+    }
+
+    bool set_sensor_state(uint8_t id, el_sensor_state_t state) {
+        auto it = std::find_if(_registered_sensors.begin(), _registered_sensors.end(), [&](const el_sensor_info_t& s) {
+            return s.id == id;
+        });
+        if (it == _registered_sensors.end()) return false;
+        it->state = state;
+        return true;
+    }
+
    protected:
+    Device() = default;
+
     const char* _device_name;
     uint32_t    _device_id;
     uint32_t    _revision_id;
@@ -43,20 +108,7 @@ class Device {
     Display* _display;
     Serial*  _serial;
 
-   public:
-    Device(/* args */){};
-    ~Device(){};
-
-    Camera*     get_camera() { return _camera; }
-    Display*    get_display() { return _display; }
-    Serial*     get_serial() { return _serial; }
-    uint32_t    get_chip_revision_id() { return _revision_id; }
-    uint32_t    get_device_id() { return _device_id; }
-    const char* get_device_name() { return _device_name; }
-
-    virtual void restart() = 0;
-
-    static Device* get_device();
+    std::forward_list<el_sensor_info_t> _registered_sensors;
 };
 
 }  // namespace edgelab

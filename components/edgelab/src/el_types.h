@@ -36,7 +36,7 @@
 typedef enum {
     EL_OK      = 0,  // success
     EL_AGAIN   = 1,  // try again
-    EL_ELOG    = 2,  // general error
+    EL_ELOG    = 2,  // logic error
     EL_ETIMOUT = 3,  // timeout
     EL_EIO     = 4,  // IO error
     EL_EINVAL  = 5,  // invalid argument
@@ -127,12 +127,11 @@ typedef enum { EL_SENSOR_TYPE_CAM = 1u } el_sensor_type_t;
 
 typedef enum { EL_SENSOR_STA_REG = 0u, EL_SENSOR_STA_AVAIL = 1u, EL_SENSOR_STA_LOCKED = 2u } el_sensor_state_t;
 
-typedef struct EL_ATTR_PACKED el_sensor_t {
+typedef struct EL_ATTR_PACKED el_sensor_info_t {
     uint8_t           id;
     el_sensor_type_t  type;
     el_sensor_state_t state;
-    uint8_t           parameters[6];
-} el_sensor_t;
+} el_sensor_info_t;
 
 typedef enum {
     EL_MODEL_FMT_UNDEFINED     = 0u,

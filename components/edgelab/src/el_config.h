@@ -26,7 +26,4 @@
 #ifndef _EL_CONFIG_H_
 #define _EL_CONFIG_H_
 
-#define CONFIG_EL_LIB_FLASHDB
-#define CONFGI_EL_LIB_JPEGENC
-
 #endif

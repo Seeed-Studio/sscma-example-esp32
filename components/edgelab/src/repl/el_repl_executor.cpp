@@ -35,6 +35,8 @@
 #include <queue>
 #include <utility>
 
+#include "el_debug.h"
+
 namespace edgelab::repl {
 
 ReplExecutor::ReplExecutor(size_t worker_stack_size, size_t worker_priority)
@@ -48,6 +50,9 @@ ReplExecutor::ReplExecutor(size_t worker_stack_size, size_t worker_priority)
       _worker_priority(worker_priority) {
     static uint16_t worker_id = 0;
     sprintf(_worker_name, "task_executor_%2X", worker_id++);
+
+    EL_ASSERT(_task_stop_requested.is_lock_free());
+    EL_ASSERT(_worker_thread_stop_requested.is_lock_free());
 }
 
 ReplExecutor::~ReplExecutor() {

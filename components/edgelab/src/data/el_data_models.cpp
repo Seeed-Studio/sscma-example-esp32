@@ -141,14 +141,13 @@ el_err_code_t Models::get(el_model_id_t model_id, el_model_info_t& model_info) c
     return EL_EINVAL;
 }
 
-const el_model_info_t& Models::get_model_info(el_model_id_t model_id) const {
+el_model_info_t Models::get_model_info(el_model_id_t model_id) const {
     auto it = std::find_if(
       __model_info.begin(), __model_info.end(), [&](const el_model_info_t& v) { return v.id == model_id; });
     if (it != __model_info.end()) [[likely]] {
         return *it;
     }
-    static el_model_info_t info{};
-    return info;
+    return {};
 }
 
 const std::forward_list<el_model_info_t>& Models::get_all_model_info() const { return __model_info; }

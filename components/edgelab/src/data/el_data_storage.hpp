@@ -259,7 +259,7 @@ class Storage {
         const Storage* const ___storage;
         fdb_kvdb_t           ___kvdb;
         fdb_kv_iterator      ___iterator;
-        volatile bool        ___reach_end;
+        bool                 ___reach_end;
     };
 
     Iterator begin() { return Iterator(this); }

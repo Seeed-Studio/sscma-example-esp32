@@ -51,12 +51,12 @@ const static uint8_t RGB565_TO_RGB888_LOOKUP_TABLE_6[] = {
   0xC2, 0xC6, 0xCA, 0xCE, 0xD2, 0xD7, 0xDB, 0xDF, 0xE3, 0xE7, 0xEB, 0xEF, 0xF3, 0xF7, 0xFB, 0xFF,
 };
 
-typedef struct EL_ATTR_PACKED {
+typedef struct EL_ATTR_PACKED b16_t {
     uint8_t b0_8;
     uint8_t b8_16;
 } b16_t;
 
-typedef struct EL_ATTR_PACKED {
+typedef struct EL_ATTR_PACKED b24_t {
     uint8_t b0_8;
     uint8_t b8_16;
     uint8_t b16_24;

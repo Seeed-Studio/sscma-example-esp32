@@ -278,6 +278,7 @@ class Storage {
     struct Guard {
         Guard(const Storage* const storage) noexcept : ___storage(storage) { ___storage->m_lock(); }
         ~Guard() noexcept { ___storage->m_unlock(); }
+        
         Guard(const Guard&)            = delete;
         Guard& operator=(const Guard&) = delete;
 

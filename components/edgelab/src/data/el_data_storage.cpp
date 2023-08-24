@@ -50,12 +50,12 @@ Storage::~Storage() {
 };
 
 el_err_code_t Storage::init(const char* name, const char* path) {
-    volatile const Guard guard(this);
+    const Guard guard(this);
     return fdb_kvdb_init(__kvdb, name, path, nullptr, nullptr) == FDB_NO_ERR ? EL_OK : EL_EINVAL;
 }
 
 void Storage::deinit() {
-    volatile const Guard guard(this);
+    const Guard guard(this);
     if (__kvdb && (fdb_kvdb_deinit(__kvdb) == FDB_NO_ERR)) [[likely]] {
         delete __kvdb;
         __kvdb = nullptr;
@@ -63,7 +63,7 @@ void Storage::deinit() {
 }
 
 bool Storage::contains(const char* key) const {
-    volatile const Guard guard(this);
+    const Guard guard(this);
     if (!key || !__kvdb) [[unlikely]]
         return false;
     fdb_kv kv{};
@@ -71,9 +71,9 @@ bool Storage::contains(const char* key) const {
 }
 
 size_t Storage::get_value_size(const char* key) const {
-    volatile const Guard guard(this);
-    fdb_kv               handler{};
-    fdb_kv_t             p_handler = fdb_kv_get_obj(__kvdb, key, &handler);
+    const Guard guard(this);
+    fdb_kv      handler{};
+    fdb_kv_t    p_handler = fdb_kv_get_obj(__kvdb, key, &handler);
     if (!p_handler || !p_handler->value_len) [[unlikely]]
         return 0u;
 
@@ -81,12 +81,12 @@ size_t Storage::get_value_size(const char* key) const {
 }
 
 bool Storage::erase(const char* key) {
-    volatile const Guard guard(this);
+    const Guard guard(this);
     return fdb_kv_del(__kvdb, key) == FDB_NO_ERR;
 }
 
 void Storage::clear() {
-    volatile const Guard guard(this);
+    const Guard guard(this);
     if (!__kvdb) [[unlikely]]
         return;
     struct fdb_kv_iterator iterator;
@@ -95,7 +95,7 @@ void Storage::clear() {
 }
 
 bool Storage::reset() {
-    volatile const Guard guard(this);
+    const Guard guard(this);
     return __kvdb ? fdb_kv_set_default(__kvdb) == FDB_NO_ERR : false;
 }
 

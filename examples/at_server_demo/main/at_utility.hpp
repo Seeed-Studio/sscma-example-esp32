@@ -80,7 +80,7 @@ inline const char* sensor_type_2_str(el_sensor_type_t st) {
     case EL_SENSOR_TYPE_CAM:
         return "\"Camera\"";
     default:
-        return "\"\"";
+        return "\"Undefined\"";
     }
 }
 
@@ -93,7 +93,24 @@ inline const char* sensor_sta_2_str(el_sensor_state_t ss) {
     case EL_SENSOR_STA_LOCKED:
         return "\"Locked\"";
     default:
-        return "\"\"";
+        return "\"Unknown\"";
+    }
+}
+
+inline const char* img_type_2_str(el_pixel_format_t pix_fmt) {
+    switch (pix_fmt) {
+    case EL_PIXEL_FORMAT_GRAYSCALE:
+        return "\"Grayscale\"";
+    case EL_PIXEL_FORMAT_JPEG:
+        return "\"JPEg\"";
+    case EL_PIXEL_FORMAT_RGB565:
+        return "\"RGB565\"";
+    case EL_PIXEL_FORMAT_RGB888:
+        return "\"RGB888\"";
+    case EL_PIXEL_FORMAT_YUV422:
+        return "\"YUV422\"";
+    default:
+        return "\"Undefined\"";
     }
 }
 
@@ -125,10 +142,12 @@ inline void draw_results_on_image(const std::forward_list<el_box_t>& results, el
 }
 
 // TODO: avoid repeatly allocate/release memory in for loop
-std::string img_2_base64_string(const el_img_t* img) {
+std::string img_2_jpeg_string(const el_img_t* img) {
     using namespace edgelab;
+
     if (!img || !img->data) [[unlikely]]
-        return "";
+        return {};
+
     size_t size    = img->width * img->height * 3;
     auto   rgb_img = el_img_t{.data   = new uint8_t[size]{},
                               .size   = size,
@@ -136,30 +155,37 @@ std::string img_2_base64_string(const el_img_t* img) {
                               .height = img->height,
                               .format = EL_PIXEL_FORMAT_RGB888,
                               .rotate = img->rotate};
+
     rgb_to_rgb(img, &rgb_img);
-    auto          jpeg_img = el_img_t{.data   = new uint8_t[size]{},
-                                      .size   = size,
-                                      .width  = rgb_img.width,
-                                      .height = rgb_img.height,
-                                      .format = EL_PIXEL_FORMAT_JPEG,
-                                      .rotate = rgb_img.rotate};
-    el_err_code_t ret      = rgb_to_jpeg(&rgb_img, &jpeg_img);
+
+    auto jpeg_img = el_img_t{.data   = new uint8_t[size]{},
+                             .size   = size,
+                             .width  = rgb_img.width,
+                             .height = rgb_img.height,
+                             .format = EL_PIXEL_FORMAT_JPEG,
+                             .rotate = rgb_img.rotate};
+
+    el_err_code_t ret = rgb_to_jpeg(&rgb_img, &jpeg_img);
     if (ret != EL_OK) [[unlikely]]
-        return "";
+        return {};
+
     delete[] rgb_img.data;
+
     auto* buffer = new char[((jpeg_img.size + 2) / 3) * 4 + 1]{};
     el_base64_encode(jpeg_img.data, jpeg_img.size, buffer);
+
     delete[] jpeg_img.data;
+
     std::string data(buffer);
     delete[] buffer;
+
     return data;
 }
 
 template <typename AlgorithmType>
 std::string invoke_results_2_string(const std::string&   cmd,
-                                    bool                 result_only,
+                                    const std::string&   jpeg_string,
                                     const AlgorithmType* algorithm,
-                                    const el_img_t*      img,
                                     uint8_t              model_id,
                                     uint8_t              sensor_id,
                                     el_err_code_t        ret) {
@@ -171,8 +197,8 @@ std::string invoke_results_2_string(const std::string&   cmd,
        << ", \"preprocess_time\": " << unsigned(algorithm->get_preprocess_time())
        << ", \"run_time\": " << unsigned(algorithm->get_run_time())
        << ", \"postprocess_time\": " << unsigned(algorithm->get_postprocess_time()) << ", "
-       << el_results_2_json(algorithm->get_results());
-    if (!result_only) os << ", \"jpeg\": \"" << img_2_base64_string(img);
-    os << "\"}}, \"timestamp\": " << el_get_time_ms() << "}\n";
+       << el_results_2_json(algorithm->get_results()) << ", \"jpeg\": \"" << jpeg_string
+       << "\"}}, \"timestamp\": " << el_get_time_ms() << "}\n";
+
     return std::string(os.str());
 }

@@ -28,10 +28,6 @@
 
 #include <cstdint>
 #include <forward_list>
-#include <functional>
-#include <sstream>
-#include <string>
-#include <type_traits>
 
 #include "el_debug.h"
 #include "el_inference_base.hpp"

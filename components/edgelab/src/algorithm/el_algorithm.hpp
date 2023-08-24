@@ -28,6 +28,10 @@
 
 #include <algorithm>
 #include <forward_list>
+#include <functional>
+#include <sstream>
+#include <string>
+#include <type_traits>
 
 #include "el_algorithm_fomo.hpp"
 #include "el_algorithm_imcls.hpp"

@@ -80,9 +80,6 @@ void ReplExecutor::add_task(types::el_repl_task_t task) {
 
 const char* ReplExecutor::get_worker_name() const { return _worker_name; }
 
-inline void ReplExecutor::m_lock() { xSemaphoreTake(_task_queue_lock, portMAX_DELAY); }
-inline void ReplExecutor::m_unlock() { xSemaphoreGive(_task_queue_lock); }
-
 void ReplExecutor::run() {
     while (!_worker_thread_stop_requested.load(std::memory_order_relaxed)) {
         types::el_repl_task_t task;

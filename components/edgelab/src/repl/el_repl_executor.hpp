@@ -56,16 +56,16 @@ class ReplExecutor {
     const char* get_worker_name() const;
 
    protected:
-    inline void m_lock();
-    inline void m_unlock();
+    inline void m_lock() const { xSemaphoreTake(_task_queue_lock, portMAX_DELAY); }
+    inline void m_unlock() const { xSemaphoreGive(_task_queue_lock); }
 
     void        run();
     static void c_run(void* this_pointer);
 
    private:
-    SemaphoreHandle_t _task_queue_lock;
-    std::atomic<bool> _task_stop_requested;
-    std::atomic<bool> _worker_thread_stop_requested;
+    mutable SemaphoreHandle_t _task_queue_lock;
+    std::atomic<bool>         _task_stop_requested;
+    std::atomic<bool>         _worker_thread_stop_requested;
 
     BaseType_t   _worker_ret;
     TaskHandle_t _worker_handler;

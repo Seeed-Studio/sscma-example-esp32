@@ -26,9 +26,14 @@
 #ifndef _EL_REPL_SERVER_HPP_
 #define _EL_REPL_SERVER_HPP_
 
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
+#include <freertos/task.h>
+
 #include <algorithm>
 #include <forward_list>
 #include <functional>
+#include <sstream>
 #include <string>
 
 #include "el_compiler.h"
@@ -39,10 +44,12 @@
 #define CONFIG_EL_REPL_CMD_ARGC_MAX (8)
 
 namespace edgelab::repl {
-    
+
 class ReplServer;
 
 namespace types {
+
+typedef std::function<void(const std::string&)> el_repl_echo_cb_t;
 
 typedef std::function<el_err_code_t(int, char**)> el_repl_cmd_cb_t;
 
@@ -74,7 +81,7 @@ class ReplServer {
     ReplServer(ReplServer const&)            = delete;
     ReplServer& operator=(ReplServer const&) = delete;
 
-    void init();
+    void init(types::el_repl_echo_cb_t echo_cb = [](const std::string& str) { el_printf(str.c_str()); });
     void deinit();
 
     void loop(const std::string& line);
@@ -92,11 +99,36 @@ class ReplServer {
 
     el_err_code_t print_help();
 
-   private:
+   protected:
     el_err_code_t m_exec_cmd(const std::string& line);
 
-    ReplHistory                             _history;
+    template <typename... Args> inline void m_echo_cb(Args&&... args) {
+        auto os{std::ostringstream(std::ios_base::ate)};
+        ((os << (args)), ...);
+        _echo_cb(os.str());
+    }
+
+    inline void m_lock() const { xSemaphoreTake(_cmd_list_lock, portMAX_DELAY); }
+    inline void m_unlock() const { xSemaphoreGive(_cmd_list_lock); }
+
+    struct Guard {
+        Guard(const ReplServer* const repl_server) noexcept : __repl_server(repl_server) { __repl_server->m_lock(); }
+        ~Guard() noexcept { __repl_server->m_unlock(); }
+
+        Guard(const Guard&)            = delete;
+        Guard& operator=(const Guard&) = delete;
+
+       private:
+        const ReplServer* const __repl_server;
+    };
+
+   private:
+    ReplHistory _history;
+
+    mutable SemaphoreHandle_t               _cmd_list_lock;
     std::forward_list<types::el_repl_cmd_t> _cmd_list;
+
+    types::el_repl_echo_cb_t _echo_cb;
 
     bool        _is_ctrl;
     std::string _ctrl_line;

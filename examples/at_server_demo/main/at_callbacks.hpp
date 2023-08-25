@@ -98,8 +98,8 @@ void at_get_available_models(const std::string& cmd) {
     for (const auto& i : models_info) {
         DELIM_PRINT(os);
         os << "{\"id\": " << static_cast<unsigned>(i.id) << ", \"type\": " << algo_type_2_str(i.type)
-           << ", \"address\": 0x" << std::hex << static_cast<unsigned>(i.addr_flash) << ", \"size\": 0x"
-           << static_cast<unsigned>(i.size) << "}" << std::resetiosflags(std::ios_base::basefield);
+           << ", \"address\": \"0x" << std::hex << static_cast<unsigned>(i.addr_flash) << "\", \"size\": \"0x"
+           << static_cast<unsigned>(i.size) << "\"}" << std::resetiosflags(std::ios_base::basefield);
     }
     os << "]}\n";
 

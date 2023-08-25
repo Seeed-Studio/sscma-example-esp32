@@ -168,4 +168,8 @@ ServiceLoop:
     instance->loop(serial->get_char());
 
     goto ServiceLoop;
+
+    // release allocated memory (never executed)
+    delete engine;
+    engine = nullptr;
 }

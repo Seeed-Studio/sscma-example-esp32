@@ -174,10 +174,18 @@ std::string img_2_json_str(const el_img_t* img, bool info_only = false) {
     return std::string(os.str());
 }
 
+std::string simple_reply_ok(const std::string& cmd) {
+    std::string str{};
+    str += "{\"";
+    str += cmd;
+    str += "\": {\"status\": \"OK\"}}";
+    return str;
+}
+
 template <typename AlgorithmType>
-std::string invoke_results_2_json_str(const std::string&   cmd,
+std::string invoke_results_2_json_str(const AlgorithmType* algorithm,
                                       const std::string&   sample_data_str,
-                                      const AlgorithmType* algorithm,
+                                      const std::string&   cmd,
                                       uint8_t              model_id,
                                       uint8_t              sensor_id,
                                       el_err_code_t        ret) {

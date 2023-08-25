@@ -282,30 +282,30 @@ SampleErrorReply:
     direct_reply();
 }
 
-template <typename T>
-void run_invoke_on_img(const std::string& cmd,
+template <typename AlgorithmType>
+void run_invoke_on_img(AlgorithmType*     algorithm,
+                       const std::string& cmd,
                        int                n_times,
                        bool               result_only,
                        std::atomic<bool>& stop_token,
-                       InferenceEngine*   engine,
                        uint8_t            model_id,
                        uint8_t            sensor_id) {
-    auto*         device  = Device::get_device();
-    auto*         camera  = device->get_camera();
-    auto*         display = device->get_display();
-    auto*         serial  = device->get_serial();
-    auto          img     = el_img_t{.data   = nullptr,
-                                     .size   = 0,
-                                     .width  = 0,
-                                     .height = 0,
-                                     .format = EL_PIXEL_FORMAT_UNKNOWN,
-                                     .rotate = EL_PIXEL_ROTATE_UNKNOWN};
-    std::string   data_str{};
-    auto*         algorithm = new T(engine);
-    el_err_code_t ret       = algorithm ? EL_OK : EL_EINVAL;
+    auto*       device  = Device::get_device();
+    auto*       camera  = device->get_camera();
+    auto*       display = device->get_display();
+    auto*       serial  = device->get_serial();
+    auto        img     = el_img_t{.data   = nullptr,
+                                   .size   = 0,
+                                   .width  = 0,
+                                   .height = 0,
+                                   .format = EL_PIXEL_FORMAT_UNKNOWN,
+                                   .rotate = EL_PIXEL_ROTATE_UNKNOWN};
+    std::string data_str{};
+
+    el_err_code_t ret = algorithm ? EL_OK : EL_EINVAL;
 
     auto event_reply = [&](const std::string& sample_data_str) {
-        const auto& str = invoke_results_2_json_str(cmd, sample_data_str, algorithm, model_id, sensor_id, ret);
+        const auto& str = invoke_results_2_json_str(algorithm, sample_data_str, cmd, model_id, sensor_id, ret);
         serial->send_bytes(str.c_str(), str.size());
     };
 
@@ -315,8 +315,6 @@ void run_invoke_on_img(const std::string& cmd,
     }
 
     while ((n_times < 0 || --n_times >= 0) && !stop_token.load()) {
-        // vTaskDelay(10 / portTICK_PERIOD_MS);  // TODO: use yield
-
         ret = camera->start_stream();
         if (ret != EL_OK) [[unlikely]]
             goto InvokeErrorReply;
@@ -335,9 +333,8 @@ void run_invoke_on_img(const std::string& cmd,
             ret = display->show(&img);
             if (ret != EL_OK) [[unlikely]]
                 goto InvokeErrorReply;
-
-            data_str = img_2_json_str(&img, result_only);
         }
+        data_str = img_2_json_str(&img, result_only);
 
         camera->stop_stream();  // Note: discarding return err_code (always EL_OK)
         event_reply(data_str);
@@ -348,9 +345,6 @@ void run_invoke_on_img(const std::string& cmd,
         event_reply("");
         break;
     }
-
-    if (algorithm) [[likely]]
-        delete algorithm;
 }
 
 void at_run_invoke(const std::string& cmd,
@@ -364,6 +358,7 @@ void at_run_invoke(const std::string& cmd,
     auto* serial             = device->get_serial();
     auto* algorithm_delegate = AlgorithmDelegate::get_delegate();
     auto* models             = DataDelegate::get_delegate()->get_models_handler();
+    auto* instance           = ReplDelegate::get_delegate()->get_server_handler();
     auto  os                 = std::ostringstream(std::ios_base::ate);
 
     el_model_info_t     model_info{};
@@ -397,28 +392,68 @@ void at_run_invoke(const std::string& cmd,
         goto InvokeErrorReply;
 
     switch (algorithm_info.type) {
-    case EL_ALGO_TYPE_IMCLS:
+    case EL_ALGO_TYPE_IMCLS: {
         direct_reply();
-        run_invoke_on_img<AlgorithmIMCLS>(
-          cmd, n_times, result_only, stop_token, engine, current_model_id, current_sensor_id);
+        auto* algorithm = new AlgorithmIMCLS(engine);
+
+        instance->register_cmd("TSCORE", "Set score threshold", "SCORE_THRESHOLD", [&](int argc, char** argv) {
+            algorithm->set_score_threshold(std::stoi(argv[1]));
+            return EL_OK;
+        });
+
+        run_invoke_on_img(algorithm, cmd, n_times, result_only, stop_token, current_model_id, current_sensor_id);
+
+        instance->unregister_cmd("TSCORE");
+        if (algorithm) [[likely]]
+            delete algorithm;
+    }
         return;
 
-    case EL_ALGO_TYPE_FOMO:
+    case EL_ALGO_TYPE_FOMO: {
         direct_reply();
-        run_invoke_on_img<AlgorithmFOMO>(
-          cmd, n_times, result_only, stop_token, engine, current_model_id, current_sensor_id);
+        auto* algorithm = new AlgorithmFOMO(engine);
+
+        instance->register_cmd("TSCORE", "Set score threshold", "SCORE_THRESHOLD", [&](int argc, char** argv) {
+            algorithm->set_score_threshold(std::stoi(argv[1]));
+            return EL_OK;
+        });
+
+        run_invoke_on_img(algorithm, cmd, n_times, result_only, stop_token, current_model_id, current_sensor_id);
+
+        instance->unregister_cmd("TSCORE");
+        if (algorithm) [[likely]]
+            delete algorithm;
+    }
         return;
 
-    case EL_ALGO_TYPE_PFLD:
+    case EL_ALGO_TYPE_PFLD: {
         direct_reply();
-        run_invoke_on_img<AlgorithmPFLD>(
-          cmd, n_times, result_only, stop_token, engine, current_model_id, current_sensor_id);
+        auto* algorithm = new AlgorithmPFLD(engine);
+        run_invoke_on_img(algorithm, cmd, n_times, result_only, stop_token, current_model_id, current_sensor_id);
+        if (algorithm) [[likely]]
+            delete algorithm;
+    }
         return;
 
-    case EL_ALGO_TYPE_YOLO:
+    case EL_ALGO_TYPE_YOLO: {
         direct_reply();
-        run_invoke_on_img<AlgorithmYOLO>(
-          cmd, n_times, result_only, stop_token, engine, current_model_id, current_sensor_id);
+        auto* algorithm = new AlgorithmYOLO(engine);
+
+        instance->register_cmd("TSCORE", "Set score threshold", "SCORE_THRESHOLD", [&](int argc, char** argv) {
+            algorithm->set_score_threshold(std::stoi(argv[1]));
+            return EL_OK;
+        });
+        instance->register_cmd("TIOU", "Set IoU threshold", "IOU_THRESHOLD", [&](int argc, char** argv) {
+            algorithm->set_iou_threshold(std::stoi(argv[1]));
+            return EL_OK;
+        });
+
+        run_invoke_on_img(algorithm, cmd, n_times, result_only, stop_token, current_model_id, current_sensor_id);
+
+        instance->unregister_cmd("TSCORE", "TIOU");
+        if (algorithm) [[likely]]
+            delete algorithm;
+    }
         return;
 
     default:

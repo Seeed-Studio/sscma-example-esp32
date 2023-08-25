@@ -40,15 +40,15 @@ Response:
 
 - Read-only operation: `AT+{String}?\n`
 - Execute operation: `AT+{String}={String},{String}...\n`
-- Config operation: `AT+T{String}\n`
+- Config operation: `AT+T{String}={String}\n`
 - Reserved operation: `AT+{String}\n`
 
 ### Response Tyeps
 
 - Operation reply: `\r{JSON}\n`
 - Event reply: `\r{JSON}\n`
-- Logging reply: `{String}`
-- Normal reply: `> {String}\n`
+- Logging reply: `{String}\n...`
+- Normal reply: `> {String}\n...`
 
 ### Rules
 
@@ -97,9 +97,18 @@ Response:
 \r{
   "STAT?": {
     "status": "ok",
-    "boot_count": 594,
-    "current_model_id": 2,
-    "current_sensor_id": 1
+    "boot_count": 597,
+    "model": {
+      "id": 2,
+      "type": "YOLO",
+      "address": "0x500000",
+      "size": "0x41310"
+    },
+    "sensor": {
+      "id": 1,
+      "type": "camera",
+      "state": "available"
+    }
   }
 }\n
 ```
@@ -270,7 +279,9 @@ Response:
 \r{
   "SAMPLE": {
     "status": "ok",
-    "sensor_id": 1
+    "sensor": {
+      "id": 1
+    }
   }
 }\n
 ```
@@ -302,16 +313,23 @@ Response:
 \r{
   "INVOKE": {
     "status": "ok",
-    "model_id": 2,
-    "model_type": "YOLO",
-    "algorithm_category": "detection",
-    "algorithm_config": {
-      "score_threshold": 60,
-      "iou_threshold": 45
+    "model": {
+      "id": 2,
+      "type": "YOLO"
     },
-    "sensor_id": 1,
-    "sensor_type": "camera",
-    "sensor_state": "available"
+    "algorithm": {
+      "type": "YOLO",
+      "category": "detection",
+      "config": {
+        "score_threshold": 60,
+        "iou_threshold": 45
+      }
+    },
+    "sensor": {
+      "id": 1,
+      "type": "camera",
+      "state": "available"
+    }
   }
 }\n
 ```
@@ -324,8 +342,6 @@ Events:
     "from": "INVOKE",
     "status": "ok",
     "contents": {
-      "model_id": 2,
-      "sensor_id": 1,
       "preprocess_time": 14,
       "run_time": 368,
       "postprocess_time": 1,

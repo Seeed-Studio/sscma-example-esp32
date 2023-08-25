@@ -2,11 +2,11 @@
 
 #include <cstdint>
 #include <forward_list>
+#include <iomanip>
 #include <sstream>
 #include <string>
 #include <type_traits>
 #include <utility>
-#include <iomanip>
 
 #include "el_algorithm.hpp"
 #include "el_base64.h"
@@ -232,20 +232,13 @@ template <typename ConfigType> std::string algorithm_config_2_json_str(const Con
 }
 
 template <typename AlgorithmType>
-std::string img_invoke_results_2_json_str(const AlgorithmType* algorithm,
-                                          const el_img_t*      img,
-                                          const std::string&   cmd,
-                                          bool                 result_only,
-                                          uint8_t              model_id,
-                                          uint8_t              sensor_id,
-                                          el_err_code_t        ret) {
+std::string img_invoke_results_2_json_str(
+  const AlgorithmType* algorithm, const el_img_t* img, const std::string& cmd, bool result_only, el_err_code_t ret) {
     using namespace edgelab;
     auto os = std::ostringstream(std::ios_base::ate);
 
     os << "\r{\"event\": {\"from\": \"" << cmd << "\", \"status\": " << err_code_2_str(ret)
-       << ", \"contents\": {\"model_id\": " << static_cast<unsigned>(model_id)
-       << ", \"sensor_id\": " << static_cast<unsigned>(sensor_id)
-       << ", \"preprocess_time\": " << static_cast<unsigned>(algorithm->get_preprocess_time())
+       << ", \"contents\": {\"preprocess_time\": " << static_cast<unsigned>(algorithm->get_preprocess_time())
        << ", \"run_time\": " << static_cast<unsigned>(algorithm->get_run_time())
        << ", \"postprocess_time\": " << static_cast<unsigned>(algorithm->get_postprocess_time()) << ", "
        << results_2_json(algorithm->get_results()) << ", \"roi\": [" << static_cast<unsigned>(img->width) << ", "

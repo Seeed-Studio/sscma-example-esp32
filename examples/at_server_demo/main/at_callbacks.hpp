@@ -44,13 +44,23 @@ void at_get_device_status(const std::string& cmd,
                           int32_t            boot_count,
                           uint8_t            current_model_id,
                           uint8_t            current_sensor_id) {
-    auto* serial = Device::get_device()->get_serial();
+    auto* device = Device::get_device();
+    auto* serial = device->get_serial();
+    auto* models = DataDelegate::get_delegate()->get_models_handler();
     auto  os     = std::ostringstream(std::ios_base::ate);
+
+    auto model_info  = models->get_model_info(current_model_id);
+    auto sensor_info = device->get_sensor_info(current_sensor_id);
 
     os << "\r{\"" << cmd << "\": {\"status\": " << err_code_2_str(EL_OK)
        << ", \"boot_count\": " << static_cast<unsigned>(boot_count)
-       << ", \"current_model_id\": " << static_cast<unsigned>(current_model_id)
-       << ", \"current_sensor_id\": " << static_cast<unsigned>(current_sensor_id) << "}}\n";
+       << ", \"model\": {\"id\": " << static_cast<unsigned>(model_info.id)
+       << ", \"type\": " << algo_type_2_str(model_info.type) << ", \"address\": \"0x" << std::hex
+       << static_cast<unsigned>(model_info.addr_flash) << "\", \"size\": \"0x" << static_cast<unsigned>(model_info.size)
+       << std::resetiosflags(std::ios_base::basefield)
+       << "\"}, \"sensor\": {\"id\": " << static_cast<unsigned>(sensor_info.id)
+       << ", \"type\": " << sensor_type_2_str(sensor_info.type)
+       << ", \"state\": " << sensor_sta_2_str(sensor_info.state) << "}}}\n";
 
     auto str = os.str();
     serial->send_bytes(str.c_str(), str.size());
@@ -225,7 +235,7 @@ void at_run_sample(const std::string& cmd, int n_times, std::atomic<bool>& stop_
     auto direct_reply = [&]() {
         auto os = std::ostringstream(std::ios_base::ate);
         os << "\r{\"" << cmd << "\": {\"status\": " << err_code_2_str(ret)
-           << ", \"sensor_id\": " << static_cast<unsigned>(current_sensor_id) << "}}\n";
+           << ", \"sensor\": {\"id\": " << static_cast<unsigned>(current_sensor_id) << "}}}\n";
 
         auto str = os.str();
         serial->send_bytes(str.c_str(), str.size());
@@ -284,13 +294,8 @@ SampleErrorReply:
 }
 
 template <typename AlgorithmType>
-void run_invoke_on_img(AlgorithmType*     algorithm,
-                       const std::string& cmd,
-                       int                n_times,
-                       bool               result_only,
-                       std::atomic<bool>& stop_token,
-                       uint8_t            model_id,
-                       uint8_t            sensor_id) {
+void run_invoke_on_img(
+  AlgorithmType* algorithm, const std::string& cmd, int n_times, bool result_only, std::atomic<bool>& stop_token) {
     auto*         device      = Device::get_device();
     auto*         camera      = device->get_camera();
     auto*         display     = device->get_display();
@@ -303,7 +308,7 @@ void run_invoke_on_img(AlgorithmType*     algorithm,
                                          .rotate = EL_PIXEL_ROTATE_UNKNOWN};
     el_err_code_t ret         = algorithm ? EL_OK : EL_EINVAL;
     auto          event_reply = [&]() {
-        const auto& str = img_invoke_results_2_json_str(algorithm, &img, cmd, result_only, model_id, sensor_id, ret);
+        const auto& str = img_invoke_results_2_json_str(algorithm, &img, cmd, result_only, ret);
         serial->send_bytes(str.c_str(), str.size());
     };
     if (ret != EL_OK) [[unlikely]] {
@@ -363,12 +368,13 @@ void at_run_invoke(const std::string& cmd,
 
     auto direct_reply = [&](const std::string& algorithm_config) {
         os << "\r{\"" << cmd << "\": {\"status\": " << err_code_2_str(ret)
-           << ", \"model_id\": " << static_cast<unsigned>(model_info.id)
-           << ", \"model_type\": " << algo_type_2_str(model_info.type)
-           << ", \"algorithm_category\": " << algo_cat_2_str(algorithm_info.categroy) << ", \"algorithm_config\": {"
-           << algorithm_config << "}, \"sensor_id\": " << static_cast<unsigned>(sensor_info.id)
-           << ", \"sensor_type\": " << sensor_type_2_str(sensor_info.type)
-           << ", \"sensor_state\": " << sensor_sta_2_str(sensor_info.state) << "}}\n";
+           << ", \"model\": {\"id\": " << static_cast<unsigned>(model_info.id)
+           << ", \"type\": " << algo_type_2_str(model_info.type)
+           << "}, \"algorithm\": {\"type\": " << algo_type_2_str(algorithm_info.type)
+           << ", \"category\": " << algo_cat_2_str(algorithm_info.categroy) << ", \"config\": {" << algorithm_config
+           << "}}, \"sensor\": {\"id\": " << static_cast<unsigned>(sensor_info.id)
+           << ", \"type\": " << sensor_type_2_str(sensor_info.type)
+           << ", \"state\": " << sensor_sta_2_str(sensor_info.state) << "}}}\n";
 
         auto str = os.str();
         serial->send_bytes(str.c_str(), str.size());
@@ -407,7 +413,7 @@ void at_run_invoke(const std::string& cmd,
             return EL_OK;
         });
 
-        run_invoke_on_img(algorithm, cmd, n_times, result_only, stop_token, current_model_id, current_sensor_id);
+        run_invoke_on_img(algorithm, cmd, n_times, result_only, stop_token);
 
         instance->unregister_cmd("TSCORE");
         if (algorithm) [[likely]]
@@ -435,7 +441,7 @@ void at_run_invoke(const std::string& cmd,
             return EL_OK;
         });
 
-        run_invoke_on_img(algorithm, cmd, n_times, result_only, stop_token, current_model_id, current_sensor_id);
+        run_invoke_on_img(algorithm, cmd, n_times, result_only, stop_token);
 
         instance->unregister_cmd("TSCORE");
         if (algorithm) [[likely]]
@@ -446,7 +452,7 @@ void at_run_invoke(const std::string& cmd,
     case EL_ALGO_TYPE_PFLD: {
         auto* algorithm = new AlgorithmPFLD(engine);
 
-        run_invoke_on_img(algorithm, cmd, n_times, result_only, stop_token, current_model_id, current_sensor_id);
+        run_invoke_on_img(algorithm, cmd, n_times, result_only, stop_token);
 
         if (algorithm) [[likely]]
             delete algorithm;
@@ -479,7 +485,7 @@ void at_run_invoke(const std::string& cmd,
             return EL_OK;
         });
 
-        run_invoke_on_img(algorithm, cmd, n_times, result_only, stop_token, current_model_id, current_sensor_id);
+        run_invoke_on_img(algorithm, cmd, n_times, result_only, stop_token);
 
         instance->unregister_cmd("TSCORE", "TIOU");
         if (algorithm) [[likely]]

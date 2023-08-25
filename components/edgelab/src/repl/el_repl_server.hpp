@@ -28,13 +28,13 @@
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
-#include <freertos/task.h>
 
 #include <algorithm>
 #include <forward_list>
 #include <functional>
 #include <sstream>
 #include <string>
+#include <utility>
 
 #include "el_compiler.h"
 #include "el_debug.h"
@@ -84,27 +84,29 @@ class ReplServer {
     void init(types::el_repl_echo_cb_t echo_cb = [](const std::string& str) { el_printf(str.c_str()); });
     void deinit();
 
-    void loop(const std::string& line);
-    void loop(const char* line, size_t len);
-    void loop(char c);
+    bool has_cmd(const std::string& cmd);
 
     el_err_code_t register_cmd(const types::el_repl_cmd_t& cmd);
     el_err_code_t register_cmd(const char* cmd, const char* desc, const char* arg, types::el_repl_cmd_cb_t cmd_cb);
 
-    el_err_code_t unregister_cmd(const std::string& cmd);
-    el_err_code_t unregister_cmd(const char* cmd);
+    template <typename... Args> void unregister_cmd(Args&&... args) {
+        const Guard guard(this);
+        ((m_unregister_cmd(std::forward<Args>(args))), ...);
+    }
 
-    size_t register_cmds(const std::forward_list<types::el_repl_cmd_t>& cmd_list);
-    size_t register_cmds(const types::el_repl_cmd_t* cmd_list, size_t size);
+    void print_help();
 
-    el_err_code_t print_help();
+    void loop(const std::string& line);
+    void loop(char c);
 
    protected:
+    void m_unregister_cmd(const std::string& cmd);
+
     el_err_code_t m_exec_cmd(const std::string& line);
 
     template <typename... Args> inline void m_echo_cb(Args&&... args) {
         auto os{std::ostringstream(std::ios_base::ate)};
-        ((os << (args)), ...);
+        ((os << (std::forward<Args>(args))), ...);
         _echo_cb(os.str());
     }
 

@@ -2,7 +2,6 @@
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
-#include <freertos/task.h>
 
 #include <algorithm>
 #include <cstring>
@@ -17,12 +16,59 @@
 
 namespace edgelab::repl {
 
+ReplServer::ReplServer() : _cmd_list_lock(xSemaphoreCreateCounting(1, 1)), _is_ctrl(false), _line_index(-1) {
+    register_cmd("HELP", "List available commands", "", [this](int, char**) -> el_err_code_t {
+        this->print_help();
+        return EL_OK;
+    });
+};
+
+ReplServer::~ReplServer() { deinit(); }
+
+void ReplServer::init(types::el_repl_echo_cb_t echo_cb) {
+    {
+        const Guard guard(this);
+        EL_ASSERT(echo_cb);
+        _echo_cb = echo_cb;
+    }
+
+    m_echo_cb("Welcome to EegeLab REPL.\n", "Type 'AT+HELP' for command list.\n", "> ");
+}
+
+void ReplServer::deinit() {
+    const Guard guard(this);
+
+    _history.clear();
+    _cmd_list.clear();
+
+    _is_ctrl = false;
+    _ctrl_line.clear();
+    _line.clear();
+    _line_index = -1;
+}
+
+bool ReplServer::has_cmd(const std::string& cmd) {
+    const Guard guard(this);
+
+    auto it = std::find_if(
+      _cmd_list.begin(), _cmd_list.end(), [&](const types::el_repl_cmd_t& c) { return c._cmd.compare(cmd) == 0; });
+
+    return it != _cmd_list.end();
+}
+
+
 el_err_code_t ReplServer::register_cmd(const types::el_repl_cmd_t& cmd) {
-    const Guard guard(this);  // TODO: avoid repeatily call when register_cmds
+    const Guard guard(this); 
 
     if (cmd._cmd.empty()) [[unlikely]]
         return EL_EINVAL;
-    _cmd_list.emplace_front(std::move(cmd));
+
+    auto it = std::find_if(
+      _cmd_list.begin(), _cmd_list.end(), [&](const types::el_repl_cmd_t& c) { return c._cmd.compare(cmd._cmd) == 0; });
+    if (it != _cmd_list.end()) [[unlikely]]
+        *it = cmd;
+    else
+        _cmd_list.emplace_front(std::move(cmd));
 
     return EL_OK;
 }
@@ -36,39 +82,7 @@ el_err_code_t ReplServer::register_cmd(const char*             cmd,
     return register_cmd(std::move(cmd_t));
 }
 
-size_t ReplServer::register_cmds(const std::forward_list<types::el_repl_cmd_t>& cmd_list) {
-    size_t registered_cmd_count = 0;
-    for (const auto& cmd : cmd_list)
-        if (register_cmd(cmd) == EL_OK) [[likely]]
-            ++registered_cmd_count;
-
-    return registered_cmd_count;
-}
-
-size_t ReplServer::register_cmds(const types::el_repl_cmd_t* cmd_list, size_t size) {
-    size_t registered_cmd_count = 0;
-    for (size_t i = 0; i < size; ++i)
-        if (register_cmd(cmd_list[i]) == EL_OK) [[likely]]
-            ++registered_cmd_count;
-
-    return registered_cmd_count;
-}
-
-el_err_code_t ReplServer::unregister_cmd(const std::string& cmd) {
-    const Guard guard(this);
-
-    _cmd_list.remove_if([&](const types::el_repl_cmd_t& c) { return c._cmd.compare(cmd) == 0; });
-
-    return EL_OK;
-}
-
-el_err_code_t ReplServer::unregister_cmd(const char* cmd) {
-    std::string cmd_str(cmd);
-
-    return unregister_cmd(cmd_str);
-}
-
-el_err_code_t ReplServer::print_help() {
+void ReplServer::print_help() {
     const Guard guard(this);
 
     _echo_cb("Command list:\n");
@@ -79,14 +93,14 @@ el_err_code_t ReplServer::print_help() {
             m_echo_cb("  AT+", cmd._cmd, "\n");
         m_echo_cb("    ", cmd._desc, "\n");
     }
-
-    return EL_OK;
 }
 
-void ReplServer::loop(const std::string& line) { loop(line.c_str(), line.size()); }
+void ReplServer::m_unregister_cmd(const std::string& cmd) {
+    _cmd_list.remove_if([&](const types::el_repl_cmd_t& c) { return c._cmd.compare(cmd) == 0; });
+}
 
-void ReplServer::loop(const char* line, size_t len) {
-    for (size_t i = 0; i < len; ++i) loop(line[i]);
+void ReplServer::loop(const std::string& line) {
+    std::for_each(line.begin(), line.end(), [this](char c) { this->loop(c); });
 }
 
 void ReplServer::loop(char c) {
@@ -227,38 +241,8 @@ el_err_code_t ReplServer::m_exec_cmd(const std::string& cmd) {
 
     if (ret != EL_OK) [[unlikely]]
         m_echo_cb("Command ", cmd_name, " failed.\n");
+
     return ret;
-}
-
-ReplServer::ReplServer() : _cmd_list_lock(xSemaphoreCreateCounting(1, 1)), _is_ctrl(false), _line_index(-1) {
-    register_cmd("HELP", "List available commands", "", [this](int, char**) -> el_err_code_t {
-        this->print_help();
-        return EL_OK;
-    });
-};
-
-ReplServer::~ReplServer() { deinit(); }
-
-void ReplServer::init(types::el_repl_echo_cb_t echo_cb) {
-    {
-        const Guard guard(this);
-        EL_ASSERT(echo_cb);
-        _echo_cb = echo_cb;
-    }
-
-    m_echo_cb("Welcome to EegeLab REPL.\n", "Type 'AT+HELP' for command list.\n", "> ");
-}
-
-void ReplServer::deinit() {
-    const Guard guard(this);
-
-    _history.clear();
-    _cmd_list.clear();
-
-    _is_ctrl = false;
-    _ctrl_line.clear();
-    _line.clear();
-    _line_index = -1;
 }
 
 }  // namespace edgelab::repl

@@ -34,6 +34,9 @@
 #include <functional>
 #include <queue>
 
+#define CONFIG_EL_REPL_EXECUTOR_STACK_SIZE 8192
+#define CONFIG_EL_REPL_EXECUTOR_PRIO       5
+
 namespace edgelab::repl {
 
 namespace types {
@@ -44,8 +47,8 @@ typedef std::function<void(std::atomic<bool>&)> el_repl_task_t;
 
 class ReplExecutor {
    public:
-    ReplExecutor(size_t worker_stack_size = CONFIG_PTHREAD_TASK_STACK_SIZE_DEFAULT,
-                 size_t worker_priority   = CONFIG_PTHREAD_TASK_PRIO_DEFAULT);
+    ReplExecutor(size_t worker_stack_size = CONFIG_EL_REPL_EXECUTOR_STACK_SIZE,
+                 size_t worker_priority   = CONFIG_EL_REPL_EXECUTOR_PRIO);
     ~ReplExecutor();
 
     void start();

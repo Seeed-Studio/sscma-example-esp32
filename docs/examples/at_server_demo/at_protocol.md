@@ -1,8 +1,10 @@
 # AT Protocol Specification v0.0.2
 
+
 ## Link
 
  - USART Serial
+
 
 ## Stracture
 
@@ -31,6 +33,7 @@ Response:
 }\n
 ```
 
+
 ## Types
 
 ### Command Types
@@ -42,8 +45,8 @@ Response:
 
 ### Response Tyeps
 
-- Operation reply: `\r{Json}\n`
-- Event reply: `\r{Json}\n`
+- Operation reply: `\r{JSON}\n`
+- Event reply: `\r{JSON}\n`
 - Logging reply: `{String}`
 - Normal reply: `> {String}\n`
 
@@ -53,7 +56,8 @@ Response:
 1. **Execute operation** must have a sync/async **Operation reply**, may have multiple async **Logging reply** and **Event reply**, **Logging reply** should be off in production case.
 1. **Config operation** has no reply.
 1. **Reserved operation** may have sync/async replies with no specified reply types. 
-1. You may recieve **Logging reply** when monitor the device.
+1. You may recieve **Logging reply** while monitoring the device outputs.
+
 
 ## Intereaction
 
@@ -345,7 +349,6 @@ Events:
 }\n
 ```
 
-
 ### Config operation
 
 #### Set score threshold
@@ -367,7 +370,6 @@ Request: `AT+TIOU=45\n`
 No-reply.
 
 Note: Available while invoking using a specified algorithm.
-
 
 ### Reserved operation
 
@@ -395,3 +397,159 @@ No-reply.
 Request: `AT+BREAK\n`
 
 No-reply.
+
+## Patterns
+
+### Status
+
+```json
+"{Key:String}": "{Value:String}"
+```
+
+Key: `status`
+
+Values:
+
+- `ok`
+- `try again`
+- `logic error`
+- `timeout`
+- `input/output error`
+- `invalid argument`
+- `out of memory`
+- `busy`
+- `not supported`
+- `operation not permitted`
+- `unknown`
+
+### Algorithm Types
+
+```json
+"{Key:String}": "{Value:String}"
+```
+
+Key: `type`
+
+Values:
+
+- `FOMO`
+- `PFLD`
+- `YOLO`
+- `IMCLS`
+- `undefined`
+
+### Algorithm Categories
+
+```json
+"{Key:String}": "{Value:String}"
+```
+
+Key: `categroy`
+
+Values:
+
+- `detection`
+- `pose`
+- `classification`
+- `undefined`
+
+### Sensor Types
+
+```json
+"{Key:String}": "{Value:String}"
+```
+
+Key: `type`
+
+Values:
+
+- `camera`
+- `undefined`
+
+### Sensor State
+
+```json
+"{Key:String}": "{Value:String}"
+```
+
+Key: `state`
+
+Values:
+
+- `registered`
+- `available`
+- `locked`
+- `unknown`
+
+### Image Types
+
+```json
+"{Key:String}": "{Data:String}"
+```
+
+Key:
+
+- `grayscale`
+- `jpeg`
+- `rgb565`
+- `rgb888`
+- `yuv422`
+- `undefined`
+
+Data: `BASE64`
+
+### Box Type
+
+```json
+"{Key:String}": ["{Value:JSON}"]
+```
+
+Key: `boxes`
+
+Value:
+
+```json
+{
+    "x": 75,
+    "y": 73,
+    "w": 27,
+    "h": 45,
+    "target": 0,
+    "score": 81
+}
+```
+
+### Point Type
+
+```json
+"{Key:String}": ["{Value:JSON}"]
+```
+
+Key: `points`
+
+Value:
+
+```json
+{
+    "x": 75,
+    "y": 73,
+    "target": 0
+}
+```
+
+### Class Type
+
+```json
+"{Key:String}": ["{Value:JSON}"]
+```
+
+Key: `classes`
+
+Value:
+
+```json
+{
+    "target": 0,
+    "score": 81
+}
+```

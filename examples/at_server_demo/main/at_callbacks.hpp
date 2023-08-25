@@ -47,9 +47,10 @@ void at_get_device_status(const std::string& cmd,
     auto* serial = Device::get_device()->get_serial();
     auto  os     = std::ostringstream(std::ios_base::ate);
 
-    os << "\r{\"" << cmd << "\": {\"status\": " << err_code_2_str(EL_OK) << ", \"boot_count\": " << unsigned(boot_count)
-       << ", \"current_model_id\": " << unsigned(current_model_id)
-       << ", \"current_sensor_id\": " << unsigned(current_sensor_id) << "}}\n";
+    os << "\r{\"" << cmd << "\": {\"status\": " << err_code_2_str(EL_OK)
+       << ", \"boot_count\": " << static_cast<unsigned>(boot_count)
+       << ", \"current_model_id\": " << static_cast<unsigned>(current_model_id)
+       << ", \"current_sensor_id\": " << static_cast<unsigned>(current_sensor_id) << "}}\n";
 
     auto str = os.str();
     serial->send_bytes(str.c_str(), str.size());
@@ -61,7 +62,7 @@ void at_get_version(const std::string& cmd) {
     auto  os     = std::ostringstream(std::ios_base::ate);
 
     os << "\r{\"" << cmd << "\": {\"edgelab_cpp_sdk\": \"" << EL_VERSION << "\", \"chip_revision\": \""
-       << unsigned(device->get_chip_revision_id()) << "\"}}\n";
+       << static_cast<unsigned>(device->get_chip_revision_id()) << "\"}}\n";
 
     auto str = os.str();
     serial->send_bytes(str.c_str(), str.size());
@@ -96,9 +97,9 @@ void at_get_available_models(const std::string& cmd) {
     DELIM_RESET;
     for (const auto& i : models_info) {
         DELIM_PRINT(os);
-        os << "{\"id\": " << unsigned(i.id) << ", \"type\": " << algo_type_2_str(i.type) << ", \"address\": 0x"
-           << std::hex << unsigned(i.addr_flash) << ", \"size\": 0x" << unsigned(i.size) << "}"
-           << std::resetiosflags(std::ios_base::basefield);
+        os << "{\"id\": " << static_cast<unsigned>(i.id) << ", \"type\": " << algo_type_2_str(i.type)
+           << ", \"address\": 0x" << std::hex << static_cast<unsigned>(i.addr_flash) << ", \"size\": 0x"
+           << static_cast<unsigned>(i.size) << "}" << std::resetiosflags(std::ios_base::basefield);
     }
     os << "]}\n";
 
@@ -141,7 +142,8 @@ ModelError:
     current_model_id = 0;
 
 ModelReply:
-    os << "\r{\"" << cmd << "\": {\"id\": " << unsigned(model_id) << ", \"status\": " << err_code_2_str(ret) << "}}\n";
+    os << "\r{\"" << cmd << "\": {\"id\": " << static_cast<unsigned>(model_id)
+       << ", \"status\": " << err_code_2_str(ret) << "}}\n";
 
     auto str = os.str();
     serial->send_bytes(str.c_str(), str.size());
@@ -156,7 +158,7 @@ void at_get_available_sensors(const std::string& cmd) {
     DELIM_RESET;
     for (const auto& i : registered_sensors) {
         DELIM_PRINT(os);
-        os << "{\"id\": " << unsigned(i.id) << ", \"type\": " << sensor_type_2_str(i.type)
+        os << "{\"id\": " << static_cast<unsigned>(i.id) << ", \"type\": " << sensor_type_2_str(i.type)
            << ", \"state\": " << sensor_sta_2_str(i.state) << "}";
     }
     os << "]}\n";
@@ -206,7 +208,8 @@ SensorError:
     current_sensor_id = 0;
 
 SensorReply:
-    os << "\r{\"" << cmd << "\": {\"id\": " << unsigned(sensor_id) << ", \"status\": " << err_code_2_str(ret) << "}}\n";
+    os << "\r{\"" << cmd << "\": {\"id\": " << static_cast<unsigned>(sensor_id)
+       << ", \"status\": " << err_code_2_str(ret) << "}}\n";
 
     auto str = os.str();
     serial->send_bytes(str.c_str(), str.size());
@@ -222,7 +225,15 @@ void at_run_sample(const std::string& cmd, int n_times, std::atomic<bool>& stop_
     auto direct_reply = [&]() {
         auto os = std::ostringstream(std::ios_base::ate);
         os << "\r{\"" << cmd << "\": {\"status\": " << err_code_2_str(ret)
-           << ", \"sensor_id\": " << unsigned(current_sensor_id) << "}}\n";
+           << ", \"sensor_id\": " << static_cast<unsigned>(current_sensor_id) << "}}\n";
+
+        auto str = os.str();
+        serial->send_bytes(str.c_str(), str.size());
+    };
+    auto event_reply = [&](const std::string& sample_data_str) {
+        auto os = std::ostringstream(std::ios_base::ate);
+        os << "\r{\"event\": {\"from\": \"" << cmd << "\", \"status\": " << err_code_2_str(ret) << ", \"contents\": {"
+           << sample_data_str << "}}, \"timestamp\": " << el_get_time_ms() << "}\n";
 
         auto str = os.str();
         serial->send_bytes(str.c_str(), str.size());
@@ -245,16 +256,6 @@ void at_run_sample(const std::string& cmd, int n_times, std::atomic<bool>& stop_
                                    .height = 0,
                                    .format = EL_PIXEL_FORMAT_UNKNOWN,
                                    .rotate = EL_PIXEL_ROTATE_UNKNOWN};
-
-        auto event_reply = [&](const std::string& sample_data_str) {
-            auto os = std::ostringstream(std::ios_base::ate);
-            os << "\r{\"event\": {\"from\": \"" << cmd << "\", \"status\": " << err_code_2_str(ret)
-               << ", \"contents\": {\"data\": {" << sample_data_str << "}}}, \"timestamp\": " << el_get_time_ms()
-               << "}\n";
-
-            auto str = os.str();
-            serial->send_bytes(str.c_str(), str.size());
-        };
 
         while ((n_times < 0 || --n_times >= 0) && !stop_token.load()) {
             ret = camera->start_stream();
@@ -290,27 +291,23 @@ void run_invoke_on_img(AlgorithmType*     algorithm,
                        std::atomic<bool>& stop_token,
                        uint8_t            model_id,
                        uint8_t            sensor_id) {
-    auto*       device  = Device::get_device();
-    auto*       camera  = device->get_camera();
-    auto*       display = device->get_display();
-    auto*       serial  = device->get_serial();
-    auto        img     = el_img_t{.data   = nullptr,
-                                   .size   = 0,
-                                   .width  = 0,
-                                   .height = 0,
-                                   .format = EL_PIXEL_FORMAT_UNKNOWN,
-                                   .rotate = EL_PIXEL_ROTATE_UNKNOWN};
-    std::string data_str{};
-
-    el_err_code_t ret = algorithm ? EL_OK : EL_EINVAL;
-
-    auto event_reply = [&](const std::string& sample_data_str) {
-        const auto& str = invoke_results_2_json_str(algorithm, sample_data_str, cmd, model_id, sensor_id, ret);
+    auto*         device      = Device::get_device();
+    auto*         camera      = device->get_camera();
+    auto*         display     = device->get_display();
+    auto*         serial      = device->get_serial();
+    auto          img         = el_img_t{.data   = nullptr,
+                                         .size   = 0,
+                                         .width  = 0,
+                                         .height = 0,
+                                         .format = EL_PIXEL_FORMAT_UNKNOWN,
+                                         .rotate = EL_PIXEL_ROTATE_UNKNOWN};
+    el_err_code_t ret         = algorithm ? EL_OK : EL_EINVAL;
+    auto          event_reply = [&]() {
+        const auto& str = img_invoke_results_2_json_str(algorithm, &img, cmd, result_only, model_id, sensor_id, ret);
         serial->send_bytes(str.c_str(), str.size());
     };
-
     if (ret != EL_OK) [[unlikely]] {
-        event_reply("");
+        event_reply();
         return;
     }
 
@@ -327,22 +324,17 @@ void run_invoke_on_img(AlgorithmType*     algorithm,
         if (ret != EL_OK) [[unlikely]]
             goto InvokeErrorReply;
 
-        if (!result_only) {
-            draw_results_on_image(algorithm->get_results(), &img);
+        draw_results_on_image(algorithm->get_results(), &img);
+        ret = display->show(&img);
+        if (ret != EL_OK) [[unlikely]]
+            goto InvokeErrorReply;
 
-            ret = display->show(&img);
-            if (ret != EL_OK) [[unlikely]]
-                goto InvokeErrorReply;
-        }
-        data_str = img_2_json_str(&img, result_only);
-
+        event_reply();
         camera->stop_stream();  // Note: discarding return err_code (always EL_OK)
-        event_reply(data_str);
-        data_str.clear();
         continue;
 
     InvokeErrorReply:
-        event_reply("");
+        event_reply();
         break;
     }
 }
@@ -357,7 +349,9 @@ void at_run_invoke(const std::string& cmd,
     auto* device             = Device::get_device();
     auto* serial             = device->get_serial();
     auto* algorithm_delegate = AlgorithmDelegate::get_delegate();
-    auto* models             = DataDelegate::get_delegate()->get_models_handler();
+    auto* data_delegate      = DataDelegate::get_delegate();
+    auto* models             = data_delegate->get_models_handler();
+    auto* storage            = data_delegate->get_storage_handler();
     auto* instance           = ReplDelegate::get_delegate()->get_server_handler();
     auto  os                 = std::ostringstream(std::ios_base::ate);
 
@@ -367,11 +361,12 @@ void at_run_invoke(const std::string& cmd,
 
     el_err_code_t ret = EL_OK;
 
-    auto direct_reply = [&]() {
+    auto direct_reply = [&](const std::string& algorithm_config) {
         os << "\r{\"" << cmd << "\": {\"status\": " << err_code_2_str(ret)
-           << ", \"model_id\": " << unsigned(model_info.id) << ", \"model_type\": " << algo_type_2_str(model_info.type)
-           << ", \"algorithm_category\": " << algo_cat_2_str(algorithm_info.categroy)
-           << ", \"sensor_id\": " << unsigned(sensor_info.id)
+           << ", \"model_id\": " << static_cast<unsigned>(model_info.id)
+           << ", \"model_type\": " << algo_type_2_str(model_info.type)
+           << ", \"algorithm_category\": " << algo_cat_2_str(algorithm_info.categroy) << ", \"algorithm_config\": {"
+           << algorithm_config << "}, \"sensor_id\": " << static_cast<unsigned>(sensor_info.id)
            << ", \"sensor_type\": " << sensor_type_2_str(sensor_info.type)
            << ", \"sensor_state\": " << sensor_sta_2_str(sensor_info.state) << "}}\n";
 
@@ -393,11 +388,22 @@ void at_run_invoke(const std::string& cmd,
 
     switch (algorithm_info.type) {
     case EL_ALGO_TYPE_IMCLS: {
-        direct_reply();
         auto* algorithm = new AlgorithmIMCLS(engine);
 
+        auto algorithm_config = algorithm->get_algorithm_config();
+        auto kv               = el_make_storage_kv_from_type(algorithm_config);
+        if (storage->contains(kv.key)) [[likely]]
+            *storage >> kv;
+        else
+            *storage << kv;
+        algorithm->set_algorithm_config(kv.value);
+
+        direct_reply(algorithm_config_2_json_str(algorithm_config));
+
         instance->register_cmd("TSCORE", "Set score threshold", "SCORE_THRESHOLD", [&](int argc, char** argv) {
-            algorithm->set_score_threshold(std::stoi(argv[1]));
+            kv.value.score_threshold = std::stoi(argv[1]);
+            algorithm->set_algorithm_config(kv.value);
+            *storage << kv;
             return EL_OK;
         });
 
@@ -410,11 +416,22 @@ void at_run_invoke(const std::string& cmd,
         return;
 
     case EL_ALGO_TYPE_FOMO: {
-        direct_reply();
         auto* algorithm = new AlgorithmFOMO(engine);
 
+        auto algorithm_config = algorithm->get_algorithm_config();
+        auto kv               = el_make_storage_kv_from_type(algorithm_config);
+        if (storage->contains(kv.key)) [[likely]]
+            *storage >> kv;
+        else
+            *storage << kv;
+        algorithm->set_algorithm_config(kv.value);
+
+        direct_reply(algorithm_config_2_json_str(algorithm_config));
+
         instance->register_cmd("TSCORE", "Set score threshold", "SCORE_THRESHOLD", [&](int argc, char** argv) {
-            algorithm->set_score_threshold(std::stoi(argv[1]));
+            kv.value.score_threshold = std::stoi(argv[1]);
+            algorithm->set_algorithm_config(kv.value);
+            *storage << kv;
             return EL_OK;
         });
 
@@ -427,24 +444,38 @@ void at_run_invoke(const std::string& cmd,
         return;
 
     case EL_ALGO_TYPE_PFLD: {
-        direct_reply();
         auto* algorithm = new AlgorithmPFLD(engine);
+
         run_invoke_on_img(algorithm, cmd, n_times, result_only, stop_token, current_model_id, current_sensor_id);
+
         if (algorithm) [[likely]]
             delete algorithm;
     }
         return;
 
     case EL_ALGO_TYPE_YOLO: {
-        direct_reply();
         auto* algorithm = new AlgorithmYOLO(engine);
 
+        auto algorithm_config = algorithm->get_algorithm_config();
+        auto kv               = el_make_storage_kv_from_type(algorithm_config);
+        if (storage->contains(kv.key)) [[likely]]
+            *storage >> kv;
+        else
+            *storage << kv;
+        algorithm->set_algorithm_config(kv.value);
+
+        direct_reply(algorithm_config_2_json_str(algorithm_config));
+
         instance->register_cmd("TSCORE", "Set score threshold", "SCORE_THRESHOLD", [&](int argc, char** argv) {
-            algorithm->set_score_threshold(std::stoi(argv[1]));
+            kv.value.score_threshold = std::stoi(argv[1]);
+            algorithm->set_algorithm_config(kv.value);
+            *storage << kv;
             return EL_OK;
         });
         instance->register_cmd("TIOU", "Set IoU threshold", "IOU_THRESHOLD", [&](int argc, char** argv) {
-            algorithm->set_iou_threshold(std::stoi(argv[1]));
+            kv.value.iou_threshold = std::stoi(argv[1]);
+            algorithm->set_algorithm_config(kv.value);
+            *storage << kv;
             return EL_OK;
         });
 
@@ -461,5 +492,5 @@ void at_run_invoke(const std::string& cmd,
     }
 
 InvokeErrorReply:
-    direct_reply();
+    direct_reply("");
 }

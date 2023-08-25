@@ -60,39 +60,6 @@ el_algorithm_type_t el_algorithm_type_from_engine(const edgelab::InferenceEngine
     return EL_ALGO_TYPE_UNDEFINED;
 }
 
-template <typename T> constexpr std::string el_results_2_json(const std::forward_list<T>& results) {
-    auto os{std::ostringstream(std::ios_base::ate)};
-    using F                = std::function<void(void)>;
-    static F delim_f       = []() {};
-    static F print_delim_f = [&os]() { os << ", "; };
-    static F print_void_f  = [&]() { delim_f = print_delim_f; };
-    delim_f                = print_void_f;
-    if constexpr (std::is_same<T, el_box_t>::value) {
-        os << "\"boxes\": [";
-        for (const auto& box : results) {
-            delim_f();
-            os << "{\"x\": " << unsigned(box.x) << ", \"y\": " << unsigned(box.y) << ", \"w\": " << unsigned(box.w)
-               << ", \"h\": " << unsigned(box.h) << ", \"target\": " << unsigned(box.target)
-               << ", \"score\": " << unsigned(box.score) << "}";
-        }
-    } else if constexpr (std::is_same<T, el_point_t>::value) {
-        os << "\"points\": [";
-        for (const auto& point : results) {
-            delim_f();
-            os << "{\"x\": " << unsigned(point.x) << ", \"y\": " << unsigned(point.y)
-               << ", \"target\": " << unsigned(point.target) << "}";
-        }
-    } else if constexpr (std::is_same<T, el_class_t>::value) {
-        os << "\"classes\": [";
-        for (const auto& cls : results) {
-            delim_f();
-            os << "{\"score\": " << unsigned(cls.score) << ", \"target\": " << unsigned(cls.target) << "}";
-        }
-    }
-    os << "]";
-    return os.str();
-}
-
 }  // namespace algorithm::utility
 
 using Algorithm = class algorithm::base::Algorithm;

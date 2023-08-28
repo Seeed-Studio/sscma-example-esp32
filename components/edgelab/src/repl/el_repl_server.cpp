@@ -213,7 +213,7 @@ el_err_code_t ReplServer::m_exec_cmd(const std::string& cmd) {
 
     m_lock();
     auto it = std::find_if(_cmd_list.begin(), _cmd_list.end(), [&](const types::el_repl_cmd_t& c) {
-        size_t cmd_body_pos = cmd_name.rfind("|");
+        size_t cmd_body_pos = cmd_name.rfind(":");
         return c._cmd.compare(cmd_name.substr(cmd_body_pos != std::string::npos ? cmd_body_pos + 1 : 0)) == 0;
     });
     if (it == _cmd_list.end()) [[unlikely]] {
@@ -225,10 +225,10 @@ el_err_code_t ReplServer::m_exec_cmd(const std::string& cmd) {
     m_unlock();
 
     argv[argc++] = const_cast<char*>(cmd_name.c_str());
-    char* token  = std::strtok(const_cast<char*>(cmd_args.c_str()), ",");
+    char* token  = std::strtok(const_cast<char*>(cmd_args.c_str()), " ");
     while (token && argc < CONFIG_EL_REPL_CMD_ARGC_MAX) {
         argv[argc++] = token;
-        token        = std::strtok(nullptr, ",");
+        token        = std::strtok(nullptr, " ");
     }
 
     if (cmd_copy._cmd_cb) {

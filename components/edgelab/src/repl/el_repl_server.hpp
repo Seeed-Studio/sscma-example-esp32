@@ -56,7 +56,7 @@ typedef std::function<el_err_code_t(int, char**)> el_repl_cmd_cb_t;
 struct el_repl_cmd_t {
     el_repl_cmd_t(std::string cmd, std::string desc, std::string args, el_repl_cmd_cb_t cmd_cb)
         : _cmd(cmd), _desc(desc), _args(args), _argc(0), _cmd_cb(cmd_cb) {
-        if (args.size()) _argc = std::count(_args.begin(), _args.end(), ',') + 1;
+        if (args.size()) _argc = std::count(_args.begin(), _args.end(), ' ') + 1;
     }
 
     ~el_repl_cmd_t() = default;

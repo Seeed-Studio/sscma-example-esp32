@@ -79,6 +79,11 @@ extern "C" void app_main(void) {
                                return EL_OK;
                            }));
 
+    instance->register_cmd("YIELD", "Yield for 10ms", "", el_repl_cmd_cb_t([&](int argc, char** argv) {
+                               vTaskDelay(10 / portTICK_PERIOD_MS);
+                               return EL_OK;
+                           }));
+
     instance->register_cmd("ALGO?", "Get available algorithms", "", el_repl_cmd_cb_t([&](int argc, char** argv) {
                                executor->add_task([&, cmd = std::string(argv[0])](std::atomic<bool>& stop_token) {
                                    at_get_available_algorithms(cmd);
@@ -115,7 +120,7 @@ extern "C" void app_main(void) {
     instance->register_cmd(
       "SENSOR",
       "Set a default sensor by sensor ID",
-      "SENSOR_ID,ENABLE/DISABLE",
+      "SENSOR_ID ENABLE/DISABLE",
       el_repl_cmd_cb_t([&](int argc, char** argv) {
           uint8_t sensor_id = std::atoi(argv[1]);
           bool    enable    = std::atoi(argv[2]) ? true : false;
@@ -140,7 +145,7 @@ extern "C" void app_main(void) {
     instance->register_cmd(
       "INVOKE",
       "Invoke for N times (-1 for infinity loop)",
-      "N_TIMES,RESULT_ONLY",
+      "N_TIMES RESULT_ONLY",
       el_repl_cmd_cb_t([&](int argc, char** argv) {
           int  n_times     = std::atoi(argv[1]);
           bool result_only = std::atoi(argv[2]) ? true : false;
@@ -159,7 +164,7 @@ extern "C" void app_main(void) {
     {
         auto os = std::ostringstream(std::ios_base::ate);
         os << "AT+MODEL=" << std::to_string(current_model_id) << "\n";
-        os << "AT+SENSOR=" << std::to_string(current_sensor_id) << ",1\n";
+        os << "AT+SENSOR=" << std::to_string(current_sensor_id) << " 1\n";
         instance->loop(os.str());
     }
 

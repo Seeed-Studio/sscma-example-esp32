@@ -17,19 +17,19 @@
 
 #### Tagging Policy
 
-All `AT` commands support tagging with a `|` delimiter.
+All `AT` commands support tagging with a `:` delimiter.
 
 ```
-AT+{Tag:String}|{Body:String}\n
+AT+{Tag:String}:{Body:String}\n
 ```
 
-Example request: `AT+10|ID?\n`
+Example request: `AT+10:ID?\n`
 
 Response:
 
 ```json
 \r{
-  "10|ID?": "B63E3DA5"
+  "10:ID?": "B63E3DA5"
 }\n
 ```
 
@@ -252,9 +252,9 @@ Response:
 
 ####  Set a default sensor by sensor ID
 
-Pattern: `AT+SENSOR=<SENSOR_ID,ENABLE/DISABLE>\n`
+Pattern: `AT+SENSOR=<SENSOR_ID ENABLE/DISABLE>\n`
 
-Request: `AT+SENSOR=1,1\n`
+Request: `AT+SENSOR=1 1\n`
 
 Response:
 
@@ -303,9 +303,9 @@ Events:
 
 ####  Invoke for N times
 
-Pattern: `AT+INVOKE=<N_TIMES,RESULT_ONLY>\n`
+Pattern: `AT+INVOKE=<N_TIMES RESULT_ONLY>\n`
 
-Request: `AT+INVOKE=1,1\n`
+Request: `AT+INVOKE=1 1\n`
 
 Response:
 
@@ -411,6 +411,12 @@ No-reply.
 #### Stop all running tasks
 
 Request: `AT+BREAK\n`
+
+No-reply.
+
+#### Yield I/O task for 10ms
+
+Request: `AT+YIELD\n`
 
 No-reply.
 

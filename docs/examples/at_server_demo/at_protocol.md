@@ -39,7 +39,7 @@ Response:
 ### Command Types
 
 - Read-only operation: `AT+{String}?\n`
-- Execute operation: `AT+{String}={String},{String}...\n`
+- Execute operation: `AT+{String}={String} {String}...\n`
 - Config operation: `AT+T{String}={String}\n`
 - Reserved operation: `AT+{String}\n`
 

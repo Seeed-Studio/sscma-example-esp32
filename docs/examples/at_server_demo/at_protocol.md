@@ -397,7 +397,7 @@ Response:
 
 ```
 Command list:
-  AT+INVOKE=<N_TIMES,RESULT_ONLY>
+  AT+INVOKE=<N_TIMES RESULT_ONLY>
     Invoke for N times (-1 for infinity loop)
   {String}...
 ```

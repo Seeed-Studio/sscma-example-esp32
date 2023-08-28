@@ -7,7 +7,9 @@
 #include <cstring>
 #include <forward_list>
 #include <functional>
+#include <stack>
 #include <string>
+#include <vector>
 
 #include "el_compiler.h"
 #include "el_debug.h"
@@ -17,7 +19,7 @@
 namespace edgelab::repl {
 
 ReplServer::ReplServer() : _cmd_list_lock(xSemaphoreCreateCounting(1, 1)), _is_ctrl(false), _line_index(-1) {
-    register_cmd("HELP", "List available commands", "", [this](int, char**) -> el_err_code_t {
+    register_cmd("HELP", "List available commands", "", [this](std::vector<std::string>) -> el_err_code_t {
         this->print_help();
         return EL_OK;
     });
@@ -56,9 +58,8 @@ bool ReplServer::has_cmd(const std::string& cmd) {
     return it != _cmd_list.end();
 }
 
-
 el_err_code_t ReplServer::register_cmd(const types::el_repl_cmd_t& cmd) {
-    const Guard guard(this); 
+    const Guard guard(this);
 
     if (cmd._cmd.empty()) [[unlikely]]
         return EL_EINVAL;
@@ -192,8 +193,6 @@ el_err_code_t ReplServer::m_exec_cmd(const std::string& cmd) {
     el_err_code_t ret = EL_EINVAL;
     std::string   cmd_name;
     std::string   cmd_args;
-    int           argc                              = 0;
-    char*         argv[CONFIG_EL_REPL_CMD_ARGC_MAX] = {};
 
     size_t pos = cmd.find_first_of("=");
     if (pos != std::string::npos) {
@@ -213,7 +212,7 @@ el_err_code_t ReplServer::m_exec_cmd(const std::string& cmd) {
 
     m_lock();
     auto it = std::find_if(_cmd_list.begin(), _cmd_list.end(), [&](const types::el_repl_cmd_t& c) {
-        size_t cmd_body_pos = cmd_name.rfind(":");
+        size_t cmd_body_pos = cmd_name.rfind("@");
         return c._cmd.compare(cmd_name.substr(cmd_body_pos != std::string::npos ? cmd_body_pos + 1 : 0)) == 0;
     });
     if (it == _cmd_list.end()) [[unlikely]] {
@@ -224,19 +223,40 @@ el_err_code_t ReplServer::m_exec_cmd(const std::string& cmd) {
     auto cmd_copy = *it;
     m_unlock();
 
-    argv[argc++] = const_cast<char*>(cmd_name.c_str());
-    char* token  = std::strtok(const_cast<char*>(cmd_args.c_str()), " ");
-    while (token && argc < CONFIG_EL_REPL_CMD_ARGC_MAX) {
-        argv[argc++] = token;
-        token        = std::strtok(nullptr, " ");
+    // tokenize
+    size_t                   prev  = 0;
+    size_t                   index = 0;
+    std::vector<std::string> argv;
+    argv.push_back(cmd_name);
+    std::stack<char> stk;
+    stk.push('\0');
+    size_t size = cmd_args.size();
+    while (index < size) {
+        char c = cmd_args[index];
+        if (c == '\'' || c == '"') [[unlikely]] {
+            if (stk.top() != c)
+                stk.push(c);
+            else
+                stk.pop();
+        } else if (stk.size() == 1 && c == ',') [[unlikely]] {
+            argv.push_back(cmd_args.substr(prev, index - prev));
+            prev = ++index;
+        } else if (stk.size() != 1 && c == '\\') [[unlikely]]
+            ++index;
+        ++index;
     }
+    if (stk.size() != 1) [[unlikely]] {
+        m_echo_cb("Command ", cmd_name, " tokenization failed.\n");
+        return ret;
+    }
+    if (prev < size) argv.push_back(cmd_args.substr(prev, size - prev));
 
     if (cmd_copy._cmd_cb) {
-        if (cmd_copy._argc != argc - 1) [[unlikely]] {
+        if (cmd_copy._argc != argv.size() - 1) [[unlikely]] {
             m_echo_cb("Command ", cmd_name, " got wrong arguements.\n");
             return ret;
         }
-        ret = cmd_copy._cmd_cb(argc, argv);
+        ret = cmd_copy._cmd_cb(std::move(argv));
     }
 
     if (ret != EL_OK) [[unlikely]]

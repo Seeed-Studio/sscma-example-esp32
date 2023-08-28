@@ -35,13 +35,12 @@
 #include <sstream>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "el_compiler.h"
 #include "el_debug.h"
 #include "el_repl_history.hpp"
 #include "el_types.h"
-
-#define CONFIG_EL_REPL_CMD_ARGC_MAX (8)
 
 namespace edgelab::repl {
 
@@ -51,12 +50,12 @@ namespace types {
 
 typedef std::function<void(const std::string&)> el_repl_echo_cb_t;
 
-typedef std::function<el_err_code_t(int, char**)> el_repl_cmd_cb_t;
+typedef std::function<el_err_code_t(std::vector<std::string>)> el_repl_cmd_cb_t;
 
 struct el_repl_cmd_t {
     el_repl_cmd_t(std::string cmd, std::string desc, std::string args, el_repl_cmd_cb_t cmd_cb)
         : _cmd(cmd), _desc(desc), _args(args), _argc(0), _cmd_cb(cmd_cb) {
-        if (args.size()) _argc = std::count(_args.begin(), _args.end(), ' ') + 1;
+        if (args.size()) _argc = std::count(_args.begin(), _args.end(), ',') + 1;
     }
 
     ~el_repl_cmd_t() = default;

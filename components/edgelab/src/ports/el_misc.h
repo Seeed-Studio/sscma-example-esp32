@@ -108,6 +108,8 @@ size_t el_getline(char** lineptr, size_t* n, FILE* stream);
  */
 void el_reset(void);
 
+void el_status_led(bool on);
+
 #if defined(__cplusplus) == 1
 }  // namespace edgelab
 }

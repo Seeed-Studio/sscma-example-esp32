@@ -406,8 +406,8 @@ void at_run_invoke(const std::string& cmd,
 
         direct_reply(algorithm_config_2_json_str(algorithm_config));
 
-        instance->register_cmd("TSCORE", "Set score threshold", "SCORE_THRESHOLD", [&](int argc, char** argv) {
-            kv.value.score_threshold = std::stoi(argv[1]);
+        instance->register_cmd("TSCORE", "Set score threshold", "SCORE_THRESHOLD", [&](std::vector<std::string> argv) {
+            kv.value.score_threshold = std::atoi(argv[1].c_str());
             algorithm->set_algorithm_config(kv.value);
             *storage << kv;
             return EL_OK;
@@ -434,8 +434,8 @@ void at_run_invoke(const std::string& cmd,
 
         direct_reply(algorithm_config_2_json_str(algorithm_config));
 
-        instance->register_cmd("TSCORE", "Set score threshold", "SCORE_THRESHOLD", [&](int argc, char** argv) {
-            kv.value.score_threshold = std::stoi(argv[1]);
+        instance->register_cmd("TSCORE", "Set score threshold", "SCORE_THRESHOLD", [&](std::vector<std::string> argv) {
+            kv.value.score_threshold = std::atoi(argv[1].c_str());
             algorithm->set_algorithm_config(kv.value);
             *storage << kv;
             return EL_OK;
@@ -472,14 +472,14 @@ void at_run_invoke(const std::string& cmd,
 
         direct_reply(algorithm_config_2_json_str(algorithm_config));
 
-        instance->register_cmd("TSCORE", "Set score threshold", "SCORE_THRESHOLD", [&](int argc, char** argv) {
-            kv.value.score_threshold = std::stoi(argv[1]);
+        instance->register_cmd("TSCORE", "Set score threshold", "SCORE_THRESHOLD", [&](std::vector<std::string> argv) {
+            kv.value.score_threshold = std::atoi(argv[1].c_str());
             algorithm->set_algorithm_config(kv.value);
             *storage << kv;
             return EL_OK;
         });
-        instance->register_cmd("TIOU", "Set IoU threshold", "IOU_THRESHOLD", [&](int argc, char** argv) {
-            kv.value.iou_threshold = std::stoi(argv[1]);
+        instance->register_cmd("TIOU", "Set IoU threshold", "IOU_THRESHOLD", [&](std::vector<std::string> argv) {
+            kv.value.iou_threshold = std::atoi(argv[1].c_str());
             algorithm->set_algorithm_config(kv.value);
             *storage << kv;
             return EL_OK;

@@ -23,6 +23,9 @@
  *
  */
 
+#include <driver/gpio.h>
+
+#include "el_board_config.h"
 #include "el_common.h"
 
 namespace edgelab {
@@ -51,5 +54,10 @@ EL_ATTR_WEAK void* el_calloc(size_t nmemb, size_t size) { return calloc(nmemb, s
 EL_ATTR_WEAK void el_free(void* ptr) { free(ptr); }
 
 EL_ATTR_WEAK void el_reset(void) { exit(0); }
+
+EL_ATTR_WEAK void el_status_led(bool on) {
+    gpio_set_direction(LED_0_PIN, GPIO_MODE_OUTPUT);
+    gpio_set_level(LED_0_PIN, on ? 0 : 1);
+}
 
 }  // namespace edgelab

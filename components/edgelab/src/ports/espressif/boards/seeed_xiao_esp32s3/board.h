@@ -26,6 +26,9 @@
 #ifndef _SEEED_XIAO_ESP32S3_BOARD_H_
 #define _SEEED_XIAO_ESP32S3_BOARD_H_
 
+/* LED */
+#define LED_0_PIN GPIO_NUM_21
+
 /* CAMERA */
 #define CAMERA_MODULE_NAME "XIAO-S3"
 #define CAMERA_PIN_PWDN    -1

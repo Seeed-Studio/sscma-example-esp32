@@ -17,19 +17,19 @@
 
 #### Tagging Policy
 
-All `AT` commands support tagging with a `:` delimiter.
+All `AT` commands support tagging with a `@` delimiter.
 
 ```
-AT+{Tag:String}:{Body:String}\n
+AT+{Tag:String}@{Body:String}\n
 ```
 
-Example request: `AT+10:ID?\n`
+Example request: `AT+10@ID?\n`
 
 Response:
 
 ```json
 \r{
-  "10:ID?": "B63E3DA5"
+  "10@ID?": "B63E3DA5"
 }\n
 ```
 
@@ -39,7 +39,7 @@ Response:
 ### Command Types
 
 - Read-only operation: `AT+{String}?\n`
-- Execute operation: `AT+{String}={String} {String}...\n`
+- Execute operation: `AT+{String}={String},{String}...\n`
 - Config operation: `AT+T{String}={String}\n`
 - Reserved operation: `AT+{String}\n`
 
@@ -235,7 +235,7 @@ Response:
 
 #### Load a model by model ID
 
-Pattern: `AT+MODEL=<SENSOR_ID>\n`
+Pattern: `AT+MODEL=<MODEL_ID>\n`
 
 Request: `AT+MODEL=2\n`
 
@@ -252,9 +252,9 @@ Response:
 
 ####  Set a default sensor by sensor ID
 
-Pattern: `AT+SENSOR=<SENSOR_ID ENABLE/DISABLE>\n`
+Pattern: `AT+SENSOR=<SENSOR_ID,ENABLE/DISABLE>\n`
 
-Request: `AT+SENSOR=1 1\n`
+Request: `AT+SENSOR=1,1\n`
 
 Response:
 
@@ -303,9 +303,9 @@ Events:
 
 ####  Invoke for N times
 
-Pattern: `AT+INVOKE=<N_TIMES RESULT_ONLY>\n`
+Pattern: `AT+INVOKE=<N_TIMES,RESULT_ONLY>\n`
 
-Request: `AT+INVOKE=1 1\n`
+Request: `AT+INVOKE=1,1\n`
 
 Response:
 
@@ -397,7 +397,7 @@ Response:
 
 ```
 Command list:
-  AT+INVOKE=<N_TIMES RESULT_ONLY>
+  AT+INVOKE=<N_TIMES,RESULT_ONLY>
     Invoke for N times (-1 for infinity loop)
   {String}...
 ```

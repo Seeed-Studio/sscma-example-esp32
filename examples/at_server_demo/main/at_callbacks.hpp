@@ -3,11 +3,11 @@
 #include <algorithm>
 #include <atomic>
 #include <cstdint>
-#include <cstdio>
 #include <cstring>
 #include <forward_list>
 #include <functional>
 #include <iomanip>
+#include <memory>
 #include <sstream>
 #include <string>
 
@@ -386,8 +386,6 @@ void at_run_invoke(const std::string& cmd,
     auto* algorithm_delegate = AlgorithmDelegate::get_delegate();
     auto* data_delegate      = DataDelegate::get_delegate();
     auto* models             = data_delegate->get_models_handler();
-    auto* storage            = data_delegate->get_storage_handler();
-    auto* instance           = ReplDelegate::get_delegate()->get_server_handler();
     auto  os                 = std::ostringstream(std::ios_base::ate);
 
     el_model_info_t     model_info{};
@@ -421,102 +419,42 @@ void at_run_invoke(const std::string& cmd,
 
     switch (algorithm_info.type) {
     case EL_ALGO_TYPE_IMCLS: {
-        auto* algorithm = new AlgorithmIMCLS(engine);
+        std::unique_ptr<AlgorithmIMCLS> algorithm(new AlgorithmIMCLS(engine));
 
-        auto algorithm_config = algorithm->get_algorithm_config();
-        auto kv               = el_make_storage_kv_from_type(algorithm_config);
-        if (storage->contains(kv.key)) [[likely]]
-            *storage >> kv;
-        else
-            *storage << kv;
-        algorithm->set_algorithm_config(kv.value);
-
+        AlgorithmConfigHelper algo_config_helper_guard(algorithm.get());
+        auto                  algorithm_config = algorithm->get_algorithm_config();
         direct_reply(algorithm_config_2_json_str(algorithm_config));
 
-        instance->register_cmd("TSCORE", "Set score threshold", "SCORE_THRESHOLD", [&](std::vector<std::string> argv) {
-            kv.value.score_threshold = std::atoi(argv[1].c_str());
-            algorithm->set_algorithm_config(kv.value);
-            *storage << kv;
-            return EL_OK;
-        });
-
-        run_invoke_on_img(algorithm, cmd, n_times, result_only, stop_token);
-
-        instance->unregister_cmd("TSCORE");
-        if (algorithm) [[likely]]
-            delete algorithm;
+        run_invoke_on_img(algorithm.get(), cmd, n_times, result_only, stop_token);
     }
         return;
 
     case EL_ALGO_TYPE_FOMO: {
-        auto* algorithm = new AlgorithmFOMO(engine);
+        std::unique_ptr<AlgorithmFOMO> algorithm(new AlgorithmFOMO(engine));
 
-        auto algorithm_config = algorithm->get_algorithm_config();
-        auto kv               = el_make_storage_kv_from_type(algorithm_config);
-        if (storage->contains(kv.key)) [[likely]]
-            *storage >> kv;
-        else
-            *storage << kv;
-        algorithm->set_algorithm_config(kv.value);
-
+        AlgorithmConfigHelper algo_config_helper_guard(algorithm.get());
+        auto                  algorithm_config = algorithm->get_algorithm_config();
         direct_reply(algorithm_config_2_json_str(algorithm_config));
 
-        instance->register_cmd("TSCORE", "Set score threshold", "SCORE_THRESHOLD", [&](std::vector<std::string> argv) {
-            kv.value.score_threshold = std::atoi(argv[1].c_str());
-            algorithm->set_algorithm_config(kv.value);
-            *storage << kv;
-            return EL_OK;
-        });
-
-        run_invoke_on_img(algorithm, cmd, n_times, result_only, stop_token);
-
-        instance->unregister_cmd("TSCORE");
-        if (algorithm) [[likely]]
-            delete algorithm;
+        run_invoke_on_img(algorithm.get(), cmd, n_times, result_only, stop_token);
     }
         return;
 
     case EL_ALGO_TYPE_PFLD: {
-        auto* algorithm = new AlgorithmPFLD(engine);
+        std::unique_ptr<AlgorithmPFLD> algorithm(new AlgorithmPFLD(engine));
 
-        run_invoke_on_img(algorithm, cmd, n_times, result_only, stop_token);
-
-        if (algorithm) [[likely]]
-            delete algorithm;
+        run_invoke_on_img(algorithm.get(), cmd, n_times, result_only, stop_token);
     }
         return;
 
     case EL_ALGO_TYPE_YOLO: {
-        auto* algorithm = new AlgorithmYOLO(engine);
+        std::unique_ptr<AlgorithmYOLO> algorithm(new AlgorithmYOLO(engine));
 
-        auto algorithm_config = algorithm->get_algorithm_config();
-        auto kv               = el_make_storage_kv_from_type(algorithm_config);
-        if (storage->contains(kv.key)) [[likely]]
-            *storage >> kv;
-        else
-            *storage << kv;
-        algorithm->set_algorithm_config(kv.value);
-
+        AlgorithmConfigHelper algo_config_helper_guard(algorithm.get());
+        auto                  algorithm_config = algorithm->get_algorithm_config();
         direct_reply(algorithm_config_2_json_str(algorithm_config));
 
-        instance->register_cmd("TSCORE", "Set score threshold", "SCORE_THRESHOLD", [&](std::vector<std::string> argv) {
-            kv.value.score_threshold = std::atoi(argv[1].c_str());
-            algorithm->set_algorithm_config(kv.value);
-            *storage << kv;
-            return EL_OK;
-        });
-        instance->register_cmd("TIOU", "Set IoU threshold", "IOU_THRESHOLD", [&](std::vector<std::string> argv) {
-            kv.value.iou_threshold = std::atoi(argv[1].c_str());
-            algorithm->set_algorithm_config(kv.value);
-            *storage << kv;
-            return EL_OK;
-        });
-
-        run_invoke_on_img(algorithm, cmd, n_times, result_only, stop_token);
-
-        instance->unregister_cmd("TSCORE", "TIOU");
-        if (algorithm) [[likely]]
-            delete algorithm;
+        run_invoke_on_img(algorithm.get(), cmd, n_times, result_only, stop_token);
     }
         return;
 

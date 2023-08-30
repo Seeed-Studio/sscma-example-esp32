@@ -27,6 +27,8 @@
 #define _EL_SERIAL_ESP_H_
 
 #include <driver/usb_serial_jtag.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
 
 #include "el_serial.h"
 
@@ -49,6 +51,7 @@ class SerialEsp : public Serial {
 
    private:
     usb_serial_jtag_driver_config_t _driver_config;
+    SemaphoreHandle_t               _send_lock;
 };
 
 }  // namespace edgelab

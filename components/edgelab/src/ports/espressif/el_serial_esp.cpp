@@ -27,14 +27,22 @@
 
 #include <ctype.h>
 #include <driver/usb_serial_jtag.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
 
 #include "el_debug.h"
 
 namespace edgelab {
 
-SerialEsp::SerialEsp(usb_serial_jtag_driver_config_t driver_config) : _driver_config(driver_config) {}
+SerialEsp::SerialEsp(usb_serial_jtag_driver_config_t driver_config)
+    : _driver_config(driver_config), _send_lock(xSemaphoreCreateCounting(1, 1)) {
+    EL_ASSERT(_send_lock);
+}
 
-SerialEsp::~SerialEsp() { deinit(); }
+SerialEsp::~SerialEsp() {
+    deinit();
+    vSemaphoreDelete(_send_lock);
+}
 
 el_err_code_t SerialEsp::init() {
     this->_is_present = usb_serial_jtag_driver_install(&_driver_config) == ESP_OK;
@@ -104,6 +112,8 @@ el_err_code_t SerialEsp::read_bytes(char* buffer, size_t size) {
 el_err_code_t SerialEsp::send_bytes(const char* buffer, size_t size) {
     EL_ASSERT(this->_is_present);
 
+    xSemaphoreTake(_send_lock, portMAX_DELAY);
+
     size_t sent{0};
     size_t pos_of_bytes{0};
 
@@ -114,6 +124,8 @@ el_err_code_t SerialEsp::send_bytes(const char* buffer, size_t size) {
         pos_of_bytes += bytes_to_send;
         size -= bytes_to_send;
     }
+
+    xSemaphoreGive(_send_lock);
 
     return sent == pos_of_bytes ? EL_OK : EL_AGAIN;
 }

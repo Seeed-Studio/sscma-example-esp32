@@ -53,21 +53,22 @@ typedef std::function<void(const std::string&)> el_repl_echo_cb_t;
 typedef std::function<el_err_code_t(std::vector<std::string>)> el_repl_cmd_cb_t;
 
 struct el_repl_cmd_t {
-    el_repl_cmd_t(std::string cmd, std::string desc, std::string args, el_repl_cmd_cb_t cmd_cb)
-        : _cmd(cmd), _desc(desc), _args(args), _argc(0), _cmd_cb(cmd_cb) {
-        if (args.size()) _argc = std::count(_args.begin(), _args.end(), ',') + 1;
+    el_repl_cmd_t(std::string cmd_, std::string desc_, std::string args_, el_repl_cmd_cb_t cmd_cb_)
+        : cmd(cmd_), desc(desc_), args(args_), cmd_cb(cmd_cb_), _argc(0) {
+        if (args.size()) _argc = std::count(args.begin(), args.end(), ',') + 1;
     }
 
     ~el_repl_cmd_t() = default;
 
+    std::string      cmd;
+    std::string      desc;
+    std::string      args;
+    el_repl_cmd_cb_t cmd_cb;
+
     friend class edgelab::repl::ReplServer;
 
    private:
-    std::string      _cmd;
-    std::string      _desc;
-    std::string      _args;
-    uint8_t          _argc;
-    el_repl_cmd_cb_t _cmd_cb;
+    uint8_t _argc;
 };
 
 }  // namespace types
@@ -93,7 +94,8 @@ class ReplServer {
         ((m_unregister_cmd(std::forward<Args>(args))), ...);
     }
 
-    void print_help();
+    std::forward_list<types::el_repl_cmd_t> get_registered_cmds() const;
+    void                                    print_help();
 
     void loop(const std::string& line);
     void loop(char c);

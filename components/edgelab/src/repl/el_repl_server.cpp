@@ -53,7 +53,7 @@ bool ReplServer::has_cmd(const std::string& cmd) {
     const Guard guard(this);
 
     auto it = std::find_if(
-      _cmd_list.begin(), _cmd_list.end(), [&](const types::el_repl_cmd_t& c) { return c._cmd.compare(cmd) == 0; });
+      _cmd_list.begin(), _cmd_list.end(), [&](const types::el_repl_cmd_t& c) { return c.cmd.compare(cmd) == 0; });
 
     return it != _cmd_list.end();
 }
@@ -61,11 +61,11 @@ bool ReplServer::has_cmd(const std::string& cmd) {
 el_err_code_t ReplServer::register_cmd(const types::el_repl_cmd_t& cmd) {
     const Guard guard(this);
 
-    if (cmd._cmd.empty()) [[unlikely]]
+    if (cmd.cmd.empty()) [[unlikely]]
         return EL_EINVAL;
 
     auto it = std::find_if(
-      _cmd_list.begin(), _cmd_list.end(), [&](const types::el_repl_cmd_t& c) { return c._cmd.compare(cmd._cmd) == 0; });
+      _cmd_list.begin(), _cmd_list.end(), [&](const types::el_repl_cmd_t& c) { return c.cmd.compare(cmd.cmd) == 0; });
     if (it != _cmd_list.end()) [[unlikely]]
         *it = cmd;
     else
@@ -83,21 +83,26 @@ el_err_code_t ReplServer::register_cmd(const char*             cmd,
     return register_cmd(std::move(cmd_t));
 }
 
+std::forward_list<types::el_repl_cmd_t> ReplServer::get_registered_cmds() const {
+    const Guard guard(this);
+    return _cmd_list;
+}
+
 void ReplServer::print_help() {
     const Guard guard(this);
 
     _echo_cb("Command list:\n");
     for (const auto& cmd : _cmd_list) {
-        if (cmd._args.size())
-            m_echo_cb("  AT+", cmd._cmd, "=<", cmd._args, ">\n");
+        if (cmd.args.size())
+            m_echo_cb("  AT+", cmd.cmd, "=<", cmd.args, ">\n");
         else
-            m_echo_cb("  AT+", cmd._cmd, "\n");
-        m_echo_cb("    ", cmd._desc, "\n");
+            m_echo_cb("  AT+", cmd.cmd, "\n");
+        m_echo_cb("    ", cmd.desc, "\n");
     }
 }
 
 void ReplServer::m_unregister_cmd(const std::string& cmd) {
-    _cmd_list.remove_if([&](const types::el_repl_cmd_t& c) { return c._cmd.compare(cmd) == 0; });
+    _cmd_list.remove_if([&](const types::el_repl_cmd_t& c) { return c.cmd.compare(cmd) == 0; });
 }
 
 void ReplServer::loop(const std::string& line) {
@@ -213,7 +218,7 @@ el_err_code_t ReplServer::m_exec_cmd(const std::string& cmd) {
     m_lock();
     auto it = std::find_if(_cmd_list.begin(), _cmd_list.end(), [&](const types::el_repl_cmd_t& c) {
         size_t cmd_body_pos = cmd_name.rfind("@");
-        return c._cmd.compare(cmd_name.substr(cmd_body_pos != std::string::npos ? cmd_body_pos + 1 : 0)) == 0;
+        return c.cmd.compare(cmd_name.substr(cmd_body_pos != std::string::npos ? cmd_body_pos + 1 : 0)) == 0;
     });
     if (it == _cmd_list.end()) [[unlikely]] {
         m_echo_cb("Unknown command: ", cmd, "\n");
@@ -251,12 +256,12 @@ el_err_code_t ReplServer::m_exec_cmd(const std::string& cmd) {
     }
     if (prev < size) argv.push_back(cmd_args.substr(prev, size - prev));
 
-    if (cmd_copy._cmd_cb) {
+    if (cmd_copy.cmd_cb) {
         if (cmd_copy._argc != argv.size() - 1) [[unlikely]] {
             m_echo_cb("Command ", cmd_name, " got wrong arguements.\n");
             return ret;
         }
-        ret = cmd_copy._cmd_cb(std::move(argv));
+        ret = cmd_copy.cmd_cb(std::move(argv));
     }
 
     if (ret != EL_OK) [[unlikely]]

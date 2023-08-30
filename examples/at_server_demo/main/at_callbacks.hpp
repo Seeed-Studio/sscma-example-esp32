@@ -11,19 +11,53 @@
 #include <sstream>
 #include <string>
 
+#include "at_definations.hpp"
 #include "at_utility.hpp"
 #include "edgelab.h"
 #include "el_device_esp.h"
 
-#define kTensorArenaSize (1024 * 1024)
+void at_server_echo_cb(const std::string& msg) {
+    auto*       serial = Device::get_device()->get_serial();
+    auto        os     = std::ostringstream(std::ios_base::ate);
+    std::string legal_msg;
+
+    if (msg.size() < 5) return;
+
+    for (char c : msg) {
+        if (std::isprint(c)) [[likely]]
+            legal_msg += c;
+        else if (c == '"') [[unlikely]]
+            legal_msg += "\\\"";
+    }
+
+    os << REPLY_LOG_HEADER << "\"name\": \"AT\", \"code\": " << static_cast<int>(EL_AGAIN) << ", \"data\": \""
+       << legal_msg << "\"}\n";
+
+    auto str = os.str();
+    serial->send_bytes(str.c_str(), str.size());
+}
+
+void at_print_help(std::forward_list<el_repl_cmd_t> cmd_list) {
+    auto* serial = Device::get_device()->get_serial();
+    auto  os     = std::ostringstream(std::ios_base::ate);
+
+    for (const auto& cmd : cmd_list) {
+        os << "  AT+" << cmd.cmd;
+        if (cmd.args.size()) os << "=<" << cmd.args << ">";
+        os << "\n    " << cmd.desc << "\n";
+    }
+
+    auto str = os.str();
+    serial->send_bytes(str.c_str(), str.size());
+}
 
 void at_get_device_id(const std::string& cmd) {
     auto* device = Device::get_device();
     auto* serial = device->get_serial();
     auto  os     = std::ostringstream(std::ios_base::ate);
 
-    os << "\r{\"" << cmd << "\": \"" << std::uppercase << std::hex << device->get_device_id()
-       << std::resetiosflags(std::ios_base::basefield) << "\"}\n";
+    os << REPLY_CMD_HEADER << "\"name\": \"" << cmd << "\", \"code\": " << static_cast<int>(EL_OK) << ", \"data\": \""
+       << std::uppercase << std::hex << device->get_device_id() << "\"}\n";
 
     auto str = os.str();
     serial->send_bytes(str.c_str(), str.size());
@@ -34,7 +68,8 @@ void at_get_device_name(const std::string& cmd) {
     auto* serial = device->get_serial();
     auto  os     = std::ostringstream(std::ios_base::ate);
 
-    os << "\r{\"" << cmd << "\": \"" << device->get_device_name() << "\"}\n";
+    os << REPLY_CMD_HEADER << "\"name\": \"" << cmd << "\", \"code\": " << static_cast<int>(EL_OK) << ", \"data\": \""
+       << device->get_device_name() << "\"}\n";
 
     auto str = os.str();
     serial->send_bytes(str.c_str(), str.size());
@@ -52,15 +87,10 @@ void at_get_device_status(const std::string& cmd,
     auto model_info  = models->get_model_info(current_model_id);
     auto sensor_info = device->get_sensor_info(current_sensor_id);
 
-    os << "\r{\"" << cmd << "\": {\"status\": " << err_code_2_str(EL_OK)
-       << ", \"boot_count\": " << static_cast<unsigned>(boot_count)
-       << ", \"model\": {\"id\": " << static_cast<unsigned>(model_info.id)
-       << ", \"type\": " << algo_type_2_str(model_info.type) << ", \"address\": \"0x" << std::hex
-       << static_cast<unsigned>(model_info.addr_flash) << "\", \"size\": \"0x" << static_cast<unsigned>(model_info.size)
-       << std::resetiosflags(std::ios_base::basefield)
-       << "\"}, \"sensor\": {\"id\": " << static_cast<unsigned>(sensor_info.id)
-       << ", \"type\": " << sensor_type_2_str(sensor_info.type)
-       << ", \"state\": " << sensor_sta_2_str(sensor_info.state) << "}}}\n";
+    os << REPLY_CMD_HEADER << "\"name\": \"" << cmd << "\", \"code\": " << static_cast<int>(EL_OK)
+       << ", \"data\": {\"boot_count\": " << static_cast<unsigned>(boot_count)
+       << ", \"model\": " << model_info_2_json(model_info) << ", \"sensor\": " << sensor_info_2_json(sensor_info)
+       << "}}\n";
 
     auto str = os.str();
     serial->send_bytes(str.c_str(), str.size());
@@ -71,7 +101,8 @@ void at_get_version(const std::string& cmd) {
     auto* serial = device->get_serial();
     auto  os     = std::ostringstream(std::ios_base::ate);
 
-    os << "\r{\"" << cmd << "\": {\"edgelab_cpp_sdk\": \"" << EL_VERSION << "\", \"chip_revision\": \""
+    os << REPLY_CMD_HEADER << "\"name\": \"" << cmd << "\", \"code\": " << static_cast<int>(EL_OK)
+       << ", \"data\": {\"software\": \"" << EL_VERSION << "\", \"hardware\": \""
        << static_cast<unsigned>(device->get_chip_revision_id()) << "\"}}\n";
 
     auto str = os.str();
@@ -84,12 +115,13 @@ void at_get_available_algorithms(const std::string& cmd) {
     auto& registered_algorithms = algorithm_delegate->get_all_algorithm_info();
     auto  os                    = std::ostringstream(std::ios_base::ate);
 
-    os << "\r{\"" << cmd << "\": [";
+    os << REPLY_CMD_HEADER << "\"name\": \"" << cmd << "\", \"code\": " << static_cast<int>(EL_OK) << ", \"data\": [";
     DELIM_RESET;
     for (const auto& i : registered_algorithms) {
         DELIM_PRINT(os);
-        os << "{\"type\": " << algo_type_2_str(i->type) << ", \"categroy\": " << algo_cat_2_str(i->categroy)
-           << ", \"input_from\": " << sensor_type_2_str(i->input_from) << "}";
+        os << "{\"type\": " << static_cast<unsigned>(i->type)
+           << ", \"categroy\": " << static_cast<unsigned>(i->categroy)
+           << ", \"input_from\": " << static_cast<unsigned>(i->input_from) << "}";
     }
     os << "]}\n";
 
@@ -103,13 +135,11 @@ void at_get_available_models(const std::string& cmd) {
     auto& models_info = models->get_all_model_info();
     auto  os          = std::ostringstream(std::ios_base::ate);
 
-    os << "\r{\"" << cmd << "\": [";
+    os << REPLY_CMD_HEADER << "\"name\": \"" << cmd << "\", \"code\": " << static_cast<int>(EL_OK) << ", \"data\": [";
     DELIM_RESET;
     for (const auto& i : models_info) {
         DELIM_PRINT(os);
-        os << "{\"id\": " << static_cast<unsigned>(i.id) << ", \"type\": " << algo_type_2_str(i.type)
-           << ", \"address\": \"0x" << std::hex << static_cast<unsigned>(i.addr_flash) << "\", \"size\": \"0x"
-           << static_cast<unsigned>(i.size) << "\"}" << std::resetiosflags(std::ios_base::basefield);
+        os << model_info_2_json(i);
     }
     os << "]}\n";
 
@@ -152,8 +182,8 @@ ModelError:
     current_model_id = 0;
 
 ModelReply:
-    os << "\r{\"" << cmd << "\": {\"id\": " << static_cast<unsigned>(model_id)
-       << ", \"status\": " << err_code_2_str(ret) << "}}\n";
+    os << REPLY_CMD_HEADER << "\"name\": \"" << cmd << "\", \"code\": " << static_cast<int>(ret)
+       << ", \"data\": {\"model\": " << model_info_2_json(model_info) << "}}\n";
 
     auto str = os.str();
     serial->send_bytes(str.c_str(), str.size());
@@ -164,12 +194,11 @@ void at_get_available_sensors(const std::string& cmd) {
     auto& registered_sensors = Device::get_device()->get_all_sensor_info();
     auto  os                 = std::ostringstream(std::ios_base::ate);
 
-    os << "\r{\"" << cmd << "\": [";
+    os << REPLY_CMD_HEADER << "\"name\": \"" << cmd << "\", \"code\": " << static_cast<int>(EL_OK) << ", \"data\": [";
     DELIM_RESET;
     for (const auto& i : registered_sensors) {
         DELIM_PRINT(os);
-        os << "{\"id\": " << static_cast<unsigned>(i.id) << ", \"type\": " << sensor_type_2_str(i.type)
-           << ", \"state\": " << sensor_sta_2_str(i.state) << "}";
+        os << sensor_info_2_json(i);
     }
     os << "]}\n";
 
@@ -205,6 +234,7 @@ void at_set_sensor(const std::string& cmd, uint8_t sensor_id, bool enable, uint8
                 goto SensorError;
         }
         device->set_sensor_state(sensor_id, EL_SENSOR_STA_AVAIL);
+        sensor_info = device->get_sensor_info(sensor_id);
 
         if (current_sensor_id != sensor_id) {
             current_sensor_id = sensor_id;
@@ -218,8 +248,8 @@ SensorError:
     current_sensor_id = 0;
 
 SensorReply:
-    os << "\r{\"" << cmd << "\": {\"id\": " << static_cast<unsigned>(sensor_id)
-       << ", \"status\": " << err_code_2_str(ret) << "}}\n";
+    os << REPLY_CMD_HEADER << "\"name\": \"" << cmd << "\", \"code\": " << static_cast<int>(ret)
+       << ", \"data\": {\"sensor\": " << sensor_info_2_json(sensor_info) << "}}\n";
 
     auto str = os.str();
     serial->send_bytes(str.c_str(), str.size());
@@ -234,16 +264,16 @@ void at_run_sample(const std::string& cmd, int n_times, std::atomic<bool>& stop_
 
     auto direct_reply = [&]() {
         auto os = std::ostringstream(std::ios_base::ate);
-        os << "\r{\"" << cmd << "\": {\"status\": " << err_code_2_str(ret)
-           << ", \"sensor\": {\"id\": " << static_cast<unsigned>(current_sensor_id) << "}}}\n";
+        os << REPLY_CMD_HEADER << "\"name\": \"" << cmd << "\", \"code\": " << static_cast<int>(ret)
+           << ", \"data\": {\"sensor\": " << sensor_info_2_json(sensor_info) << "}}\n";
 
         auto str = os.str();
         serial->send_bytes(str.c_str(), str.size());
     };
     auto event_reply = [&](const std::string& sample_data_str) {
         auto os = std::ostringstream(std::ios_base::ate);
-        os << "\r{\"event\": {\"from\": \"" << cmd << "\", \"status\": " << err_code_2_str(ret) << ", \"contents\": {"
-           << sample_data_str << "}}, \"timestamp\": " << el_get_time_ms() << "}\n";
+        os << REPLY_EVT_HEADER << "\"name\": \"" << cmd << "\", \"code\": " << static_cast<int>(ret) << ", \"data\": {"
+           << sample_data_str << "}}\n";
 
         auto str = os.str();
         serial->send_bytes(str.c_str(), str.size());
@@ -308,7 +338,7 @@ void run_invoke_on_img(
                                          .rotate = EL_PIXEL_ROTATE_UNKNOWN};
     el_err_code_t ret         = algorithm ? EL_OK : EL_EINVAL;
     auto          event_reply = [&]() {
-        const auto& str = img_invoke_results_2_json_str(algorithm, &img, cmd, result_only, ret);
+        auto str = img_invoke_results_2_json_str(algorithm, &img, cmd, result_only, ret);
         serial->send_bytes(str.c_str(), str.size());
     };
     if (ret != EL_OK) [[unlikely]] {
@@ -367,14 +397,11 @@ void at_run_invoke(const std::string& cmd,
     el_err_code_t ret = EL_OK;
 
     auto direct_reply = [&](const std::string& algorithm_config) {
-        os << "\r{\"" << cmd << "\": {\"status\": " << err_code_2_str(ret)
-           << ", \"model\": {\"id\": " << static_cast<unsigned>(model_info.id)
-           << ", \"type\": " << algo_type_2_str(model_info.type)
-           << "}, \"algorithm\": {\"type\": " << algo_type_2_str(algorithm_info.type)
-           << ", \"category\": " << algo_cat_2_str(algorithm_info.categroy) << ", \"config\": {" << algorithm_config
-           << "}}, \"sensor\": {\"id\": " << static_cast<unsigned>(sensor_info.id)
-           << ", \"type\": " << sensor_type_2_str(sensor_info.type)
-           << ", \"state\": " << sensor_sta_2_str(sensor_info.state) << "}}}\n";
+        os << REPLY_CMD_HEADER << "\"name\": \"" << cmd << "\", \"code\": " << static_cast<int>(ret)
+           << ", \"data\": {\"model\": " << model_info_2_json(model_info)
+           << ", \"algorithm\": {\"type\": " << static_cast<unsigned>(algorithm_info.type)
+           << ", \"category\": " << static_cast<unsigned>(algorithm_info.categroy) << ", \"config\": {"
+           << algorithm_config << "}}, \"sensor\": " << sensor_info_2_json(sensor_info) << "}}\n";
 
         auto str = os.str();
         serial->send_bytes(str.c_str(), str.size());

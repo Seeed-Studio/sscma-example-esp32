@@ -23,14 +23,14 @@ extern "C" void app_main(void) {
     // init resource
     display->init();
     serial->init();
-    instance->init();
+    instance->init(at_server_echo_cb);
     models->init();
     storage->init();
 
     // temporary variables
     int32_t boot_count        = 0;
-    uint8_t current_model_id  = 0;
-    uint8_t current_sensor_id = 0;
+    uint8_t current_model_id  = 1;
+    uint8_t current_sensor_id = 1;
 
     // init configs
     if (!storage->contains("edgelab")) {
@@ -43,7 +43,13 @@ extern "C" void app_main(void) {
       el_make_storage_kv("current_sensor_id", current_sensor_id) >> el_make_storage_kv("boot_count", boot_count);
     *storage << el_make_storage_kv("boot_count", ++boot_count);
 
-    // register repl commands
+    // register repl commands (overrite help)
+    instance->register_cmd("HELP", "List available commands", "", [&](std::vector<std::string> argv) {
+        auto registered_cmds = instance->get_registered_cmds();
+        at_print_help(registered_cmds);
+        return EL_OK;
+    });
+
     instance->register_cmd(
       "ID?", "Get device ID", "", el_repl_cmd_cb_t([&](std::vector<std::string> argv) {
           executor->add_task([&, cmd = std::string(argv[0])](std::atomic<bool>& stop_token) { at_get_device_id(cmd); });
@@ -92,7 +98,7 @@ extern "C" void app_main(void) {
       }));
 
     instance->register_cmd(
-      "ALGO?", "Get available algorithms", "", el_repl_cmd_cb_t([&](std::vector<std::string> argv) {
+      "ALGOS?", "Get available algorithms", "", el_repl_cmd_cb_t([&](std::vector<std::string> argv) {
           executor->add_task(
             [&, cmd = std::string(argv[0])](std::atomic<bool>& stop_token) { at_get_available_algorithms(cmd); });
           return EL_OK;
@@ -100,7 +106,7 @@ extern "C" void app_main(void) {
 
     // // TODO: algorithm config command
 
-    instance->register_cmd("MODEL?", "Get available models", "", el_repl_cmd_cb_t([&](std::vector<std::string> argv) {
+    instance->register_cmd("MODELS?", "Get available models", "", el_repl_cmd_cb_t([&](std::vector<std::string> argv) {
                                executor->add_task([&, cmd = std::string(argv[0])](std::atomic<bool>& stop_token) {
                                    at_get_available_models(cmd);
                                });
@@ -117,7 +123,7 @@ extern "C" void app_main(void) {
           return EL_OK;
       }));
 
-    instance->register_cmd("SENSOR?", "Get available sensors", "", el_repl_cmd_cb_t([&](std::vector<std::string> argv) {
+    instance->register_cmd("SENSORS?", "Get available sensors", "", el_repl_cmd_cb_t([&](std::vector<std::string> argv) {
                                executor->add_task([&, cmd = std::string(argv[0])](std::atomic<bool>& stop_token) {
                                    at_get_available_sensors(cmd);
                                });
@@ -183,5 +189,4 @@ ServiceLoop:
 
     // release allocated memory (never executed)
     delete engine;
-    engine = nullptr;
 }

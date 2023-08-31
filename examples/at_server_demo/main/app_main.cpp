@@ -123,12 +123,12 @@ extern "C" void app_main(void) {
           return EL_OK;
       }));
 
-    instance->register_cmd("SENSORS?", "Get available sensors", "", el_repl_cmd_cb_t([&](std::vector<std::string> argv) {
-                               executor->add_task([&, cmd = std::string(argv[0])](std::atomic<bool>& stop_token) {
-                                   at_get_available_sensors(cmd);
-                               });
-                               return EL_OK;
-                           }));
+    instance->register_cmd(
+      "SENSORS?", "Get available sensors", "", el_repl_cmd_cb_t([&](std::vector<std::string> argv) {
+          executor->add_task(
+            [&, cmd = std::string(argv[0])](std::atomic<bool>& stop_token) { at_get_available_sensors(cmd); });
+          return EL_OK;
+      }));
 
     instance->register_cmd(
       "SENSOR",
@@ -181,11 +181,14 @@ extern "C" void app_main(void) {
         instance->loop(os.str());
     }
 
-// enter service pipeline (TODO: pipeline builder)
-ServiceLoop:
-    instance->loop(serial->get_char());
-
-    goto ServiceLoop;
+    // enter service pipeline (TODO: pipeline builder)
+    char* buf = new char[64]{};
+    for (;;) {
+        serial->get_line(buf, 64);
+        if (std::strlen(buf) > 5) [[likely]]
+            instance->exec(buf);
+    }
+    delete[] buf;
 
     // release allocated memory (never executed)
     delete engine;

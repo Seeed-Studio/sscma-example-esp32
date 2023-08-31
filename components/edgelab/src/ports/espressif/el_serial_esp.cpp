@@ -79,12 +79,12 @@ size_t SerialEsp::get_line(char* buffer, size_t size, const char delim) {
 
     size_t pos{0};
     char   c{'\0'};
-    while (pos < size - 1) {
+    while (pos < size - 2) {
         if (!usb_serial_jtag_read_bytes(&c, 1, 15 / portTICK_PERIOD_MS)) continue;
 
-        if (c == delim || c == 0x00) [[unlikely]] {
-            buffer[pos++] = '\0';
-            return pos;
+        if (c == delim) [[unlikely]] {
+            buffer[pos++] = c;
+            break;
         }
         buffer[pos++] = c;
     }

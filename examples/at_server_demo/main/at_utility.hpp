@@ -12,9 +12,9 @@
 #include "el_algorithm.hpp"
 #include "el_base64.h"
 #include "el_cv.h"
-#include "el_types.h"
-#include "el_repl.hpp"
 #include "el_data.hpp"
+#include "el_repl.hpp"
+#include "el_types.h"
 
 const char* err_code_2_str(el_err_code_t ec) {
     switch (ec) {
@@ -255,46 +255,49 @@ std::string img_invoke_results_2_json_str(
     return std::string(os.str());
 }
 
-class AlgorithmConfigHelper {
+template <typename AlgorithmType> class AlgorithmConfigHelper {
    public:
-    template <typename AlgorthmType>
-    AlgorithmConfigHelper(AlgorthmType* algorithm) : _instance(edgelab::ReplDelegate::get_delegate()->get_server_handler()) {
+    using ConfigType = typename AlgorithmType::ConfigType;
+
+    AlgorithmConfigHelper(AlgorithmType* algorithm)
+        : _instance(edgelab::ReplDelegate::get_delegate()->get_server_handler()),
+          _algorithm(algorithm),
+          _config(algorithm->get_algorithm_config()),
+          _kv(el_make_storage_kv_from_type(_config)),
+          _storage(edgelab::DataDelegate::get_delegate()->get_storage_handler()) {
         using namespace edgelab;
 
-        auto* storage = DataDelegate::get_delegate()->get_storage_handler();
-
-        auto algorithm_config = algorithm->get_algorithm_config();
-        auto kv               = el_make_storage_kv_from_type(algorithm_config);
-        if (storage->contains(kv.key)) [[likely]]
-            *storage >> kv;
+        if (_storage->contains(_kv.key)) [[likely]]
+            *_storage >> _kv;
         else
-            *storage << kv;
-        algorithm->set_algorithm_config(kv.value);
+            *_storage << _kv;
+        _algorithm->set_algorithm_config(_kv.value);
 
-        using ConfigType = decltype(algorithm_config);
         if constexpr (std::is_same<ConfigType, el_algorithm_fomo_config_t>::value ||
                       std::is_same<ConfigType, el_algorithm_imcls_config_t>::value ||
                       std::is_same<ConfigType, el_algorithm_yolo_config_t>::value) {
             el_err_code_t ret = _instance->register_cmd(
-              "TSCORE", "Set score threshold", "SCORE_THRESHOLD", [&](std::vector<std::string> argv) {
-                  kv.value.score_threshold = std::atoi(argv[1].c_str());
-                  algorithm->set_algorithm_config(kv.value);
-                  *storage << kv;
+              "TSCORE", "Set score threshold", "SCORE_THRESHOLD", [this](std::vector<std::string> argv) {
+                  this->_kv.value.score_threshold = std::atoi(argv[1].c_str());
+                  this->_algorithm->set_algorithm_config(this->_kv.value);
+                  *(this->_storage) << this->_kv;
                   return EL_OK;
               });
             if (ret == EL_OK) _config_cmds.emplace_front("TSCORE");
         }
         if constexpr (std::is_same<ConfigType, el_algorithm_yolo_config_t>::value) {
-            el_err_code_t ret =
-              _instance->register_cmd("TIOU", "Set IoU threshold", "IOU_THRESHOLD", [&](std::vector<std::string> argv) {
-                  kv.value.iou_threshold = std::atoi(argv[1].c_str());
-                  algorithm->set_algorithm_config(kv.value);
-                  *storage << kv;
+            el_err_code_t ret = _instance->register_cmd(
+              "TIOU", "Set IoU threshold", "IOU_THRESHOLD", [this](std::vector<std::string> argv) {
+                  this->_kv.value.iou_threshold = std::atoi(argv[1].c_str());
+                  this->_algorithm->set_algorithm_config(this->_kv.value);
+                  *(this->_storage) << this->_kv;
                   return EL_OK;
               });
             if (ret == EL_OK) _config_cmds.emplace_front("TIOU");
         }
     }
+
+    ConfigType dump_config() { return _config; }
 
     ~AlgorithmConfigHelper() {
         for (const auto& cmd : _config_cmds) _instance->unregister_cmd(cmd);
@@ -303,4 +306,10 @@ class AlgorithmConfigHelper {
    private:
     edgelab::repl::ReplServer*     _instance;
     std::forward_list<std::string> _config_cmds;
+
+    AlgorithmType*                                     _algorithm;
+    ConfigType                                         _config;
+    edgelab::data::types::el_storage_kv_t<ConfigType&> _kv;
+
+    edgelab::data::Storage* _storage;
 };

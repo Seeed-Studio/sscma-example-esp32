@@ -421,9 +421,8 @@ void at_run_invoke(const std::string& cmd,
     case EL_ALGO_TYPE_IMCLS: {
         std::unique_ptr<AlgorithmIMCLS> algorithm(new AlgorithmIMCLS(engine));
 
-        AlgorithmConfigHelper algo_config_helper_guard(algorithm.get());
-        auto                  algorithm_config = algorithm->get_algorithm_config();
-        direct_reply(algorithm_config_2_json_str(algorithm_config));
+        auto algo_config_helper{AlgorithmConfigHelper<AlgorithmIMCLS>(algorithm.get())};
+        direct_reply(algorithm_config_2_json_str(algo_config_helper.dump_config()));
 
         run_invoke_on_img(algorithm.get(), cmd, n_times, result_only, stop_token);
     }
@@ -432,9 +431,8 @@ void at_run_invoke(const std::string& cmd,
     case EL_ALGO_TYPE_FOMO: {
         std::unique_ptr<AlgorithmFOMO> algorithm(new AlgorithmFOMO(engine));
 
-        AlgorithmConfigHelper algo_config_helper_guard(algorithm.get());
-        auto                  algorithm_config = algorithm->get_algorithm_config();
-        direct_reply(algorithm_config_2_json_str(algorithm_config));
+        auto algo_config_helper{AlgorithmConfigHelper<AlgorithmFOMO>(algorithm.get())};
+        direct_reply(algorithm_config_2_json_str(algo_config_helper.dump_config()));
 
         run_invoke_on_img(algorithm.get(), cmd, n_times, result_only, stop_token);
     }
@@ -442,6 +440,7 @@ void at_run_invoke(const std::string& cmd,
 
     case EL_ALGO_TYPE_PFLD: {
         std::unique_ptr<AlgorithmPFLD> algorithm(new AlgorithmPFLD(engine));
+        direct_reply(algorithm_config_2_json_str(algorithm->get_algorithm_config()));
 
         run_invoke_on_img(algorithm.get(), cmd, n_times, result_only, stop_token);
     }
@@ -450,9 +449,8 @@ void at_run_invoke(const std::string& cmd,
     case EL_ALGO_TYPE_YOLO: {
         std::unique_ptr<AlgorithmYOLO> algorithm(new AlgorithmYOLO(engine));
 
-        AlgorithmConfigHelper algo_config_helper_guard(algorithm.get());
-        auto                  algorithm_config = algorithm->get_algorithm_config();
-        direct_reply(algorithm_config_2_json_str(algorithm_config));
+        auto algo_config_helper{AlgorithmConfigHelper<AlgorithmYOLO>(algorithm.get())};
+        direct_reply(algorithm_config_2_json_str(algo_config_helper.dump_config()));
 
         run_invoke_on_img(algorithm.get(), cmd, n_times, result_only, stop_token);
     }

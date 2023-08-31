@@ -23,8 +23,8 @@ void at_server_echo_cb(const std::string& msg) {
 
     if (msg.size() < 5) return;
 
-    os << REPLY_LOG_HEADER << "\"name\": \"AT\", \"code\": " << static_cast<int>(EL_AGAIN) << ", \"data\": \""
-       << string_2_str(msg) << "\"}\n";
+    os << REPLY_LOG_HEADER << "\"name\": \"AT\", \"code\": " << static_cast<int>(EL_AGAIN)
+       << ", \"data\": " << string_2_str(msg) << "}\n";
 
     auto str = os.str();
     serial->send_bytes(str.c_str(), str.size());
@@ -319,24 +319,32 @@ SampleErrorReply:
 template <typename AlgorithmType>
 void run_invoke_on_img(
   AlgorithmType* algorithm, const std::string& cmd, int n_times, bool result_only, std::atomic<bool>& stop_token) {
-    auto*         device      = Device::get_device();
-    auto*         camera      = device->get_camera();
-    auto*         display     = device->get_display();
-    auto*         serial      = device->get_serial();
-    auto          img         = el_img_t{.data   = nullptr,
-                                         .size   = 0,
-                                         .width  = 0,
-                                         .height = 0,
-                                         .format = EL_PIXEL_FORMAT_UNKNOWN,
-                                         .rotate = EL_PIXEL_ROTATE_UNKNOWN};
-    el_err_code_t ret         = algorithm ? EL_OK : EL_EINVAL;
-    auto          event_reply = [&]() {
+    auto*         device          = Device::get_device();
+    auto*         camera          = device->get_camera();
+    auto*         display         = device->get_display();
+    auto*         action_delegate = ActionDelegate::get_delegate();
+    auto*         serial          = device->get_serial();
+    auto          img             = el_img_t{.data   = nullptr,
+                                             .size   = 0,
+                                             .width  = 0,
+                                             .height = 0,
+                                             .format = EL_PIXEL_FORMAT_UNKNOWN,
+                                             .rotate = EL_PIXEL_ROTATE_UNKNOWN};
+    el_err_code_t ret             = algorithm ? EL_OK : EL_EINVAL;
+    auto          event_reply     = [&]() {
         auto str = img_invoke_results_2_json_str(algorithm, &img, cmd, result_only, ret);
         serial->send_bytes(str.c_str(), str.size());
     };
     if (ret != EL_OK) [[unlikely]] {
         event_reply();
         return;
+    }
+    {
+        auto mutable_map = action_delegate->get_mutable_map();
+        for (auto& kv : mutable_map) {
+            // TODO
+        }
+        action_delegate->set_mutable_map(mutable_map);
     }
 
     while ((n_times < 0 || --n_times >= 0) && !stop_token.load()) {
@@ -356,6 +364,8 @@ void run_invoke_on_img(
         ret = display->show(&img);
         if (ret != EL_OK) [[unlikely]]
             goto InvokeErrorReply;
+
+        action_delegate->evalute();
 
         event_reply();
         camera->stop_stream();  // Note: discarding return err_code (always EL_OK)
@@ -479,10 +489,28 @@ void at_set_action(const std::vector<std::string>& argv) {
 
     cmd = argv[2];
     cmd.insert(0, "AT+");
-    action_delegate->set_true_cb([=]() { instance->exec_non_lock(cmd); });
+    action_delegate->set_true_cb([=]() {
+        el_err_code_t ret = instance->exec_non_lock(cmd);
+
+        auto os = std::ostringstream(std::ios_base::ate);
+        os << REPLY_EVT_HEADER << "\"name\": \"" << argv[0] << "\", \"code\": " << static_cast<int>(ret)
+           << ", \"data\": {\"true\": " << string_2_str(cmd) << "}}\n";
+
+        auto str = os.str();
+        serial->send_bytes(str.c_str(), str.size());
+    });
     cmd = argv[3];
     cmd.insert(0, "AT+");
-    action_delegate->set_false_exception_cb([=]() { instance->exec_non_lock(cmd); });
+    action_delegate->set_false_exception_cb([=]() {
+        instance->exec_non_lock(cmd);
+
+        auto os = std::ostringstream(std::ios_base::ate);
+        os << REPLY_EVT_HEADER << "\"name\": \"" << argv[0] << "\", \"code\": " << static_cast<int>(ret)
+           << ", \"data\": {\"false_or_exception\": " << string_2_str(cmd) << "\"}}\n";
+
+        auto str = os.str();
+        serial->send_bytes(str.c_str(), str.size());
+    });
 
     {
         auto builder = std::ostringstream(std::ios_base::ate);

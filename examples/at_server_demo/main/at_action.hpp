@@ -1,5 +1,8 @@
 #pragma once
 
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
+
 #include <functional>
 #include <string>
 #include <unordered_map>
@@ -20,6 +23,8 @@ class ActionDelegate {
     ~ActionDelegate() { unset_condition(); }
 
     bool set_condition(const std::string& input) {
+        const Guard guard(this);
+
         intr::Lexer  lexer(input);
         intr::Parser parser(lexer);
 
@@ -34,15 +39,33 @@ class ActionDelegate {
         return true;
     }
 
-    const mutable_map_t& get_mutable_map() { return _mutable_map; }
+    const mutable_map_t& get_mutable_map() {
+        const Guard guard(this);
 
-    void set_mutable_map(const mutable_map_t& map) { _mutable_map = map; }
+        return _mutable_map;
+    }
 
-    void set_true_cb(branch_cb_t cb) { _true_cb = cb; }
+    void set_mutable_map(const mutable_map_t& map) {
+        const Guard guard(this);
 
-    void set_false_exception_cb(branch_cb_t cb) { _false_or_exception_cb = cb; }
+        _mutable_map = map;
+    }
+
+    void set_true_cb(branch_cb_t cb) {
+        const Guard guard(this);
+
+        _true_cb = cb;
+    }
+
+    void set_false_exception_cb(branch_cb_t cb) {
+        const Guard guard(this);
+
+        _false_or_exception_cb = cb;
+    }
 
     bool evalute() {
+        const Guard guard(this);
+
         if (!_node) [[unlikely]]
             return false;
         if (!_true_cb) [[unlikely]]
@@ -64,6 +87,8 @@ class ActionDelegate {
     }
 
     void unset_condition() {
+        const Guard guard(this);
+
         if (_node) [[likely]] {
             delete _node;
             _node = nullptr;
@@ -72,10 +97,26 @@ class ActionDelegate {
     }
 
    protected:
-    ActionDelegate() : _node(nullptr){};
+    ActionDelegate() : _node(nullptr), _eval_lock(xSemaphoreCreateCounting(1, 1)){};
+
+    inline void m_lock() const noexcept { xSemaphoreTake(_eval_lock, portMAX_DELAY); }
+    inline void m_unlock() const noexcept { xSemaphoreGive(_eval_lock); }
+
+    struct Guard {
+        Guard(const ActionDelegate* const action) noexcept : __action(action) { __action->m_lock(); }
+        ~Guard() noexcept { __action->m_unlock(); }
+
+        Guard(const Guard&)            = delete;
+        Guard& operator=(const Guard&) = delete;
+
+       private:
+        const ActionDelegate* const __action;
+    };
 
    private:
     intr::ASTNode* _node;
+
+    SemaphoreHandle_t _eval_lock;
 
     mutable_map_t _mutable_map;
 

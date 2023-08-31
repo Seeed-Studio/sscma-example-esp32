@@ -265,7 +265,8 @@ template <typename AlgorithmType> class AlgorithmConfigHelper {
           _algorithm(algorithm),
           _config(algorithm->get_algorithm_config()),
           _kv(el_make_storage_kv_from_type(_config)),
-          _storage(edgelab::DataDelegate::get_delegate()->get_storage_handler()) {
+          _storage(edgelab::DataDelegate::get_delegate()->get_storage_handler()),
+          _serial(edgelab::Device::get_device()->get_serial()) {
         using namespace edgelab;
 
         if (_storage->contains(_kv.key)) [[likely]]
@@ -279,7 +280,6 @@ template <typename AlgorithmType> class AlgorithmConfigHelper {
                       std::is_same<ConfigType, el_algorithm_yolo_config_t>::value) {
             el_err_code_t ret = _instance->register_cmd(
               "TSCORE", "Set score threshold", "SCORE_THRESHOLD", [this](std::vector<std::string> argv) {
-                  auto*         serial = Device::get_device()->get_serial();
                   auto          os     = std::ostringstream(std::ios_base::ate);
                   uint8_t       value  = std::atoi(argv[1].c_str());
                   el_err_code_t ret    = value <= 100 ? EL_OK : EL_EINVAL;
@@ -294,16 +294,28 @@ template <typename AlgorithmType> class AlgorithmConfigHelper {
                      << ", \"data\": \"" << static_cast<unsigned>(this->_kv.value.score_threshold) << "\"}\n";
 
                   auto str = os.str();
-                  serial->send_bytes(str.c_str(), str.size());
+                  this->_serial->send_bytes(str.c_str(), str.size());
 
                   return EL_OK;
               });
             if (ret == EL_OK) _config_cmds.emplace_front("TSCORE");
+
+            ret = _instance->register_cmd("TSCORE?", "Get score threshold", "", [this](std::vector<std::string> argv) {
+                auto  os     = std::ostringstream(std::ios_base::ate);
+
+                os << REPLY_CMD_HEADER << "\"name\": \"" << argv[0] << "\", \"code\": " << static_cast<int>(EL_OK)
+                   << ", \"data\": \"" << static_cast<unsigned>(this->_algorithm->get_score_threshold()) << "\"}\n";
+
+                auto str = os.str();
+                this->_serial->send_bytes(str.c_str(), str.size());
+
+                return EL_OK;
+            });
+            if (ret == EL_OK) _config_cmds.emplace_front("TSCORE?");
         }
         if constexpr (std::is_same<ConfigType, el_algorithm_yolo_config_t>::value) {
             el_err_code_t ret = _instance->register_cmd(
               "TIOU", "Set IoU threshold", "IOU_THRESHOLD", [this](std::vector<std::string> argv) {
-                  auto*         serial = Device::get_device()->get_serial();
                   auto          os     = std::ostringstream(std::ios_base::ate);
                   uint8_t       value  = std::atoi(argv[1].c_str());
                   el_err_code_t ret    = value <= 100 ? EL_OK : EL_EINVAL;
@@ -318,11 +330,24 @@ template <typename AlgorithmType> class AlgorithmConfigHelper {
                      << ", \"data\": \"" << static_cast<unsigned>(this->_kv.value.iou_threshold) << "\"}\n";
 
                   auto str = os.str();
-                  serial->send_bytes(str.c_str(), str.size());
+                  this->_serial->send_bytes(str.c_str(), str.size());
 
                   return EL_OK;
               });
             if (ret == EL_OK) _config_cmds.emplace_front("TIOU");
+
+            ret = _instance->register_cmd("TIOU?", "Get IoU threshold", "", [this](std::vector<std::string> argv) {
+                auto  os     = std::ostringstream(std::ios_base::ate);
+
+                os << REPLY_CMD_HEADER << "\"name\": \"" << argv[0] << "\", \"code\": " << static_cast<int>(EL_OK)
+                   << ", \"data\": \"" << static_cast<unsigned>(this->_algorithm->get_iou_threshold()) << "\"}\n";
+
+                auto str = os.str();
+                this->_serial->send_bytes(str.c_str(), str.size());
+
+                return EL_OK;
+            });
+            if (ret == EL_OK) _config_cmds.emplace_front("TIOU?");
         }
     }
 
@@ -341,4 +366,5 @@ template <typename AlgorithmType> class AlgorithmConfigHelper {
     edgelab::data::types::el_storage_kv_t<ConfigType&> _kv;
 
     edgelab::data::Storage* _storage;
+    edgelab::Serial* _serial;
 };

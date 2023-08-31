@@ -50,7 +50,7 @@ endif()
 message(STATUS "SRCS_EDGELAB: ${SRCS_EDGELAB}")
 message(STATUS "INCLUDES_EDGELAB: ${INCLUDES_EDGELAB}")
 
-set(priv_req tflite-lib screen esp32-camera)
+set(priv_req esp-tflite-micro screen esp32-camera)
 
 if("${IDF_VERSION_MAJOR}.${IDF_VERSION_MINOR}" VERSION_GREATER "4.1")
     list(APPEND priv_req esp_timer driver spi_flash esp_partition efuse)

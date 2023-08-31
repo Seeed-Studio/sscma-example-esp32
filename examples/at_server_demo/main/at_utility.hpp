@@ -17,6 +17,18 @@
 #include "el_repl.hpp"
 #include "el_types.h"
 
+std::string string_2_str(const std::string& str) {
+    std::string ss(1, '"');
+    for (char c : str) {
+        if (std::isprint(c)) [[likely]]
+            ss += c;
+        else if (c == '"') [[unlikely]]
+            ss += "\\\"";
+    }
+    ss += '"';
+    return ss;
+}
+
 const char* err_code_2_str(el_err_code_t ec) {
     switch (ec) {
     case EL_OK:
@@ -280,9 +292,9 @@ template <typename AlgorithmType> class AlgorithmConfigHelper {
                       std::is_same<ConfigType, el_algorithm_yolo_config_t>::value) {
             el_err_code_t ret = _instance->register_cmd(
               "TSCORE", "Set score threshold", "SCORE_THRESHOLD", [this](std::vector<std::string> argv) {
-                  auto          os     = std::ostringstream(std::ios_base::ate);
-                  uint8_t       value  = std::atoi(argv[1].c_str());
-                  el_err_code_t ret    = value <= 100 ? EL_OK : EL_EINVAL;
+                  auto          os    = std::ostringstream(std::ios_base::ate);
+                  uint8_t       value = std::atoi(argv[1].c_str());
+                  el_err_code_t ret   = value <= 100 ? EL_OK : EL_EINVAL;
 
                   if (ret == EL_OK) {
                       this->_algorithm->set_score_threshold(value);
@@ -301,7 +313,7 @@ template <typename AlgorithmType> class AlgorithmConfigHelper {
             if (ret == EL_OK) _config_cmds.emplace_front("TSCORE");
 
             ret = _instance->register_cmd("TSCORE?", "Get score threshold", "", [this](std::vector<std::string> argv) {
-                auto  os     = std::ostringstream(std::ios_base::ate);
+                auto os = std::ostringstream(std::ios_base::ate);
 
                 os << REPLY_CMD_HEADER << "\"name\": \"" << argv[0] << "\", \"code\": " << static_cast<int>(EL_OK)
                    << ", \"data\": \"" << static_cast<unsigned>(this->_algorithm->get_score_threshold()) << "\"}\n";
@@ -316,9 +328,9 @@ template <typename AlgorithmType> class AlgorithmConfigHelper {
         if constexpr (std::is_same<ConfigType, el_algorithm_yolo_config_t>::value) {
             el_err_code_t ret = _instance->register_cmd(
               "TIOU", "Set IoU threshold", "IOU_THRESHOLD", [this](std::vector<std::string> argv) {
-                  auto          os     = std::ostringstream(std::ios_base::ate);
-                  uint8_t       value  = std::atoi(argv[1].c_str());
-                  el_err_code_t ret    = value <= 100 ? EL_OK : EL_EINVAL;
+                  auto          os    = std::ostringstream(std::ios_base::ate);
+                  uint8_t       value = std::atoi(argv[1].c_str());
+                  el_err_code_t ret   = value <= 100 ? EL_OK : EL_EINVAL;
 
                   if (ret == EL_OK) {
                       this->_algorithm->set_iou_threshold(value);
@@ -337,7 +349,7 @@ template <typename AlgorithmType> class AlgorithmConfigHelper {
             if (ret == EL_OK) _config_cmds.emplace_front("TIOU");
 
             ret = _instance->register_cmd("TIOU?", "Get IoU threshold", "", [this](std::vector<std::string> argv) {
-                auto  os     = std::ostringstream(std::ios_base::ate);
+                auto os = std::ostringstream(std::ios_base::ate);
 
                 os << REPLY_CMD_HEADER << "\"name\": \"" << argv[0] << "\", \"code\": " << static_cast<int>(EL_OK)
                    << ", \"data\": \"" << static_cast<unsigned>(this->_algorithm->get_iou_threshold()) << "\"}\n";
@@ -366,5 +378,5 @@ template <typename AlgorithmType> class AlgorithmConfigHelper {
     edgelab::data::types::el_storage_kv_t<ConfigType&> _kv;
 
     edgelab::data::Storage* _storage;
-    edgelab::Serial* _serial;
+    edgelab::Serial*        _serial;
 };

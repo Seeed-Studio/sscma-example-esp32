@@ -10,14 +10,14 @@ typedef std::function<void(void)>                     branch_cb_t;
 typedef std::function<int(void)>                      mutable_cb_t;
 typedef std::unordered_map<std::string, mutable_cb_t> mutable_map_t;
 
-class EventDelegate {
+class ActionDelegate {
    public:
-    static EventDelegate* get_delegate() {
-        static EventDelegate event_delegate = EventDelegate();
+    static ActionDelegate* get_delegate() {
+        static ActionDelegate event_delegate = ActionDelegate();
         return &event_delegate;
     }
 
-    ~EventDelegate() { unset_condition(); }
+    ~ActionDelegate() { unset_condition(); }
 
     bool set_condition(const std::string& input) {
         intr::Lexer  lexer(input);
@@ -31,7 +31,7 @@ class EventDelegate {
         const auto& mutable_keys = parser.get_mutable();
         for (const auto& key : mutable_keys) _mutable_map[key] = nullptr;
 
-        return _node != nullptr;
+        return true;
     }
 
     const mutable_map_t& get_mutable_map() { return _mutable_map; }
@@ -72,7 +72,7 @@ class EventDelegate {
     }
 
    protected:
-    EventDelegate() : _node(nullptr){};
+    ActionDelegate() : _node(nullptr){};
 
    private:
     intr::ASTNode* _node;

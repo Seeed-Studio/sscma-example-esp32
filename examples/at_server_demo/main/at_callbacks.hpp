@@ -11,27 +11,20 @@
 #include <sstream>
 #include <string>
 
+#include "at_action.hpp"
 #include "at_definations.hpp"
 #include "at_utility.hpp"
 #include "edgelab.h"
 #include "el_device_esp.h"
 
 void at_server_echo_cb(const std::string& msg) {
-    auto*       serial = Device::get_device()->get_serial();
-    auto        os     = std::ostringstream(std::ios_base::ate);
-    std::string legal_msg;
+    auto* serial = Device::get_device()->get_serial();
+    auto  os     = std::ostringstream(std::ios_base::ate);
 
     if (msg.size() < 5) return;
 
-    for (char c : msg) {
-        if (std::isprint(c)) [[likely]]
-            legal_msg += c;
-        else if (c == '"') [[unlikely]]
-            legal_msg += "\\\"";
-    }
-
     os << REPLY_LOG_HEADER << "\"name\": \"AT\", \"code\": " << static_cast<int>(EL_AGAIN) << ", \"data\": \""
-       << legal_msg << "\"}\n";
+       << string_2_str(msg) << "\"}\n";
 
     auto str = os.str();
     serial->send_bytes(str.c_str(), str.size());
@@ -412,8 +405,10 @@ void at_run_invoke(const std::string& cmd,
 
     if (model_info.type != 0)
         algorithm_info = algorithm_delegate->get_algorithm_info(model_info.type);
-    else
-        algorithm_info = algorithm_delegate->get_algorithm_info(el_algorithm_type_from_engine(engine));
+    else {
+        algorithm_info  = algorithm_delegate->get_algorithm_info(el_algorithm_type_from_engine(engine));
+        model_info.type = algorithm_info.type;
+    }
     if (algorithm_info.type == 0) [[unlikely]]
         goto InvokeErrorReply;
 
@@ -467,4 +462,59 @@ void at_run_invoke(const std::string& cmd,
 InvokeErrorReply:
     ret = EL_EINVAL;
     direct_reply("");
+}
+
+void at_set_action(const std::vector<std::string>& argv) {
+    auto* serial          = Device::get_device()->get_serial();
+    auto* storage         = DataDelegate::get_delegate()->get_storage_handler();
+    auto* instance        = ReplDelegate::get_delegate()->get_server_handler();
+    auto* action_delegate = ActionDelegate::get_delegate();
+    auto  os              = std::ostringstream(std::ios_base::ate);
+    auto  cmd             = std::string{};
+    char  action_cmd[128]{};
+
+    el_err_code_t ret = action_delegate->set_condition(argv[1]) ? EL_OK : EL_EINVAL;
+    if (ret != EL_OK) [[unlikely]]
+        goto ActionReply;
+
+    cmd = argv[2];
+    cmd.insert(0, "AT+");
+    action_delegate->set_true_cb([=]() { instance->exec_non_lock(cmd); });
+    cmd = argv[3];
+    cmd.insert(0, "AT+");
+    action_delegate->set_false_exception_cb([=]() { instance->exec_non_lock(cmd); });
+
+    {
+        auto builder = std::ostringstream(std::ios_base::ate);
+        builder << "AT+" << argv[0] << '=' << string_2_str(argv[1]) << ',' << string_2_str(argv[2]) << ','
+                << string_2_str(argv[3]);
+        cmd = builder.str();
+        std::strncpy(action_cmd, cmd.c_str(), sizeof(action_cmd));
+        auto kv = el_make_storage_kv("action_cmd", action_cmd);
+        *storage << kv;
+    }
+
+ActionReply:
+    os << REPLY_CMD_HEADER << "\"name\": \"" << argv[0] << "\", \"code\": " << static_cast<int>(ret)
+       << ", \"data\": {\"cond\": " << string_2_str(argv[1]) << ", \"true\": " << string_2_str(argv[2])
+       << ", \"false_or_exception\": " << string_2_str(argv[3]) << "}}\n";
+
+    auto str = os.str();
+    serial->send_bytes(str.c_str(), str.size());
+}
+
+void at_unset_action(const std::string& cmd) {
+    auto* serial          = Device::get_device()->get_serial();
+    auto* storage         = DataDelegate::get_delegate()->get_storage_handler();
+    auto* action_delegate = ActionDelegate::get_delegate();
+    auto  os              = std::ostringstream(std::ios_base::ate);
+
+    action_delegate->unset_condition();
+    storage->erase("action_cmd");
+
+    os << REPLY_CMD_HEADER << "\"name\": \"" << cmd << "\", \"code\": " << static_cast<int>(EL_OK)
+       << ", \"data\": {}}\n";
+
+    auto str = os.str();
+    serial->send_bytes(str.c_str(), str.size());
 }

@@ -4,7 +4,6 @@
 #include <vector>
 
 #include "at_callbacks.hpp"
-#include "at_event.hpp"
 #include "at_utility.hpp"
 #include "edgelab.h"
 #include "el_device_esp.h"
@@ -20,7 +19,6 @@ extern "C" void app_main(void) {
     auto* data_delegate = DataDelegate::get_delegate();
     auto* models        = data_delegate->get_models_handler();
     auto* storage       = data_delegate->get_storage_handler();
-    auto* event         = EventDelegate::get_delegate();
     auto* engine        = new InferenceEngine();
 
     // init resource
@@ -173,36 +171,17 @@ extern "C" void app_main(void) {
           return EL_OK;
       }));
 
-    instance->register_cmd("EVENT",
-                           "Set a condition event trigger",
+    instance->register_cmd("ACTION",
+                           "Set a condition action trigger",
                            "\"COND\",\"TRUE_CMD\",\"FALSE_OR_EXCEPTION_CMD\"",
                            el_repl_cmd_cb_t([&](std::vector<std::string> argv) {
-                               el_printf("%s %s %s\n", argv[1].c_str(), argv[2].c_str(), argv[3].c_str());
-
-                               int i = event->set_condition(argv[1]);
-
-                               el_printf("-> %d\n", i);
-
-                               event->set_true_cb([&]() {
-                                   std::string cmd{argv[2]};
-                                   cmd.insert(0, "AT+");
-                                   instance->exec_non_lock(cmd);
-                               });
-
-                               event->set_false_exception_cb([&]() {
-                                   std::string cmd{argv[3]};
-                                   cmd.insert(0, "AT+");
-                                   instance->exec_non_lock(cmd);
-                               });
-
-                               event->evalute();
-
+                               at_set_action(argv);
                                return EL_OK;
                            }));
 
     instance->register_cmd(
-      "EVENT!", "Reset event trigger condition", "", el_repl_cmd_cb_t([&](std::vector<std::string>) {
-          event->unset_condition();
+      "ACTION!", "Reset action trigger condition", "", el_repl_cmd_cb_t([&](std::vector<std::string> argv) {
+          at_unset_action(argv[0]);
           return EL_OK;
       }));
 
@@ -212,20 +191,27 @@ extern "C" void app_main(void) {
     // setup components
     {
         std::string cmd;
-        cmd = std::string("AT+MODEL=") + std::to_string(current_model_id);
-        instance->exec(cmd);
-        cmd = std::string("AT+SENSOR=") + std::to_string(current_sensor_id) + ",1";
-        instance->exec(cmd);
-        cmd = std::string("AT+EVENT=\"(1+1)>(3-2)\", \"LED=1\", \"LED=0\"");
-        instance->exec(cmd);
+        if (current_model_id) {
+            cmd = std::string("AT+MODEL=") + std::to_string(current_model_id);
+            instance->exec(cmd);
+        }
+        if (current_sensor_id) {
+            cmd = std::string("AT+SENSOR=") + std::to_string(current_sensor_id) + ",1";
+            instance->exec(cmd);
+        }
+        if (storage->contains("action_cmd")) {
+            char action_cmd[128]{};
+            *storage >> el_make_storage_kv("action_cmd", action_cmd);
+            instance->exec(action_cmd);
+        }
         // cmd = std::string("AT+INVOKE=-1,1");
         // instance->exec(cmd);
     }
 
     // enter service pipeline (TODO: pipeline builder)
-    char* buf = new char[64]{};
+    char* buf = new char[128]{};
     for (;;) {
-        serial->get_line(buf, 64);
+        serial->get_line(buf, 128);
         if (std::strlen(buf) > 5) [[likely]]
             instance->exec(buf);
     }

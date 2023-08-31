@@ -18,7 +18,11 @@
 
 namespace edgelab::repl {
 
-ReplServer::ReplServer() : _cmd_list_lock(xSemaphoreCreateCounting(1, 1)), _is_ctrl(false), _line_index(-1) {
+ReplServer::ReplServer()
+    : _cmd_list_lock(xSemaphoreCreateCounting(1, 1)),
+      _exec_lock(xSemaphoreCreateCounting(1, 1)),
+      _is_ctrl(false),
+      _line_index(-1) {
     register_cmd("HELP", "List available commands", "", [this](std::vector<std::string>) -> el_err_code_t {
         this->print_help();
         return EL_OK;
@@ -29,7 +33,7 @@ ReplServer::~ReplServer() { deinit(); }
 
 void ReplServer::init(types::el_repl_echo_cb_t echo_cb) {
     {
-        const Guard guard(this);
+        const Guard guard(this, _cmd_list_lock);
         EL_ASSERT(echo_cb);
         _echo_cb = echo_cb;
     }
@@ -38,7 +42,7 @@ void ReplServer::init(types::el_repl_echo_cb_t echo_cb) {
 }
 
 void ReplServer::deinit() {
-    const Guard guard(this);
+    const Guard guard(this, _cmd_list_lock);
 
     _history.clear();
     _cmd_list.clear();
@@ -50,7 +54,7 @@ void ReplServer::deinit() {
 }
 
 bool ReplServer::has_cmd(const std::string& cmd) {
-    const Guard guard(this);
+    const Guard guard(this, _cmd_list_lock);
 
     auto it = std::find_if(
       _cmd_list.begin(), _cmd_list.end(), [&](const types::el_repl_cmd_t& c) { return c.cmd.compare(cmd) == 0; });
@@ -59,7 +63,7 @@ bool ReplServer::has_cmd(const std::string& cmd) {
 }
 
 el_err_code_t ReplServer::register_cmd(const types::el_repl_cmd_t& cmd) {
-    const Guard guard(this);
+    const Guard guard(this, _cmd_list_lock);
 
     if (cmd.cmd.empty()) [[unlikely]]
         return EL_EINVAL;
@@ -84,12 +88,12 @@ el_err_code_t ReplServer::register_cmd(const char*             cmd,
 }
 
 std::forward_list<types::el_repl_cmd_t> ReplServer::get_registered_cmds() const {
-    const Guard guard(this);
+    const Guard guard(this, _cmd_list_lock);
     return _cmd_list;
 }
 
 void ReplServer::print_help() {
-    const Guard guard(this);
+    const Guard guard(this, _cmd_list_lock);
 
     _echo_cb("Command list:\n");
     for (const auto& cmd : _cmd_list) {
@@ -103,6 +107,13 @@ void ReplServer::print_help() {
 
 void ReplServer::m_unregister_cmd(const std::string& cmd) {
     _cmd_list.remove_if([&](const types::el_repl_cmd_t& c) { return c.cmd.compare(cmd) == 0; });
+}
+
+el_err_code_t ReplServer::exec(std::string line) {
+    const Guard guard(this, _exec_lock);
+    auto it = std::remove_if(line.begin(), line.end(), [](char c) { return !std::isprint(c); });
+    line.erase(it, line.end());
+    return m_exec_cmd(line);
 }
 
 void ReplServer::loop(const std::string& line) {
@@ -160,7 +171,7 @@ void ReplServer::loop(char c) {
     case '\r':
         _echo_cb("\r\n");
         if (!_line.empty()) {
-            if (m_exec_cmd(_line) == EL_OK) {
+            if (m_exec_cmd(_line) == EL_OK) [[likely]] {
                 _history.add(_line);
             }
             _line.clear();
@@ -215,18 +226,18 @@ el_err_code_t ReplServer::m_exec_cmd(const std::string& cmd) {
 
     cmd_name = cmd_name.substr(3);
 
-    m_lock();
+    m_lock(_cmd_list_lock);
     auto it = std::find_if(_cmd_list.begin(), _cmd_list.end(), [&](const types::el_repl_cmd_t& c) {
         size_t cmd_body_pos = cmd_name.rfind("@");
         return c.cmd.compare(cmd_name.substr(cmd_body_pos != std::string::npos ? cmd_body_pos + 1 : 0)) == 0;
     });
     if (it == _cmd_list.end()) [[unlikely]] {
         m_echo_cb("Unknown command: ", cmd, "\n");
-        m_unlock();
+        m_unlock(_cmd_list_lock);
         return ret;
     }
     auto cmd_copy = *it;
-    m_unlock();
+    m_unlock(_cmd_list_lock);
 
     // tokenize
     size_t                   prev  = 0;

@@ -90,15 +90,16 @@ class ReplServer {
     el_err_code_t register_cmd(const char* cmd, const char* desc, const char* arg, types::el_repl_cmd_cb_t cmd_cb);
 
     template <typename... Args> void unregister_cmd(Args&&... args) {
-        const Guard guard(this);
+        const Guard guard(this, _cmd_list_lock);
         ((m_unregister_cmd(std::forward<Args>(args))), ...);
     }
 
     std::forward_list<types::el_repl_cmd_t> get_registered_cmds() const;
     void                                    print_help();
 
-    void loop(const std::string& line);
-    void loop(char c);
+    el_err_code_t exec(std::string line);
+    void          loop(const std::string& line);
+    void          loop(char c);
 
    protected:
     void m_unregister_cmd(const std::string& cmd);
@@ -111,18 +112,22 @@ class ReplServer {
         _echo_cb(os.str());
     }
 
-    inline void m_lock() const { xSemaphoreTake(_cmd_list_lock, portMAX_DELAY); }
-    inline void m_unlock() const { xSemaphoreGive(_cmd_list_lock); }
+    inline void m_lock(SemaphoreHandle_t lock) const { xSemaphoreTake(lock, portMAX_DELAY); }
+    inline void m_unlock(SemaphoreHandle_t lock) const { xSemaphoreGive(lock); }
 
     struct Guard {
-        Guard(const ReplServer* const repl_server) noexcept : __repl_server(repl_server) { __repl_server->m_lock(); }
-        ~Guard() noexcept { __repl_server->m_unlock(); }
+        Guard(const ReplServer* const repl_server, SemaphoreHandle_t& lock) noexcept
+            : __repl_server(repl_server), __lock(lock) {
+            __repl_server->m_lock(__lock);
+        }
+        ~Guard() noexcept { __repl_server->m_unlock(__lock); }
 
         Guard(const Guard&)            = delete;
         Guard& operator=(const Guard&) = delete;
 
        private:
         const ReplServer* const __repl_server;
+        SemaphoreHandle_t&      __lock;
     };
 
    private:
@@ -130,6 +135,8 @@ class ReplServer {
 
     mutable SemaphoreHandle_t               _cmd_list_lock;
     std::forward_list<types::el_repl_cmd_t> _cmd_list;
+
+    mutable SemaphoreHandle_t _exec_lock;
 
     types::el_repl_echo_cb_t _echo_cb;
 

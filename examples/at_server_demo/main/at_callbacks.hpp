@@ -410,7 +410,10 @@ void at_run_invoke(const std::string& cmd,
     if (model_info.id == 0) [[unlikely]]
         goto InvokeErrorReply;
 
-    algorithm_info = algorithm_delegate->get_algorithm_info(model_info.type);
+    if (model_info.type != 0)
+        algorithm_info = algorithm_delegate->get_algorithm_info(model_info.type);
+    else
+        algorithm_info = algorithm_delegate->get_algorithm_info(el_algorithm_type_from_engine(engine));
     if (algorithm_info.type == 0) [[unlikely]]
         goto InvokeErrorReply;
 

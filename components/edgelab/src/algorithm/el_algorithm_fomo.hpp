@@ -50,12 +50,12 @@ struct el_algorithm_fomo_config_t {
 }  // namespace types
 
 class FOMO : public edgelab::algorithm::base::Algorithm {
+   public:
     using ImageType  = el_img_t;
     using BoxType    = el_box_t;
     using ConfigType = types::el_algorithm_fomo_config_t;
     using ScoreType  = decltype(types::el_algorithm_fomo_config_t::score_threshold);
 
-   public:
     static constexpr InfoType algorithm_info{types::el_algorithm_fomo_config_t::info};
 
     FOMO(EngineType* engine, ScoreType score_threshold = 50);

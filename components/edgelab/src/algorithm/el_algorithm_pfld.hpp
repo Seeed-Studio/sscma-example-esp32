@@ -48,11 +48,11 @@ struct el_algorithm_pfld_config_t {
 }  // namespace types
 
 class PFLD : public edgelab::algorithm::base::Algorithm {
+   public:
     using ImageType  = el_img_t;
     using PointType  = el_point_t;
     using ConfigType = types::el_algorithm_pfld_config_t;
 
-   public:
     static constexpr InfoType algorithm_info{types::el_algorithm_pfld_config_t::info};
 
     PFLD(EngineType* engine);

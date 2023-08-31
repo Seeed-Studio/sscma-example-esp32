@@ -50,12 +50,12 @@ struct el_algorithm_imcls_config_t {
 }  // namespace types
 
 class IMCLS : public edgelab::algorithm::base::Algorithm {
+   public:
     using ImageType  = el_img_t;
     using ClassType  = el_class_t;
     using ConfigType = types::el_algorithm_imcls_config_t;
     using ScoreType  = decltype(types::el_algorithm_imcls_config_t::score_threshold);
 
-   public:
     static constexpr InfoType algorithm_info{types::el_algorithm_imcls_config_t::info};
 
     IMCLS(EngineType* engine, ScoreType score_threshold = 50);

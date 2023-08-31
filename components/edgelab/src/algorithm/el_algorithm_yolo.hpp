@@ -52,13 +52,13 @@ struct el_algorithm_yolo_config_t {
 }  // namespace types
 
 class YOLO : public base::Algorithm {
+   public:
     using ImageType  = el_img_t;
     using BoxType    = el_box_t;
     using ConfigType = types::el_algorithm_yolo_config_t;
     using ScoreType  = decltype(types::el_algorithm_yolo_config_t::score_threshold);
     using IoUType    = decltype(types::el_algorithm_yolo_config_t::iou_threshold);
 
-   public:
     static constexpr InfoType algorithm_info{types::el_algorithm_yolo_config_t::info};
 
     YOLO(EngineType* engine, ScoreType score_threshold = 50, IoUType iou_threshold = 45);

@@ -1,8 +1,10 @@
+#include <algorithm>
 #include <atomic>
 #include <string>
 #include <vector>
 
 #include "at_callbacks.hpp"
+#include "at_event.hpp"
 #include "at_utility.hpp"
 #include "edgelab.h"
 #include "el_device_esp.h"
@@ -18,6 +20,7 @@ extern "C" void app_main(void) {
     auto* data_delegate = DataDelegate::get_delegate();
     auto* models        = data_delegate->get_models_handler();
     auto* storage       = data_delegate->get_storage_handler();
+    auto* event         = EventDelegate::get_delegate();
     auto* engine        = new InferenceEngine();
 
     // init resource
@@ -170,6 +173,39 @@ extern "C" void app_main(void) {
           return EL_OK;
       }));
 
+    instance->register_cmd("EVENT",
+                           "Set a condition event trigger",
+                           "\"COND\",\"TRUE_CMD\",\"FALSE_OR_EXCEPTION_CMD\"",
+                           el_repl_cmd_cb_t([&](std::vector<std::string> argv) {
+                               el_printf("%s %s %s\n", argv[1].c_str(), argv[2].c_str(), argv[3].c_str());
+
+                               int i = event->set_condition(argv[1]);
+
+                               el_printf("-> %d\n", i);
+
+                               event->set_true_cb([&]() {
+                                   std::string cmd{argv[2]};
+                                   cmd.insert(0, "AT+");
+                                   instance->exec_non_lock(cmd);
+                               });
+
+                               event->set_false_exception_cb([&]() {
+                                   std::string cmd{argv[3]};
+                                   cmd.insert(0, "AT+");
+                                   instance->exec_non_lock(cmd);
+                               });
+
+                               event->evalute();
+
+                               return EL_OK;
+                           }));
+
+    instance->register_cmd(
+      "EVENT!", "Reset event trigger condition", "", el_repl_cmd_cb_t([&](std::vector<std::string>) {
+          event->unset_condition();
+          return EL_OK;
+      }));
+
     // start task executor
     executor->start();
 
@@ -180,8 +216,10 @@ extern "C" void app_main(void) {
         instance->exec(cmd);
         cmd = std::string("AT+SENSOR=") + std::to_string(current_sensor_id) + ",1";
         instance->exec(cmd);
-        cmd = std::string("AT+INVOKE=-1,1");
+        cmd = std::string("AT+EVENT=\"(1+1)>(3-2)\", \"LED=1\", \"LED=0\"");
         instance->exec(cmd);
+        // cmd = std::string("AT+INVOKE=-1,1");
+        // instance->exec(cmd);
     }
 
     // enter service pipeline (TODO: pipeline builder)

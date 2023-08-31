@@ -264,10 +264,10 @@ el_err_code_t ReplServer::m_exec_cmd(const std::string& cmd) {
                     arg += cmd_args.at(index);
             }
             argv.push_back(std::move(arg));
-        } else if (std::isdigit(c)) {
+        } else if (c == '-' || std::isdigit(c)) {
             size_t prev = index;
             while (++index < size)
-                if (std::isdigit(cmd_args.at(index))) break;
+                if (!std::isdigit(cmd_args.at(index))) break;
             argv.push_back(cmd_args.substr(prev, index - prev));
         }
         else

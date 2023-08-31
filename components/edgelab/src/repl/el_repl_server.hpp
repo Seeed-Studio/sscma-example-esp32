@@ -97,6 +97,7 @@ class ReplServer {
     std::forward_list<types::el_repl_cmd_t> get_registered_cmds() const;
     void                                    print_help();
 
+    el_err_code_t exec_non_lock(std::string line);
     el_err_code_t exec(std::string line);
     void          loop(const std::string& line);
     void          loop(char c);

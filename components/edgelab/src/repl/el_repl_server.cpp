@@ -109,11 +109,15 @@ void ReplServer::m_unregister_cmd(const std::string& cmd) {
     _cmd_list.remove_if([&](const types::el_repl_cmd_t& c) { return c.cmd.compare(cmd) == 0; });
 }
 
-el_err_code_t ReplServer::exec(std::string line) {
-    const Guard guard(this, _exec_lock);
+el_err_code_t ReplServer::exec_non_lock(std::string line) {
     auto it = std::remove_if(line.begin(), line.end(), [](char c) { return !std::isprint(c); });
     line.erase(it, line.end());
     return m_exec_cmd(line);
+}
+
+el_err_code_t ReplServer::exec(std::string line) {
+    const Guard guard(this, _exec_lock);
+    return exec_non_lock(std::move(line));
 }
 
 void ReplServer::loop(const std::string& line) {
@@ -219,7 +223,7 @@ el_err_code_t ReplServer::m_exec_cmd(const std::string& cmd) {
 
     std::transform(cmd_name.begin(), cmd_name.end(), cmd_name.begin(), ::toupper);
 
-    if (cmd_name.rfind("AT+", 0) != 0) {
+    if (cmd_name.find("AT+", 0) != 0) {
         m_echo_cb("Unknown command: ", cmd, "\n");
         return EL_EINVAL;
     }
@@ -240,32 +244,35 @@ el_err_code_t ReplServer::m_exec_cmd(const std::string& cmd) {
     m_unlock(_cmd_list_lock);
 
     // tokenize
-    size_t                   prev  = 0;
-    size_t                   index = 0;
     std::vector<std::string> argv;
     argv.push_back(cmd_name);
     std::stack<char> stk;
-    stk.push('\0');
-    size_t size = cmd_args.size();
+    size_t           index = 0;
+    size_t           size  = cmd_args.size();
     while (index < size) {
-        char c = cmd_args[index];
+        char c = cmd_args.at(index);
         if (c == '\'' || c == '"') [[unlikely]] {
-            if (stk.top() != c)
-                stk.push(c);
-            else
-                stk.pop();
-        } else if (stk.size() == 1 && c == ',') [[unlikely]] {
+            stk.push(c);
+            std::string arg;
+            while (++index < size && stk.size()) {
+                c = cmd_args.at(index);
+                if (c == stk.top())
+                    stk.pop();
+                else if (c != '\\') [[likely]]
+                    arg += c;
+                else if (++index < size) [[likely]]
+                    arg += cmd_args.at(index);
+            }
+            argv.push_back(std::move(arg));
+        } else if (std::isdigit(c)) {
+            size_t prev = index;
+            while (++index < size)
+                if (std::isdigit(cmd_args.at(index))) break;
             argv.push_back(cmd_args.substr(prev, index - prev));
-            prev = ++index;
-        } else if (stk.size() != 1 && c == '\\') [[unlikely]]
+        }
+        else
             ++index;
-        ++index;
     }
-    if (stk.size() != 1) [[unlikely]] {
-        m_echo_cb("Command ", cmd_name, " tokenization failed.\n");
-        return ret;
-    }
-    if (prev < size) argv.push_back(cmd_args.substr(prev, size - prev));
 
     if (cmd_copy.cmd_cb) {
         if (cmd_copy._argc != argv.size() - 1) [[unlikely]] {

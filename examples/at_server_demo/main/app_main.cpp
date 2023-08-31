@@ -175,10 +175,13 @@ extern "C" void app_main(void) {
 
     // setup components
     {
-        auto os = std::ostringstream(std::ios_base::ate);
-        os << "AT+MODEL=" << std::to_string(current_model_id) << "\n";
-        os << "AT+SENSOR=" << std::to_string(current_sensor_id) << ",1\n";
-        instance->loop(os.str());
+        std::string cmd;
+        cmd = std::string("AT+MODEL=") + std::to_string(current_model_id);
+        instance->exec(cmd);
+        cmd = std::string("AT+SENSOR=") + std::to_string(current_sensor_id) + ",1";
+        instance->exec(cmd);
+        cmd = std::string("AT+INVOKE=-1,1");
+        instance->exec(cmd);
     }
 
     // enter service pipeline (TODO: pipeline builder)

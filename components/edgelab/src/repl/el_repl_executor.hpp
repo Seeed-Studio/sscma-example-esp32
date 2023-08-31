@@ -34,7 +34,7 @@
 #include <functional>
 #include <queue>
 
-#define CONFIG_EL_REPL_EXECUTOR_STACK_SIZE 8192
+#define CONFIG_EL_REPL_EXECUTOR_STACK_SIZE 16384
 #define CONFIG_EL_REPL_EXECUTOR_PRIO       5
 
 namespace edgelab::repl {

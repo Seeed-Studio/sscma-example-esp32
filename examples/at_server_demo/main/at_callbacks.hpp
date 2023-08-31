@@ -369,6 +369,7 @@ void run_invoke_on_img(
         continue;
 
     InvokeErrorReply:
+        camera->stop_stream();
         event_reply();
         break;
     }
@@ -461,5 +462,6 @@ void at_run_invoke(const std::string& cmd,
     }
 
 InvokeErrorReply:
+    ret = EL_EINVAL;
     direct_reply("");
 }

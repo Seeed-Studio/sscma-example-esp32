@@ -47,7 +47,7 @@ class Models {
     Models& operator=(const Models&) = delete;
 
     el_err_code_t init(const char*              partition_name = CONFIG_EL_MODEL_PARTITION_NAME,
-                       const el_model_format_v& model_format   = EL_MODEL_FMT_PACKED_TFLITE);
+                       const el_model_format_v& model_format = EL_MODEL_FMT_PACKED_TFLITE | EL_MODEL_FMT_PLAIN_TFLITE);
     void          deinit();
 
     size_t                                    seek_models_from_flash(const el_model_format_v& model_format);

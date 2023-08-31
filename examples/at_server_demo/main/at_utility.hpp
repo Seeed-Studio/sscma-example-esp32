@@ -13,6 +13,7 @@
 #include "el_base64.h"
 #include "el_cv.h"
 #include "el_data.hpp"
+#include "el_device_esp.h"
 #include "el_repl.hpp"
 #include "el_types.h"
 
@@ -278,9 +279,23 @@ template <typename AlgorithmType> class AlgorithmConfigHelper {
                       std::is_same<ConfigType, el_algorithm_yolo_config_t>::value) {
             el_err_code_t ret = _instance->register_cmd(
               "TSCORE", "Set score threshold", "SCORE_THRESHOLD", [this](std::vector<std::string> argv) {
-                  this->_kv.value.score_threshold = std::atoi(argv[1].c_str());
-                  this->_algorithm->set_algorithm_config(this->_kv.value);
-                  *(this->_storage) << this->_kv;
+                  auto*         serial = Device::get_device()->get_serial();
+                  auto          os     = std::ostringstream(std::ios_base::ate);
+                  uint8_t       value  = std::atoi(argv[1].c_str());
+                  el_err_code_t ret    = value <= 100 ? EL_OK : EL_EINVAL;
+
+                  if (ret == EL_OK) {
+                      this->_algorithm->set_score_threshold(value);
+                      this->_kv.value.score_threshold = value;
+                      *(this->_storage) << this->_kv;
+                  }
+
+                  os << REPLY_CMD_HEADER << "\"name\": \"" << argv[0] << "\", \"code\": " << static_cast<int>(ret)
+                     << ", \"data\": \"" << static_cast<unsigned>(this->_kv.value.score_threshold) << "\"}\n";
+
+                  auto str = os.str();
+                  serial->send_bytes(str.c_str(), str.size());
+
                   return EL_OK;
               });
             if (ret == EL_OK) _config_cmds.emplace_front("TSCORE");
@@ -288,9 +303,23 @@ template <typename AlgorithmType> class AlgorithmConfigHelper {
         if constexpr (std::is_same<ConfigType, el_algorithm_yolo_config_t>::value) {
             el_err_code_t ret = _instance->register_cmd(
               "TIOU", "Set IoU threshold", "IOU_THRESHOLD", [this](std::vector<std::string> argv) {
-                  this->_kv.value.iou_threshold = std::atoi(argv[1].c_str());
-                  this->_algorithm->set_algorithm_config(this->_kv.value);
-                  *(this->_storage) << this->_kv;
+                  auto*         serial = Device::get_device()->get_serial();
+                  auto          os     = std::ostringstream(std::ios_base::ate);
+                  uint8_t       value  = std::atoi(argv[1].c_str());
+                  el_err_code_t ret    = value <= 100 ? EL_OK : EL_EINVAL;
+
+                  if (ret == EL_OK) {
+                      this->_algorithm->set_iou_threshold(value);
+                      this->_kv.value.iou_threshold = value;
+                      *(this->_storage) << this->_kv;
+                  }
+
+                  os << REPLY_CMD_HEADER << "\"name\": \"" << argv[0] << "\", \"code\": " << static_cast<int>(ret)
+                     << ", \"data\": \"" << static_cast<unsigned>(this->_kv.value.iou_threshold) << "\"}\n";
+
+                  auto str = os.str();
+                  serial->send_bytes(str.c_str(), str.size());
+
                   return EL_OK;
               });
             if (ret == EL_OK) _config_cmds.emplace_front("TIOU");

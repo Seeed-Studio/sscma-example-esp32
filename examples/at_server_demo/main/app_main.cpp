@@ -211,9 +211,9 @@ extern "C" void app_main(void) {
     // enter service pipeline (TODO: pipeline builder)
     char* buf = new char[128]{};
     for (;;) {
+        vTaskDelay(20 / portTICK_PERIOD_MS);
         serial->get_line(buf, 128);
-        if (std::strlen(buf) > 5) [[likely]]
-            instance->exec(buf);
+        instance->exec(buf);
     }
     delete[] buf;
 

@@ -505,7 +505,7 @@ Response:
   "type": 0,
   "name": "ACTION?",
   "code": 0,
-  "data": "AT+ACTION=\"count(id,0)>=3\",\"LED=1\",\"LED=0\"\n"
+  "data": "AT+ACTION=\"count(id,0)>=3\",\"LED=1\",\"LED=0\""
 }\n
 ```
 

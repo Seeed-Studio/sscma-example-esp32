@@ -22,6 +22,12 @@ class ActionDelegate {
 
     ~ActionDelegate() { unset_condition(); }
 
+    bool has_condition() {
+        const Guard guard(this);
+        
+        return _node ? true: false;
+    }
+
     bool set_condition(const std::string& input) {
         const Guard guard(this);
 

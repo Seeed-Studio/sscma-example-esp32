@@ -10,7 +10,7 @@
 
 extern "C" void app_main(void) {
     // get resource handler and init resources
-    auto* device        = Device::get_device();
+    auto* device = Device::get_device();
     auto* display       = device->get_display();
     auto* serial        = device->get_serial();
     auto* repl          = ReplDelegate::get_delegate();
@@ -171,6 +171,7 @@ extern "C" void app_main(void) {
           return EL_OK;
       }));
 
+    // Note: AT+ACTION="count(id,0)>=3","LED=1","LED=0"
     instance->register_cmd("ACTION",
                            "Set a condition action trigger",
                            "\"COND\",\"TRUE_CMD\",\"FALSE_OR_EXCEPTION_CMD\"",

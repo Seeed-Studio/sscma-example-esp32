@@ -541,8 +541,6 @@ ActionReply:
        << ", \"data\": {\"cond\": " << string_2_str(argv[1]) << ", \"true\": " << string_2_str(argv[2])
        << ", \"false_or_exception\": " << string_2_str(argv[3]) << "}}\n";
 
-    // Note: AT+ACTION="count(id,0)>=3","LED=1","LED=0"
-
     auto str = os.str();
     serial->send_bytes(str.c_str(), str.size());
 }
@@ -570,7 +568,8 @@ void at_get_action(const std::string& cmd) {
     auto  os              = std::ostringstream(std::ios_base::ate);
     char  action_cmd[128]{};
 
-    if (storage->contains("action_cmd")) *storage >> el_make_storage_kv("action_cmd", action_cmd);
+    if (action_delegate->has_condition() && storage->contains("action_cmd"))
+        *storage >> el_make_storage_kv("action_cmd", action_cmd);
 
     std::string action_cmd_str = action_cmd;
     os << REPLY_CMD_HEADER << "\"name\": \"" << cmd << "\", \"code\": " << static_cast<int>(EL_OK)

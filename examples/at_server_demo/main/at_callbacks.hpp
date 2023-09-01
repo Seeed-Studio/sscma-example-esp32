@@ -525,23 +525,14 @@ void at_set_action(const std::vector<std::string>& argv) {
     });
     cmd = argv[3];
     cmd.insert(0, "AT+");
-    action_delegate->set_false_exception_cb([=]() {
-        instance->exec_non_lock(cmd);
-
-        // auto os = std::ostringstream(std::ios_base::ate);
-        // os << REPLY_EVT_HEADER << "\"name\": \"" << argv[0] << "\", \"code\": " << static_cast<int>(ret)
-        //    << ", \"data\": {\"false_or_exception\": " << string_2_str(cmd) << "\"}}\n";
-
-        // auto str = os.str();
-        // serial->send_bytes(str.c_str(), str.size());
-    });
+    action_delegate->set_false_exception_cb([=]() { instance->exec_non_lock(cmd); });
 
     {
         auto builder = std::ostringstream(std::ios_base::ate);
         builder << "AT+" << argv[0] << '=' << string_2_str(argv[1]) << ',' << string_2_str(argv[2]) << ','
                 << string_2_str(argv[3]);
         cmd = builder.str();
-        std::strncpy(action_cmd, cmd.c_str(), sizeof(action_cmd));
+        std::strncpy(action_cmd, cmd.c_str(), sizeof(action_cmd) - 1);
         auto kv = el_make_storage_kv("action_cmd", action_cmd);
         *storage << kv;
     }
@@ -550,6 +541,8 @@ ActionReply:
     os << REPLY_CMD_HEADER << "\"name\": \"" << argv[0] << "\", \"code\": " << static_cast<int>(ret)
        << ", \"data\": {\"cond\": " << string_2_str(argv[1]) << ", \"true\": " << string_2_str(argv[2])
        << ", \"false_or_exception\": " << string_2_str(argv[3]) << "}}\n";
+
+    // AT+ACTION="count(id,0)>=3","LED=1","LED=0"
 
     auto str = os.str();
     serial->send_bytes(str.c_str(), str.size());

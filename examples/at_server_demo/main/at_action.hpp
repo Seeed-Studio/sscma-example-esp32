@@ -75,7 +75,7 @@ class ActionDelegate {
 
         if (_node->evaluate([this](intr::types::NodeType, const std::string& name) {
                 auto it = this->_mutable_map.find(name);
-                if (it != this->_mutable_map.end()) [[likely]]
+                if (it != this->_mutable_map.end() && it->second) [[likely]]
                     return it->second();
                 return 0;
             }))

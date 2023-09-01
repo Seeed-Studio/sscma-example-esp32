@@ -20,10 +20,10 @@
 std::string string_2_str(const std::string& str) {
     std::string ss(1, '"');
     for (char c : str) {
-        if (std::isprint(c)) [[likely]]
-            ss += c;
-        else if (c == '"') [[unlikely]]
+        if (c == '"') [[unlikely]]
             ss += "\\\"";
+        else if (std::isprint(c)) [[likely]]
+            ss += c;
     }
     ss += '"';
     return ss;

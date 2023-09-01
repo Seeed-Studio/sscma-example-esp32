@@ -1,21 +1,87 @@
-# AT Protocol Specification v0.0.2
+# AT Protocol Specification v2023.9.1
 
 
 ## Link
 
- - USART Serial
+ - USART Serial (Stateless)
 
 
-## Stracture
+## Design
 
-### Command
+### Command Lexical Format
 
 - Command header: `AT+`
 - Command tag: `{String}`
 - Command body: `{String}`
 - Command terminator: `\n`
 
-#### Tagging Policy
+Note: Each character should be a ASCII `char8_t`.
+
+### Command Types
+
+- Read-only operation: `AT+{String}?\n`
+- Execute operation: `AT+{String}!` or `AT+{String}={Any},{Any}...\n`
+- Config operation: `AT+T{String}={Any}\n`
+- Reserved operation: `AT+{String}\n` or `AT+{String}={Any}\n`
+
+### Response Lexical Format
+
+- Response header: `\r`
+- Response body: `{JSON:String}`
+- Response terminator: `\n`
+
+Note: Each character should be a ASCII `char8_t`.
+
+### Response Types
+
+#### Normal Reply
+
+- Operation response: `\r{JSON:String}\n`
+- Event response: `\r{JSON:String}\n`
+- Logging response: `\r{JSON:String}\n`
+
+#### Unhandled Reply
+
+- System stdout: `{String}\n...`
+
+### Response Format
+
+```json
+{
+  "type": {Type:Unsigned},
+  "name": "{String}",
+  "code": {Code:Integer},
+  "data": {Any...}
+}   
+```
+
+#### Type
+
+| Key | Value              |
+|-----|--------------------|
+| `0` | Operation response |
+| `1` | Event response     |
+| `2` | Logging response   |
+
+#### Code
+
+| Key | Value                   |
+|-----|-------------------------|
+| `0` | Success                 |
+| `1` | Try again               |
+| `2` | Logic error             |
+| `3` | Timeout                 |
+| `4` | IO error                |
+| `5` | Invalid argument        |
+| `6` | Out of memory           |
+| `7` | Busy                    |
+| `8` | Not supported           |
+| `9` | Operation not permitted |
+
+
+## Policy
+
+### Tagging
 
 All `AT` commands support tagging with a `@` delimiter.
 
@@ -29,37 +95,32 @@ Response:
 
 ```json
 \r{
-  "10@ID?": "B63E3DA5"
+  "type": 0,
+  "name": "10@ID?",
+  "code": 0,
+  "data": "B63E3DA5"
 }\n
 ```
 
-
-## Types
-
-### Command Types
-
-- Read-only operation: `AT+{String}?\n`
-- Execute operation: `AT+{String}={String},{String}...\n`
-- Config operation: `AT+T{String}={String}\n`
-- Reserved operation: `AT+{String}\n`
-
-### Response Tyeps
-
-- Operation reply: `\r{JSON}\n`
-- Event reply: `\r{JSON}\n`
-- Logging reply: `{String}\n...`
-- Normal reply: `> {String}\n...`
-
-### Rules
-
-1. **Read-only operation** must have a sync/async **Operation reply**.
-1. **Execute operation** must have a sync/async **Operation reply**, may have multiple async **Logging reply** and **Event reply**, **Logging reply** should be off in production case.
-1. **Config operation** has no reply.
-1. **Reserved operation** may have sync/async replies with no specified reply types. 
-1. You may recieve **Logging reply** while monitoring the device outputs.
+Note: Using interger or alpha as `Tag` is recommand, conatining any control characters or `"` may break output json format.
 
 
-## Intereaction
+### Intereaction Rules
+
+1. **Read-only operation**:
+    - Must have a sync/async **Operation reply**.
+1. **Execute operation** or **Config operation**:
+    - Must have a sync/async **Operation reply**
+    - May have a sync/async **Event reply**.
+    - Must have a sync **Logging reply** when error occured before the execution.
+1. **Reserved operation**:
+    - May have sync/async replies with no specified reply types.
+1. **Non-Operation** while monitoring the device outputs:
+    - May recieve **Event reply**.
+    - May recieve **Unhandled reply**.
+
+
+## Intereaction Examples
 
 ### Read-only operation
 
@@ -71,7 +132,10 @@ Response:
 
 ```json
 \r{
-  "ID?": "B63E3DA5"
+  "type": 0,
+  "name": "ID?",
+  "code": 0,
+  "data": "B63E3DA5"
 }\n
 ```
 
@@ -83,7 +147,10 @@ Response:
 
 ```json
 \r{
-  "NAME?": "Seeed Studio XIAO (ESP32-S3)"
+  "type": 0,
+  "name": "NAME?",
+  "code": 0,
+  "data": "Seeed Studio XIAO (ESP32-S3)"
 }\n
 ```
 
@@ -95,19 +162,21 @@ Response:
 
 ```json
 \r{
-  "STAT?": {
-    "status": "ok",
-    "boot_count": 597,
+  "type": 0,
+  "name": "STAT?",
+  "code": 0,
+  "data": {
+    "boot_count": 1520,
     "model": {
       "id": 2,
-      "type": "YOLO",
+      "type": 3,
       "address": "0x500000",
       "size": "0x41310"
     },
     "sensor": {
       "id": 1,
-      "type": "camera",
-      "state": "available"
+      "type": 1,
+      "state": 1
     }
   }
 }\n
@@ -121,9 +190,12 @@ Response:
 
 ```json
 \r{
-  "VER?": {
-    "edgelab_cpp_sdk": "0.0.2",
-    "chip_revision": "1"
+  "type": 0,
+  "name": "VER?",
+  "code": 0,
+  "data": {
+    "software": "2023.9.1",
+    "hardware": "1"
   }
 }\n
 ```
@@ -136,26 +208,29 @@ Response:
 
 ```json
 \r{
-  "ALGO?": [
+  "type": 0,
+  "name": "ALGOS?",
+  "code": 0,
+  "data": [
     {
-      "type": "IMCLS",
-      "categroy": "classification",
-      "input_from": "camera"
+      "type": 4,
+      "categroy": 3,
+      "input_from": 1
     },
     {
-      "type": "YOLO",
-      "categroy": "detection",
-      "input_from": "camera"
+      "type": 3,
+      "categroy": 1,
+      "input_from": 1
     },
     {
-      "type": "PFLD",
-      "categroy": "pose",
-      "input_from": "camera"
+      "type": 2,
+      "categroy": 2,
+      "input_from": 1
     },
     {
-      "type": "FOMO",
-      "categroy": "detection",
-      "input_from": "camera"
+      "type": 1,
+      "categroy": 1,
+      "input_from": 1
     }
   ]
 }\n
@@ -163,7 +238,7 @@ Response:
 
 #### Get available algorithms
 
-Request: `AT+ALGO?\n`
+Request: `AT+ALGOS?\n`
 
 Response:
 
@@ -196,17 +271,26 @@ Response:
 
 #### Get available models
 
-Request: `AT+MODEL?\n`
+Request: `AT+MODELS?\n`
 
 Response:
 
 ```json
 \r{
-  "MODEL?": [
+  "type": 0,
+  "name": "MODELS?",
+  "code": 0,
+  "data": [
     {
       "id": 2,
-      "type": "YOLO",
+      "type": 3,
       "address": "0x500000",
+      "size": "0x41310"
+    },
+    {
+      "id": 5,
+      "type": 3,
+      "address": "0x400000",
       "size": "0x41310"
     }
   ]
@@ -215,17 +299,20 @@ Response:
 
 #### Get available sensors
 
-Request: `AT+SENSOR?\n`
+Request: `AT+SENSORS?\n`
 
 Response:
 
 ```json
 \r{
-  "SENSOR?": [
+  "type": 0,
+  "name": "SENSORS?",
+  "code": 0,
+  "data": [
     {
       "id": 1,
-      "type": "camera",
-      "state": "available"
+      "type": 1,
+      "state": 1
     }
   ]
 }\n
@@ -243,9 +330,16 @@ Response:
 
 ```json
 \r{
-  "MODEL": {
-    "id": 2,
-    "status": "ok"
+  "type": 0,
+  "name": "MODEL",
+  "code": 0,
+  "data": {
+    "model": {
+      "id": 2,
+      "type": 3,
+      "address": "0x500000",
+      "size": "0x41310"
+    }
   }
 }\n
 ```
@@ -260,9 +354,15 @@ Response:
 
 ```json
 \r{
-  "SENSOR": {
-    "id": 1,
-    "status": "ok"
+  "type": 0,
+  "name": "SENSOR",
+  "code": 0,
+  "data": {
+    "sensor": {
+      "id": 1,
+      "type": 1,
+      "state": 1
+    }
   }
 }\n
 ```
@@ -277,10 +377,14 @@ Response:
 
 ```json
 \r{
-  "SAMPLE": {
-    "status": "ok",
+  "type": 0,
+  "name": "SAMPLE",
+  "code": 0,
+  "data": {
     "sensor": {
-      "id": 1
+      "id": 1,
+      "type": 1,
+      "state": 1
     }
   }
 }\n
@@ -290,18 +394,16 @@ Events:
 
 ```json
 \r{
-  "event": {
-    "from": "SAMPLE",
-    "status": "ok",
-    "contents": {
-      "jpeg": "{BASE64JPEG:String}"
-    }
-  },
-  "timestamp": 1867724
+  "type": 1,
+  "name": "SAMPLE",
+  "code": 0,
+  "data": {
+    "jpeg": "{BASE64JPEG:String}"
+  }
 }\n
 ```
 
-####  Invoke for N times
+#### Invoke for N times
 
 Pattern: `AT+INVOKE=<N_TIMES,RESULT_ONLY>\n`
 
@@ -311,24 +413,28 @@ Response:
 
 ```json
 \r{
-  "INVOKE": {
-    "status": "ok",
+  "type": 0,
+  "name": "INVOKE",
+  "code": 0,
+  "data": {
     "model": {
       "id": 2,
-      "type": "YOLO"
+      "type": 3,
+      "address": "0x500000",
+      "size": "0x41310"
     },
     "algorithm": {
-      "type": "YOLO",
-      "category": "detection",
+      "type": 3,
+      "category": 1,
       "config": {
         "score_threshold": 60,
-        "iou_threshold": 45
+        "iou_threshold": 50
       }
     },
     "sensor": {
       "id": 1,
-      "type": "camera",
-      "state": "available"
+      "type": 1,
+      "state": 1
     }
   }
 }\n
@@ -338,32 +444,62 @@ Events:
 
 ```json
 \r{
-  "event": {
-    "from": "INVOKE",
-    "status": "ok",
-    "contents": {
-      "preprocess_time": 14,
-      "run_time": 368,
-      "postprocess_time": 1,
-      "boxes": [
-        {
-          "x": 75,
-          "y": 73,
-          "w": 27,
-          "h": 45,
-          "target": 0,
-          "score": 81
-        }
-      ],
-      "roi": [
-        240,
-        240
+  "type": 1,
+  "name": "INVOKE",
+  "code": 0,
+  "data": {
+    "perf": [
+      8,
+      365,
+      0
+    ],
+    "boxes": [
+      [
+        87,
+        83,
+        77,
+        65,
+        0,
+        70
       ]
-    }
-  },
-  "timestamp": 2155621
+    ]
+  }
 }\n
 ```
+#### Set a condition action trigger
+
+Pattern: `AT+ACTION=<"COND","TRUE_CMD","FALSE_OR_EXCEPTION_CMD">\n`
+
+Request: `AT+ACTION="count(id,0)>=3","LED=1","LED=0"\n`
+
+Response:
+
+```json
+\r{
+  "type": 0,
+  "name": "ACTION",
+  "code": 0,
+  "data": {
+    "cond": "count(id,0)>=3",
+    "true": "LED=1",
+    "false_or_exception": "LED=0"
+  }
+}\n
+```
+Events:
+
+```json
+\r{
+  "type": 1,
+  "name": "ACTION",
+  "code": 0,
+  "data": {
+    "true": "AT+LED=1"
+  }
+}\n
+```
+
+Note: Only have events reply when condition evaluation is `true`.
 
 ### Config operation
 
@@ -373,7 +509,16 @@ Pattern: `AT+TSCORE=<SCORE_THRESHOLD>\n`
 
 Request: `AT+TSCORE=60\n`
 
-No-reply.
+Response:
+
+```json
+\r{
+  "type": 0,
+  "name": "TSCORE",
+  "code": 0,
+  "data": 60
+}\n
+```
 
 Note: Available while invoking using a specified algorithm.
 
@@ -381,13 +526,30 @@ Note: Available while invoking using a specified algorithm.
 
 Pattern: `AT+TIOU=<IOU_THRESHOLD>\n`
 
-Request: `AT+TIOU=45\n`
+Request: `AT+TIOU=55\n`
 
-No-reply.
+Response:
+
+```json
+\r{
+  "type": 0,
+  "name": "TIOU",
+  "code": 0,
+  "data": 55
+}\n
+```
 
 Note: Available while invoking using a specified algorithm.
 
 ### Reserved operation
+
+#### Set LED status
+
+Pattern: `AT+LED=<ENABLE/DISABLE>\n`
+
+Request: `AT+LED=1\n`
+
+No-reply.
 
 #### List available commands
 

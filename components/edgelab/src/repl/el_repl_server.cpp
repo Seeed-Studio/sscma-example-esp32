@@ -223,7 +223,7 @@ el_err_code_t ReplServer::m_exec_cmd(const std::string& cmd) {
 
     std::transform(cmd_name.begin(), cmd_name.end(), cmd_name.begin(), ::toupper);
 
-    if (cmd_name.find_first_of("AT+") != 0) {
+    if (cmd_name.rfind("AT+", 0) != 0) {
         m_echo_cb(EL_EINVAL, "Unknown command: ", cmd, "\n");
         return EL_EINVAL;
     }

@@ -106,17 +106,17 @@ Common format of normal replies:
                     v
             Parse AT+ Request
                     |
-  Parse CMD <-------+------> Logging response
+  Parse CMD <-------+------> Logging Response
       |     Success     Fail       ^
       |                            |
       +----------------------------+
-      | Unknown CMD or ARGC mismatch
+      | Unknown CMD or ARGC Mismatch
       |
       | Success
       |
       v        +-> Operation response
   Execute CMD -+
-               +-> Event response
+               +----------------------> Event Response(s)
 ```
 
 

@@ -38,7 +38,7 @@ void ReplServer::init(types::el_repl_echo_cb_t echo_cb) {
         _echo_cb = echo_cb;
     }
 
-    m_echo_cb("Welcome to EegeLab REPL.\n", "Type 'AT+HELP' for command list.\n", "> ");
+    m_echo_cb(EL_OK, "Welcome to EegeLab REPL.\n", "Type 'AT+HELP' for command list.\n", "> ");
 }
 
 void ReplServer::deinit() {
@@ -95,13 +95,13 @@ std::forward_list<types::el_repl_cmd_t> ReplServer::get_registered_cmds() const 
 void ReplServer::print_help() {
     const Guard guard(this, _cmd_list_lock);
 
-    _echo_cb("Command list:\n");
+    _echo_cb(EL_OK, "Command list:\n");
     for (const auto& cmd : _cmd_list) {
         if (cmd.args.size())
-            m_echo_cb("  AT+", cmd.cmd, "=<", cmd.args, ">\n");
+            m_echo_cb(EL_OK, "  AT+", cmd.cmd, "=<", cmd.args, ">\n");
         else
-            m_echo_cb("  AT+", cmd.cmd, "\n");
-        m_echo_cb("    ", cmd.desc, "\n");
+            m_echo_cb(EL_OK, "  AT+", cmd.cmd, "\n");
+        m_echo_cb(EL_OK, "    ", cmd.desc, "\n");
     }
 }
 
@@ -131,37 +131,37 @@ void ReplServer::loop(char c) {
             if (_ctrl_line.compare("[A") == 0) {
                 _history.prev(_line);
                 _line_index = _line.size() - 1;
-                m_echo_cb("\r> ", _line, "\033[K");
+                m_echo_cb(EL_OK, "\r> ", _line, "\033[K");
             } else if (_ctrl_line.compare("[B") == 0) {
                 _history.next(_line);
                 _line_index = _line.size() - 1;
-                m_echo_cb("\r> ", _line, "\033[K");
+                m_echo_cb(EL_OK, "\r> ", _line, "\033[K");
             } else if (_ctrl_line.compare("[C") == 0) {
                 if (_line_index < _line.size() - 1) {
                     ++_line_index;
-                    m_echo_cb("\033", _ctrl_line);
+                    m_echo_cb(EL_OK, "\033", _ctrl_line);
                 }
             } else if (_ctrl_line.compare("[D") == 0) {
                 if (_line_index >= 0) {
                     --_line_index;
-                    m_echo_cb("\033", _ctrl_line);
+                    m_echo_cb(EL_OK, "\033", _ctrl_line);
                 }
             } else if (_ctrl_line.compare("[H") == 0) {
                 _line_index = 0;
-                m_echo_cb("\r\033[K> ", _line, "\033[", _line_index + 3, "G");
+                m_echo_cb(EL_OK, "\r\033[K> ", _line, "\033[", _line_index + 3, "G");
             } else if (_ctrl_line.compare("[F") == 0) {
                 _line_index = _line.size() - 1;
-                m_echo_cb("\r\033[K> ", _line, "\033[", _line_index + 4, "G");
+                m_echo_cb(EL_OK, "\r\033[K> ", _line, "\033[", _line_index + 4, "G");
             } else if (_ctrl_line.compare("[3~") == 0) {
                 if (_line_index < (_line.size() - 1)) {
                     if (!_line.empty() && _line_index >= 0) {
                         _line.erase(_line_index + 1, 1);
                         --_line_index;
-                        m_echo_cb("\r> ", _line, "\033[K\033[", _line_index + 4, "G");
+                        m_echo_cb(EL_OK, "\r> ", _line, "\033[K\033[", _line_index + 4, "G");
                     }
                 }
             } else
-                m_echo_cb("\033", _ctrl_line);
+                m_echo_cb(EL_OK, "\033", _ctrl_line);
 
             _ctrl_line.clear();
             _is_ctrl = false;
@@ -173,7 +173,7 @@ void ReplServer::loop(char c) {
     switch (c) {
     case '\n':
     case '\r':
-        _echo_cb("\r\n");
+        _echo_cb(EL_OK, "\r\n");
         if (!_line.empty()) {
             if (m_exec_cmd(_line) == EL_OK) [[likely]] {
                 _history.add(_line);
@@ -182,7 +182,7 @@ void ReplServer::loop(char c) {
             _line_index = -1;
         }
         _history.reset();
-        _echo_cb("\r> ");
+        _echo_cb(EL_OK, "\r> ");
         break;
 
     case '\b':
@@ -190,7 +190,7 @@ void ReplServer::loop(char c) {
         if (!_line.empty() && _line_index >= 0) {
             _line.erase(_line_index, 1);
             --_line_index;
-            m_echo_cb("\r> ", _line, "\033[K\033[", _line_index + 4, "G");
+            m_echo_cb(EL_OK, "\r> ", _line, "\033[K\033[", _line_index + 4, "G");
         }
         break;
 
@@ -204,7 +204,7 @@ void ReplServer::loop(char c) {
             if (_line_index == (_line.size() - 1))
                 el_putchar(c);
             else
-                m_echo_cb("\r> ", _line, "\033[", _line_index + 4, "G");
+                m_echo_cb(EL_OK, "\r> ", _line, "\033[", _line_index + 4, "G");
         }
     }
 }
@@ -223,8 +223,8 @@ el_err_code_t ReplServer::m_exec_cmd(const std::string& cmd) {
 
     std::transform(cmd_name.begin(), cmd_name.end(), cmd_name.begin(), ::toupper);
 
-    if (cmd_name.find("AT+", 0) != 0) {
-        m_echo_cb("Unknown command: ", cmd, "\n");
+    if (cmd_name.find_first_of("AT+") != 0) {
+        m_echo_cb(EL_EINVAL, "Unknown command: ", cmd, "\n");
         return EL_EINVAL;
     }
 
@@ -236,11 +236,11 @@ el_err_code_t ReplServer::m_exec_cmd(const std::string& cmd) {
         return c.cmd.compare(cmd_name.substr(cmd_body_pos != std::string::npos ? cmd_body_pos + 1 : 0)) == 0;
     });
     if (it == _cmd_list.end()) [[unlikely]] {
-        m_echo_cb("Unknown command: ", cmd, "\n");
+        m_echo_cb(EL_EINVAL, "Unknown command: ", cmd, "\n");
         m_unlock(_cmd_list_lock);
         return ret;
     }
-    auto cmd_copy = *it;
+    types::el_repl_cmd_t cmd_copy = *it;
     m_unlock(_cmd_list_lock);
 
     // tokenize
@@ -269,21 +269,21 @@ el_err_code_t ReplServer::m_exec_cmd(const std::string& cmd) {
             while (++index < size)
                 if (!std::isdigit(cmd_args.at(index))) break;
             argv.push_back(cmd_args.substr(prev, index - prev));
-        }
-        else
+        } else
             ++index;
     }
+    argv.shrink_to_fit();
 
     if (cmd_copy.cmd_cb) {
         if (cmd_copy._argc != argv.size() - 1) [[unlikely]] {
-            m_echo_cb("Command ", cmd_name, " got wrong arguements.\n");
+            m_echo_cb(EL_EINVAL, "Command ", cmd_name, " got wrong arguements.\n");
             return ret;
         }
         ret = cmd_copy.cmd_cb(std::move(argv));
     }
 
     if (ret != EL_OK) [[unlikely]]
-        m_echo_cb("Command ", cmd_name, " failed.\n");
+        m_echo_cb(EL_EINVAL, "Command ", cmd_name, " failed.\n");
 
     return ret;
 }

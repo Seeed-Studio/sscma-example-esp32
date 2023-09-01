@@ -48,7 +48,7 @@ class ReplServer;
 
 namespace types {
 
-typedef std::function<void(const std::string&)> el_repl_echo_cb_t;
+typedef std::function<void(el_err_code_t, const std::string&)> el_repl_echo_cb_t;
 
 typedef std::function<el_err_code_t(std::vector<std::string>)> el_repl_cmd_cb_t;
 
@@ -81,7 +81,7 @@ class ReplServer {
     ReplServer(ReplServer const&)            = delete;
     ReplServer& operator=(ReplServer const&) = delete;
 
-    void init(types::el_repl_echo_cb_t echo_cb = [](const std::string& str) { el_printf(str.c_str()); });
+    void init(types::el_repl_echo_cb_t echo_cb = [](el_err_code_t, const std::string& str) { el_printf(str.c_str()); });
     void deinit();
 
     bool has_cmd(const std::string& cmd);
@@ -107,10 +107,10 @@ class ReplServer {
 
     el_err_code_t m_exec_cmd(const std::string& line);
 
-    template <typename... Args> inline void m_echo_cb(Args&&... args) {
+    template <typename... Args> inline void m_echo_cb(el_err_code_t ret, Args&&... args) {
         auto os{std::ostringstream(std::ios_base::ate)};
         ((os << (std::forward<Args>(args))), ...);
-        _echo_cb(os.str());
+        _echo_cb(ret, os.str());
     }
 
     inline void m_lock(SemaphoreHandle_t lock) const { xSemaphoreTake(lock, portMAX_DELAY); }

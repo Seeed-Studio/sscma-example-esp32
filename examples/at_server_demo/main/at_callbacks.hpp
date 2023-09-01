@@ -562,3 +562,20 @@ void at_unset_action(const std::string& cmd) {
     auto str = os.str();
     serial->send_bytes(str.c_str(), str.size());
 }
+
+void at_get_action(const std::string& cmd) {
+    auto* serial          = Device::get_device()->get_serial();
+    auto* storage         = DataDelegate::get_delegate()->get_storage_handler();
+    auto* action_delegate = ActionDelegate::get_delegate();
+    auto  os              = std::ostringstream(std::ios_base::ate);
+    char  action_cmd[128]{};
+
+    if (storage->contains("action_cmd")) *storage >> el_make_storage_kv("action_cmd", action_cmd);
+
+    std::string action_cmd_str = action_cmd;
+    os << REPLY_CMD_HEADER << "\"name\": \"" << cmd << "\", \"code\": " << static_cast<int>(EL_OK)
+       << ", \"data\": " << string_2_str(action_cmd) << "}\n";
+
+    auto str = os.str();
+    serial->send_bytes(str.c_str(), str.size());
+}

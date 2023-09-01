@@ -1,12 +1,12 @@
 # AT Protocol Specification v2023.9.1
 
 
-## Link
+## Underlying Layer
 
- - USART Serial (Stateless)
+- USART Serial (Stateless)
 
 
-## Design
+## Interface Design
 
 ### Command Lexical Format
 
@@ -15,73 +15,12 @@
 - Command body: `{String}`
 - Command terminator: `\n`
 
-Note: Each character should be a ASCII `char8_t`.
+Note:
 
-### Command Types
+1. Each character the command should be a ASCII `char8_t`.
+1. Command length is mutable, max length is limited to `127` (include terminator) currently due to safety factors and resource limitations.
 
-- Read-only operation: `AT+{String}?\n`
-- Execute operation: `AT+{String}!` or `AT+{String}={Any},{Any}...\n`
-- Config operation: `AT+T{String}={Any}\n`
-- Reserved operation: `AT+{String}\n` or `AT+{String}={Any}\n`
-
-### Response Lexical Format
-
-- Response header: `\r`
-- Response body: `{JSON:String}`
-- Response terminator: `\n`
-
-Note: Each character should be a ASCII `char8_t`.
-
-### Response Types
-
-#### Normal Reply
-
-- Operation response: `\r{JSON:String}\n`
-- Event response: `\r{JSON:String}\n`
-- Logging response: `\r{JSON:String}\n`
-
-#### Unhandled Reply
-
-- System stdout: `{String}\n...`
-
-### Response Format
-
-```json
-{
-  "type": {Type:Unsigned},
-  "name": "{String}",
-  "code": {Code:Integer},
-  "data": {Any...}
-}   
-```
-
-#### Type
-
-| Key | Value              |
-|-----|--------------------|
-| `0` | Operation response |
-| `1` | Event response     |
-| `2` | Logging response   |
-
-#### Code
-
-| Key | Value                   |
-|-----|-------------------------|
-| `0` | Success                 |
-| `1` | Try again               |
-| `2` | Logic error             |
-| `3` | Timeout                 |
-| `4` | IO error                |
-| `5` | Invalid argument        |
-| `6` | Out of memory           |
-| `7` | Busy                    |
-| `8` | Not supported           |
-| `9` | Operation not permitted |
-
-
-## Policy
-
-### Tagging
+#### Tagging
 
 All `AT` commands support tagging with a `@` delimiter.
 
@@ -102,15 +41,54 @@ Response:
 }\n
 ```
 
-Note: Using interger or alpha as `Tag` is recommand, conatining any control characters or `"` may break output json format.
+### Command Types
 
+- Read-only operation: `AT+{String}?\n`
+- Execute operation: `AT+{String}!` or `AT+{String}={Any},{Any}...\n`
+- Config operation: `AT+T{String}={Any}\n`
+- Reserved operation: `AT+{String}\n` or `AT+{String}={Any}\n`
 
-### Intereaction Rules
+### Response Lexical Format
+
+- Response header: `\r`
+- Response body: `{JSON:String}`
+- Response terminator: `\n`
+
+Note:
+
+1. Each character in the response should be a ASCII `char8_t`.
+1. Each reply is the smallest primitive unit within all the reply contents, and we have taken measures to ensure that the results of different synchronous or asynchronous commands' replies do not overlap or interfere.
+1. However, for stateless unreliable protocols, we cannot guarantee that certain data will not be modified or lost during the transmission process.
+
+### Response Types
+
+#### Normal Reply
+
+- Operation response: `\r{JSON:String}\n`
+- Event response: `\r{JSON:String}\n`
+- Logging response: `\r{JSON:String}\n`
+
+Common format of normal replies:
+
+```json
+\r{
+  "type": {ResponseType:Unsigned},
+  "name": "{String}",
+  "code": {ResponseCode:Integer},
+  "data": {Any...}
+}\n
+```
+
+#### Unhandled Reply
+
+- System stdout, stderr or crash log: `{String}\n...`
+
+### Guidelines
 
 1. **Read-only operation**:
     - Must have a sync/async **Operation reply**.
 1. **Execute operation** or **Config operation**:
-    - Must have a sync/async **Operation reply**
+    - Must have a sync/async **Operation reply**.
     - May have a sync/async **Event reply**.
     - Must have a sync **Logging reply** when error occured before the execution.
 1. **Reserved operation**:
@@ -118,6 +96,28 @@ Note: Using interger or alpha as `Tag` is recommand, conatining any control char
 1. **Non-Operation** while monitoring the device outputs:
     - May recieve **Event reply**.
     - May recieve **Unhandled reply**.
+
+
+### Execution Policy
+
+```
+            Receive Request
+                    |
+                    v
+            Parse AT+ Request
+                    |
+  Parse CMD <-------+------> Logging response
+      |     Success     Fail       ^
+      |                            |
+      +----------------------------+
+      | Unknown CMD or ARGC mismatch
+      |
+      | Success
+      |
+      v        +-> Operation response
+  Execute CMD -+
+               +-> Event response
+```
 
 
 ## Intereaction Examples
@@ -200,6 +200,11 @@ Response:
 }\n
 ```
 
+Note:
+
+1. All version info is store in strings.
+1. The `hardware` version is chip revision on ESP32 port.
+
 #### Get available algorithms
 
 Request: `AT+ALGO?\n`
@@ -231,39 +236,6 @@ Response:
       "type": 1,
       "categroy": 1,
       "input_from": 1
-    }
-  ]
-}\n
-```
-
-#### Get available algorithms
-
-Request: `AT+ALGOS?\n`
-
-Response:
-
-```json
-\r{
-  "ALGO?": [
-    {
-      "type": "IMCLS",
-      "categroy": "classification",
-      "input_from": "camera"
-    },
-    {
-      "type": "YOLO",
-      "categroy": "detection",
-      "input_from": "camera"
-    },
-    {
-      "type": "PFLD",
-      "categroy": "pose",
-      "input_from": "camera"
-    },
-    {
-      "type": "FOMO",
-      "categroy": "detection",
-      "input_from": "camera"
     }
   ]
 }\n
@@ -466,7 +438,8 @@ Events:
   }
 }\n
 ```
-#### Set a condition action trigger
+
+#### Set a condition action trigger (Experimental)
 
 Pattern: `AT+ACTION=<"COND","TRUE_CMD","FALSE_OR_EXCEPTION_CMD">\n`
 
@@ -486,6 +459,7 @@ Response:
   }
 }\n
 ```
+
 Events:
 
 ```json
@@ -499,7 +473,19 @@ Events:
 }\n
 ```
 
-Note: Only have events reply when condition evaluation is `true`.
+Note:
+
+1. Only have events reply when condition evaluation is `true`.
+1. When evaluation fail, if it is a condition function call, identifier or operator, its value will be 0 and with no exception reply.
+1. Complex condition supported. e.g. `(count(id,0)-count(id,1))>=(count(id,3)+count(id,4)+count(id,5))`.
+
+#### Unset a condition action trigger (Experimental)
+
+Request: `AT+ACTION!\n`
+
+#### Get a condition action trigger info (Experimental)
+
+Request: `AT+ACTION?\n`
 
 ### Config operation
 
@@ -520,7 +506,8 @@ Response:
 }\n
 ```
 
-Note: Available while invoking using a specified algorithm.
+1. Valid range `[0, 100]`.
+1. Available while invoking using a specified algorithm.
 
 #### Set IoU threshold
 
@@ -539,7 +526,10 @@ Response:
 }\n
 ```
 
-Note: Available while invoking using a specified algorithm.
+Note:
+
+1. Valid range `[0, 100]`.
+1. Available while invoking using a specified algorithm.
 
 ### Reserved operation
 
@@ -582,90 +572,90 @@ Request: `AT+YIELD\n`
 
 No-reply.
 
-## Patterns
-
-### Status
+## Response Type
 
 ```json
-"{Key:String}": "{Value:String}"
+"type": {Key:Unsigned}
 ```
 
-Key: `status`
+| Key | Value              |
+|-----|--------------------|
+| `0` | Operation response |
+| `1` | Event response     |
+| `2` | Logging response   |
 
-Values:
-
-- `ok`
-- `try again`
-- `logic error`
-- `timeout`
-- `input/output error`
-- `invalid argument`
-- `out of memory`
-- `busy`
-- `not supported`
-- `operation not permitted`
-- `unknown`
-
-### Algorithm Types
+### Response Code
 
 ```json
-"{Key:String}": "{Value:String}"
+"code": {Key:Integer}
 ```
 
-Key: `type`
+| Key | Value                   |
+|-----|-------------------------|
+| `0` | Success                 |
+| `1` | Try again               |
+| `2` | Logic error             |
+| `3` | Timeout                 |
+| `4` | IO error                |
+| `5` | Invalid argument        |
+| `6` | Out of memory           |
+| `7` | Busy                    |
+| `8` | Not supported           |
+| `9` | Operation not permitted |
 
-Values:
-
-- `FOMO`
-- `PFLD`
-- `YOLO`
-- `IMCLS`
-- `undefined`
-
-### Algorithm Categories
+### Algorithm Type
 
 ```json
-"{Key:String}": "{Value:String}"
+"type": {Key:Unsigned}
 ```
 
-Key: `categroy`
+| Key | Value     |
+|-----|-----------|
+| `0` | Undefined |
+| `1` | FOMO      |
+| `2` | PFLD      |
+| `3` | YOLO      |
+| `4` | IMCLS     |
 
-Values:
 
-- `detection`
-- `pose`
-- `classification`
-- `undefined`
+### Algorithm Category
+
+```json
+"category": {Key:Unsigned}
+```
+
+| Key | Value          |
+|-----|----------------|
+| `0` | Undefined      |
+| `1` | Detection      |
+| `2` | Pose           |
+| `3` | Classification |
 
 ### Sensor Types
 
 ```json
-"{Key:String}": "{Value:String}"
+"type": {Key:Unsigned}
 ```
 
-Key: `type`
-
-Values:
-
-- `camera`
-- `undefined`
+| Key | Value     |
+|-----|-----------|
+| `0` | Undefined |
+| `1` | Camera    |
 
 ### Sensor State
 
 ```json
-"{Key:String}": "{Value:String}"
+"state": {Key:Unsigned}
 ```
 
-Key: `state`
+| Key | Value      |
+|-----|------------|
+| `0` | Unknown    |
+| `1` | Registered |
+| `2` | Available  |
+| `3` | Locked     |
 
-Values:
-
-- `registered`
-- `available`
-- `locked`
-- `unknown`
-
-### Image Types
+### Image Type
 
 ```json
 "{Key:String}": "{Data:String}"
@@ -673,67 +663,77 @@ Values:
 
 Key:
 
+- `undefined`
 - `grayscale`
 - `jpeg`
 - `rgb565`
 - `rgb888`
 - `yuv422`
-- `undefined`
 
 Data: `BASE64`
 
-### Box Type
+### Performance Type
 
 ```json
-"{Key:String}": ["{Value:JSON}"]
+"perf": [{Value:JSON}]
 ```
-
-Key: `boxes`
 
 Value:
 
 ```json
-{
-    "x": 75,
-    "y": 73,
-    "w": 27,
-    "h": 45,
-    "target": 0,
-    "score": 81
-}
+[
+    8,   // preprocess time ms
+    365, // run time ms
+    1    // postprocess time ms
+]
+```
+
+### Box Type
+
+```json
+"boxes": [{Value:JSON}]
+```
+
+Value:
+
+```json
+[
+    87, // x
+    83, // y
+    77, // w
+    65, // h
+    0,  // target id
+    70  // score
+]
 ```
 
 ### Point Type
 
 ```json
-"{Key:String}": ["{Value:JSON}"]
+"points":  [{Value:JSON}]
 ```
-
-Key: `points`
 
 Value:
 
 ```json
-{
-    "x": 75,
-    "y": 73,
-    "target": 0
-}
+[
+    87, // x
+    83, // y
+    0   // target id
+]
 ```
 
 ### Class Type
 
 ```json
-"{Key:String}": ["{Value:JSON}"]
+"classes": [{Value:JSON}]
 ```
-
-Key: `classes`
 
 Value:
 
 ```json
-{
-    "target": 0,
-    "score": 81
-}
+[
+    0,  // target id
+    70  // score
+]
 ```

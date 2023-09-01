@@ -305,7 +305,7 @@ template <typename AlgorithmType> class AlgorithmConfigHelper {
                   }
 
                   os << REPLY_CMD_HEADER << "\"name\": \"" << argv[0] << "\", \"code\": " << static_cast<int>(ret)
-                     << ", \"data\": \"" << static_cast<unsigned>(this->_kv.value.score_threshold) << "\"}\n";
+                     << ", \"data\": " << static_cast<unsigned>(this->_kv.value.score_threshold) << "}\n";
 
                   auto str = os.str();
                   this->_serial->send_bytes(str.c_str(), str.size());
@@ -318,7 +318,7 @@ template <typename AlgorithmType> class AlgorithmConfigHelper {
                 auto os = std::ostringstream(std::ios_base::ate);
 
                 os << REPLY_CMD_HEADER << "\"name\": \"" << argv[0] << "\", \"code\": " << static_cast<int>(EL_OK)
-                   << ", \"data\": \"" << static_cast<unsigned>(this->_algorithm->get_score_threshold()) << "\"}\n";
+                   << ", \"data\": " << static_cast<unsigned>(this->_algorithm->get_score_threshold()) << "}\n";
 
                 auto str = os.str();
                 this->_serial->send_bytes(str.c_str(), str.size());
@@ -341,7 +341,7 @@ template <typename AlgorithmType> class AlgorithmConfigHelper {
                   }
 
                   os << REPLY_CMD_HEADER << "\"name\": \"" << argv[0] << "\", \"code\": " << static_cast<int>(ret)
-                     << ", \"data\": \"" << static_cast<unsigned>(this->_kv.value.iou_threshold) << "\"}\n";
+                     << ", \"data\": " << static_cast<unsigned>(this->_kv.value.iou_threshold) << "}\n";
 
                   auto str = os.str();
                   this->_serial->send_bytes(str.c_str(), str.size());
@@ -354,7 +354,7 @@ template <typename AlgorithmType> class AlgorithmConfigHelper {
                 auto os = std::ostringstream(std::ios_base::ate);
 
                 os << REPLY_CMD_HEADER << "\"name\": \"" << argv[0] << "\", \"code\": " << static_cast<int>(EL_OK)
-                   << ", \"data\": \"" << static_cast<unsigned>(this->_algorithm->get_iou_threshold()) << "\"}\n";
+                   << ", \"data\": " << static_cast<unsigned>(this->_algorithm->get_iou_threshold()) << "}\n";
 
                 auto str = os.str();
                 this->_serial->send_bytes(str.c_str(), str.size());

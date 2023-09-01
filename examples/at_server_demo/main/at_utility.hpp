@@ -22,6 +22,8 @@ std::string string_2_str(const std::string& str) {
     for (char c : str) {
         if (c == '"') [[unlikely]]
             ss += "\\\"";
+        else if (c == '\n') [[unlikely]]
+            ss += "\\n";
         else if (std::isprint(c)) [[likely]]
             ss += c;
     }

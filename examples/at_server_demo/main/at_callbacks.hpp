@@ -17,14 +17,13 @@
 #include "edgelab.h"
 #include "el_device_esp.h"
 
-void at_server_echo_cb(const std::string& msg) {
+void at_server_echo_cb(el_err_code_t ret, const std::string& msg) {
     auto* serial = Device::get_device()->get_serial();
     auto  os     = std::ostringstream(std::ios_base::ate);
 
-    if (msg.size() < 5) return;
-
-    os << REPLY_LOG_HEADER << "\"name\": \"AT\", \"code\": " << static_cast<int>(EL_AGAIN)
-       << ", \"data\": " << string_2_str(msg) << "}\n";
+    if (ret != EL_OK)
+        os << REPLY_LOG_HEADER << "\"name\": \"AT\", \"code\": " << static_cast<int>(ret)
+           << ", \"data\": " << string_2_str(msg) << "}\n";
 
     auto str = os.str();
     serial->send_bytes(str.c_str(), str.size());
@@ -542,7 +541,7 @@ ActionReply:
        << ", \"data\": {\"cond\": " << string_2_str(argv[1]) << ", \"true\": " << string_2_str(argv[2])
        << ", \"false_or_exception\": " << string_2_str(argv[3]) << "}}\n";
 
-    // AT+ACTION="count(id,0)>=3","LED=1","LED=0"
+    // Note: AT+ACTION="count(id,0)>=3","LED=1","LED=0"
 
     auto str = os.str();
     serial->send_bytes(str.c_str(), str.size());

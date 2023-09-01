@@ -370,7 +370,7 @@ Events:
   "name": "SAMPLE",
   "code": 0,
   "data": {
-    "jpeg": "{BASE64JPEG:String}"
+    "jpeg": "{BASE64:String}"
   }
 }\n
 ```
@@ -483,9 +483,31 @@ Note:
 
 Request: `AT+ACTION!\n`
 
+Response:
+
+```json
+\r{
+  "type": 0,
+  "name": "ACTION!",
+  "code": 0,
+  "data": {}
+}\n
+```
+
 #### Get a condition action trigger info (Experimental)
 
 Request: `AT+ACTION?\n`
+
+Response:
+
+```json
+\r{
+  "type": 0,
+  "name": "ACTION?",
+  "code": 0,
+  "data": "AT+ACTION=\"count(id,0)>=3\",\"LED=1\",\"LED=0\"\n"
+}\n
+```
 
 ### Config operation
 
@@ -572,7 +594,10 @@ Request: `AT+YIELD\n`
 
 No-reply.
 
-## Response Type
+
+## Lookup Table
+
+### Response Type
 
 ```json
 "type": {Key:Unsigned}

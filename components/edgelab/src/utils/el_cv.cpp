@@ -946,7 +946,7 @@ EL_ATTR_WEAK el_err_code_t rgb_to_jpeg(const el_img_t* src, el_img_t* dst) {
         err = EL_EIO;
         goto exit;
     }
-    rc = jpg.encodeBegin(&jpe, src->width, src->height, pixelFormat, JPEG_SUBSAMPLE_444, JPEG_Q_BEST);
+    rc = jpg.encodeBegin(&jpe, src->width, src->height, pixelFormat, JPEG_SUBSAMPLE_444, JPEG_Q_LOW);
     if (rc != JPEG_SUCCESS) {
         err = EL_EIO;
         goto exit;

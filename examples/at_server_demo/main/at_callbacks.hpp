@@ -342,7 +342,31 @@ void run_invoke_on_img(
     {
         auto mutable_map = action_delegate->get_mutable_map();
         for (auto& kv : mutable_map) {
-            // TODO
+            auto argv = tokenize_function_2_argv(kv.first);
+
+            if (!argv.size()) [[unlikely]]
+                continue;
+
+            if (argv[0] == "count") {
+                // count items by default
+                if (argv.size() == 1)
+                    kv.second = [=]() -> int {
+                        const auto& res = algorithm->get_results();
+                        return std::distance(res.begin(), res.end());
+                    };
+
+                // count items filtered by id
+                if (argv.size() == 3 && argv[1] == "id") {
+                    uint8_t target = std::atoi(argv[2].c_str());
+                    kv.second      = [=]() -> int {
+                        size_t      init = 0;
+                        const auto& res  = algorithm->get_results();
+                        for (const auto& v : res)
+                            if (v.target == target) ++init;
+                        return init;
+                    };
+                }
+            }
         }
         action_delegate->set_mutable_map(mutable_map);
     }
@@ -504,12 +528,12 @@ void at_set_action(const std::vector<std::string>& argv) {
     action_delegate->set_false_exception_cb([=]() {
         instance->exec_non_lock(cmd);
 
-        auto os = std::ostringstream(std::ios_base::ate);
-        os << REPLY_EVT_HEADER << "\"name\": \"" << argv[0] << "\", \"code\": " << static_cast<int>(ret)
-           << ", \"data\": {\"false_or_exception\": " << string_2_str(cmd) << "\"}}\n";
+        // auto os = std::ostringstream(std::ios_base::ate);
+        // os << REPLY_EVT_HEADER << "\"name\": \"" << argv[0] << "\", \"code\": " << static_cast<int>(ret)
+        //    << ", \"data\": {\"false_or_exception\": " << string_2_str(cmd) << "\"}}\n";
 
-        auto str = os.str();
-        serial->send_bytes(str.c_str(), str.size());
+        // auto str = os.str();
+        // serial->send_bytes(str.c_str(), str.size());
     });
 
     {

@@ -380,3 +380,28 @@ template <typename AlgorithmType> class AlgorithmConfigHelper {
     edgelab::data::Storage* _storage;
     edgelab::Serial*        _serial;
 };
+
+std::vector<std::string> tokenize_function_2_argv(const std::string& input) {
+    std::vector<std::string> argv;
+
+    size_t index = 0;
+    size_t size  = input.size();
+    char   c     = {};
+
+    while (index < size) {
+        c = input.at(index);
+        if (std::isalnum(c) || c == '_') {
+            size_t prev = index;
+            while (++index < size) {
+                c = input.at(index);
+                if (!std::isalnum(c) && c != '_') [[unlikely]]
+                    break;
+            }
+            argv.push_back(input.substr(prev, index - prev));
+        } else
+            ++index;
+    }
+    argv.shrink_to_fit();
+
+    return argv;
+}

@@ -656,7 +656,7 @@ No-reply.
 | `2` | Pose           |
 | `3` | Classification |
 
-### Sensor Types
+### Sensor Type
 
 ```json
 "type": {Key:Unsigned}
@@ -762,3 +762,8 @@ Value:
     70  // score
 ]
 ```
+
+### Appendix
+
+- `"input_from": {SensorType:Unsigned}`
+- `"model": { "type": {AlgorithmType:Unsigned},  ...}`

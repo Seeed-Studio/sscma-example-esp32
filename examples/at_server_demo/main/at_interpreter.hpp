@@ -35,7 +35,7 @@ using namespace intr::types;
 
 bool is_identifier(char c) { return std::isalnum(c) || c == '_'; }
 
-bool is_constant(char c) { return std::isdigit(c) || c == '.'; }
+bool is_constant(char c) { return std::isdigit(c); }
 
 bool is_arithmetic_operator(char c) { return c == '*' || c == '/' || c == '+' || c == '-'; }
 

@@ -71,10 +71,17 @@ void at_get_device_status(const std::string& cmd,
                           int32_t            boot_count,
                           uint8_t            current_model_id,
                           uint8_t            current_sensor_id) {
-    auto* device = Device::get_device();
-    auto* serial = device->get_serial();
-    auto* models = DataDelegate::get_delegate()->get_models_handler();
-    auto  os     = std::ostringstream(std::ios_base::ate);
+    auto* device          = Device::get_device();
+    auto* serial          = device->get_serial();
+    auto* data_delegate   = DataDelegate::get_delegate();
+    auto* models          = data_delegate->get_models_handler();
+    auto* storage         = data_delegate->get_storage_handler();
+    auto* action_delegate = ActionDelegate::get_delegate();
+    auto  os              = std::ostringstream(std::ios_base::ate);
+    char  action_cmd[128]{};
+
+    if (action_delegate->has_condition() && storage->contains("action_cmd"))
+        *storage >> el_make_storage_kv("action_cmd", action_cmd);
 
     auto model_info  = models->get_model_info(current_model_id);
     auto sensor_info = device->get_sensor_info(current_sensor_id);
@@ -82,7 +89,7 @@ void at_get_device_status(const std::string& cmd,
     os << REPLY_CMD_HEADER << "\"name\": \"" << cmd << "\", \"code\": " << static_cast<int>(EL_OK)
        << ", \"data\": {\"boot_count\": " << static_cast<unsigned>(boot_count)
        << ", \"model\": " << model_info_2_json(model_info) << ", \"sensor\": " << sensor_info_2_json(sensor_info)
-       << "}}\n";
+       << "}, \"action\": " << string_2_str(action_cmd) << "}\n";
 
     auto str = os.str();
     serial->send_bytes(str.c_str(), str.size());
@@ -425,8 +432,9 @@ void at_run_invoke(const std::string& cmd,
         os << REPLY_CMD_HEADER << "\"name\": \"" << cmd << "\", \"code\": " << static_cast<int>(ret)
            << ", \"data\": {\"model\": " << model_info_2_json(model_info)
            << ", \"algorithm\": {\"type\": " << static_cast<unsigned>(algorithm_info.type)
-           << ", \"category\": " << static_cast<unsigned>(algorithm_info.categroy) << ", \"config\": {"
-           << algorithm_config << "}}, \"sensor\": " << sensor_info_2_json(sensor_info) << "}}\n";
+           << ", \"category\": " << static_cast<unsigned>(algorithm_info.categroy) << ", \"input_from\": "
+           << static_cast<unsigned>(algorithm_info.input_from) << ", \"config\": {" << algorithm_config
+           << "}}, \"sensor\": " << sensor_info_2_json(sensor_info) << "}}\n";
 
         auto str = os.str();
         serial->send_bytes(str.c_str(), str.size());
@@ -550,29 +558,17 @@ void at_unset_action(const std::string& cmd) {
     auto* storage         = DataDelegate::get_delegate()->get_storage_handler();
     auto* action_delegate = ActionDelegate::get_delegate();
     auto  os              = std::ostringstream(std::ios_base::ate);
-
-    action_delegate->unset_condition();
-    storage->erase("action_cmd");
-
-    os << REPLY_CMD_HEADER << "\"name\": \"" << cmd << "\", \"code\": " << static_cast<int>(EL_OK)
-       << ", \"data\": {}}\n";
-
-    auto str = os.str();
-    serial->send_bytes(str.c_str(), str.size());
-}
-
-void at_get_action(const std::string& cmd) {
-    auto* serial          = Device::get_device()->get_serial();
-    auto* storage         = DataDelegate::get_delegate()->get_storage_handler();
-    auto* action_delegate = ActionDelegate::get_delegate();
-    auto  os              = std::ostringstream(std::ios_base::ate);
     char  action_cmd[128]{};
+    el_err_code_t ret = EL_EINVAL;
 
-    if (action_delegate->has_condition() && storage->contains("action_cmd"))
+    if (action_delegate->has_condition() && storage->contains("action_cmd")) {
         *storage >> el_make_storage_kv("action_cmd", action_cmd);
 
-    std::string action_cmd_str = action_cmd;
-    os << REPLY_CMD_HEADER << "\"name\": \"" << cmd << "\", \"code\": " << static_cast<int>(EL_OK)
+        action_delegate->unset_condition();
+        ret = storage->erase("action_cmd") ? EL_OK : EL_EIO;
+    }
+
+    os << REPLY_CMD_HEADER << "\"name\": \"" << cmd << "\", \"code\": " << static_cast<int>(ret)
        << ", \"data\": " << string_2_str(action_cmd) << "}\n";
 
     auto str = os.str();

@@ -1,7 +1,7 @@
 # AT Protocol Specification v2023.9.1
 
 
-## Underlying Layer
+## Transmission Layer
 
 - USART Serial (Stateless)
 
@@ -11,52 +11,56 @@
 ### Command Lexical Format
 
 - Command header: `AT+`
-- Command tag: `{String}`
-- Command body: `{String}`
+- Command body: `<String>`
+    - Command tag (optional): `<String>@`
+    - Command name: `<String>`
+    - Command arguments (optional): `=<Any>...`
 - Command terminator: `\n`
 
 Note:
 
-1. Each character the command should be a ASCII `char8_t`.
-1. Command length is mutable, max length is limited to `127` (include terminator) currently due to safety factors and resource limitations.
+1. Each character of the command should be a ASCII `char8_t`.
+1. Command length is mutable, max length is limited to `127` (include the terminator), due to safety factors and resource limitations.
 
 #### Tagging
 
 All `AT` commands support tagging with a `@` delimiter.
 
 ```
-AT+{Tag:String}@{Body:String}\n
+AT+<Tag:String>@<Body:String>\n
 ```
 
-Example request: `AT+10@ID?\n`
+Example;
+- Request: `AT+10@ID?\n`
+- Response:
 
-Response:
-
-```json
-\r{
-  "type": 0,
-  "name": "10@ID?",
-  "code": 0,
-  "data": "B63E3DA5"
-}\n
-```
+    ```json
+    \r{
+      "type": 0,
+      "name": "10@ID?",
+      "code": 0,
+      "data": "B63E3DA5"
+    }\n
+    ```
 
 ### Command Types
 
-- Read-only operation: `AT+{String}?\n`
-- Execute operation: `AT+{String}!` or `AT+{String}={Any},{Any}...\n`
-- Config operation: `AT+T{String}={Any}\n`
-- Reserved operation: `AT+{String}\n` or `AT+{String}={Any}\n`
+- Read-only operation: `AT+<String>?\n`
+- Execute operation: `AT+<String>!` or `AT+<String>=<Any>,<Any>...\n`
+- Config operation: `AT+T<String>=<Any>\n`
+- Reserved operation: `AT+<String>\n` or `AT+<String>=<Any>\n`
+
+Note: The type `<Any>` means a number in string format or a quoated string (include escape characters).
 
 ### Response Lexical Format
 
 - Response header: `\r`
-- Response body: `{JSON:String}`
+- Response body: `<JSON:String>`
 - Response terminator: `\n`
 
 Note:
 
-1. Each character in the response should be a ASCII `char8_t`.
+1. Each character of the response should be a ASCII `char8_t`.
 1. Each reply is the smallest primitive unit within all the reply contents, and we have taken measures to ensure that the results of different synchronous or asynchronous commands' replies do not overlap or interfere.
 1. However, for stateless unreliable protocols, we cannot guarantee that certain data will not be modified or lost during the transmission process.
 
@@ -64,24 +68,24 @@ Note:
 
 #### Normal Reply
 
-- Operation response: `\r{JSON:String}\n`
-- Event response: `\r{JSON:String}\n`
-- Logging response: `\r{JSON:String}\n`
+- Operation response: `\r<JSON:String>\n`
+- Event response: `\r<JSON:String>\n`
+- Logging response: `\r<JSON:String>\n`
 
 Common format of normal replies:
 
 ```json
 \r{
-  "type": {ResponseType:Unsigned},
-  "name": "{String}",
-  "code": {ResponseCode:Integer},
-  "data": {Any...}
+  "type": <ResponseType:Unsigned>,
+  "name": "<CommandName:String>",
+  "code": <ResponseCode:Integer>,
+  "data": <Any>
 }\n
 ```
 
 #### Unhandled Reply
 
-- System stdout, stderr or crash log: `{String}\n...`
+- System stdout, stderr or crash log: `<String>\n...`
 
 ### Guidelines
 
@@ -98,7 +102,7 @@ Common format of normal replies:
     - May recieve **Unhandled reply**.
 
 
-### Execution Policy
+### Policy Graph
 
 ```
             Receive Request
@@ -177,10 +181,13 @@ Response:
       "id": 1,
       "type": 1,
       "state": 1
-    }
+    },
+    "action": "AT+ACTION=\"count(id,0)>=3\",\"LED=1\",\"LED=0\""
   }
 }\n
 ```
+
+Note: `"model": {..., "type": <AlgorithmType:Unsigned>,  ...}`.
 
 #### Get version deatils
 
@@ -241,6 +248,8 @@ Response:
 }\n
 ```
 
+Note: `"input_from": <SensorType:Unsigned>`.
+
 #### Get available models
 
 Request: `AT+MODELS?\n`
@@ -268,6 +277,8 @@ Response:
   ]
 }\n
 ```
+
+Note: `"type": <AlgorithmType:Unsigned>`.
 
 #### Get available sensors
 
@@ -315,6 +326,8 @@ Response:
   }
 }\n
 ```
+
+Note: `"model": {..., "type": <AlgorithmType:Unsigned>,  ...}`.
 
 ####  Set a default sensor by sensor ID
 
@@ -370,7 +383,7 @@ Events:
   "name": "SAMPLE",
   "code": 0,
   "data": {
-    "jpeg": "{BASE64:String}"
+    "jpeg": "<BASE64:String>"
   }
 }\n
 ```
@@ -398,6 +411,7 @@ Response:
     "algorithm": {
       "type": 3,
       "category": 1,
+      "input_from": 1,
       "config": {
         "score_threshold": 60,
         "iou_threshold": 50
@@ -439,11 +453,16 @@ Events:
 }\n
 ```
 
+Note:
+
+1. `"model": {..., "type": <AlgorithmType:Unsigned>,  ...}`.
+1. `"input_from": <SensorType:Unsigned>`.
+
 #### Set a condition action trigger (Experimental)
 
 Pattern: `AT+ACTION=<"COND","TRUE_CMD","FALSE_OR_EXCEPTION_CMD">\n`
 
-Request: `AT+ACTION="count(id,0)>=3","LED=1","LED=0"\n`
+Request: `AT+ACTION="count(target,0)>=3","LED=1","LED=0"\n`
 
 Response:
 
@@ -453,7 +472,7 @@ Response:
   "name": "ACTION",
   "code": 0,
   "data": {
-    "cond": "count(id,0)>=3",
+    "cond": "count(target,0)>=3",
     "true": "LED=1",
     "false_or_exception": "LED=0"
   }
@@ -476,8 +495,24 @@ Events:
 Note:
 
 1. Only have events reply when condition evaluation is `true`.
-1. When evaluation fail, if it is a condition function call, identifier or operator, its value will be 0 and with no exception reply.
-1. Complex condition supported. e.g. `(count(id,0)-count(id,1))>=(count(id,3)+count(id,4)+count(id,5))`.
+1. When evaluation fail, if it is a condition function call, identifier or operator, its value will be `0` and with no exception reply.
+1. Complex conditions are supported, e.g.:
+
+    ```
+    1. (count(target,0)-count(target,1))>=(count(target,3)+count(target,4)+count(target,5))
+
+    2. (count(target,0)>1)&&(count(target,3)<=5)||((count(target,4)+count(target,2))<10)
+
+    3. count()>10
+    ```
+
+1. Supported expression tokens:
+    - Unsigned constant.
+    - Integeral identifier.
+    - Integeral and non-mutate argument function call.
+    - Binary operator.
+    - Compare operator.
+    - Logic operator.
 
 #### Unset a condition action trigger (Experimental)
 
@@ -489,21 +524,6 @@ Response:
 \r{
   "type": 0,
   "name": "ACTION!",
-  "code": 0,
-  "data": {}
-}\n
-```
-
-#### Get a condition action trigger info (Experimental)
-
-Request: `AT+ACTION?\n`
-
-Response:
-
-```json
-\r{
-  "type": 0,
-  "name": "ACTION?",
   "code": 0,
   "data": "AT+ACTION=\"count(id,0)>=3\",\"LED=1\",\"LED=0\""
 }\n
@@ -530,6 +550,7 @@ Response:
 
 1. Valid range `[0, 100]`.
 1. Available while invoking using a specified algorithm.
+1. Response `data` is the last valid config value.
 
 #### Set IoU threshold
 
@@ -552,6 +573,7 @@ Note:
 
 1. Valid range `[0, 100]`.
 1. Available while invoking using a specified algorithm.
+1. Response `data` is the last valid config value.
 
 ### Reserved operation
 
@@ -600,7 +622,7 @@ No-reply.
 ### Response Type
 
 ```json
-"type": {Key:Unsigned}
+"type": <Key:Unsigned>
 ```
 
 | Key | Value              |
@@ -612,7 +634,7 @@ No-reply.
 ### Response Code
 
 ```json
-"code": {Key:Integer}
+"code": <Key:Integer>
 ```
 
 | Key | Value                   |
@@ -631,7 +653,7 @@ No-reply.
 ### Algorithm Type
 
 ```json
-"type": {Key:Unsigned}
+"type": <Key:Unsigned>
 ```
 
 | Key | Value     |
@@ -646,7 +668,7 @@ No-reply.
 ### Algorithm Category
 
 ```json
-"category": {Key:Unsigned}
+"category": <Key:Unsigned>
 ```
 
 | Key | Value          |
@@ -659,7 +681,7 @@ No-reply.
 ### Sensor Type
 
 ```json
-"type": {Key:Unsigned}
+"type": <Key:Unsigned>
 ```
 
 | Key | Value     |
@@ -670,7 +692,7 @@ No-reply.
 ### Sensor State
 
 ```json
-"state": {Key:Unsigned}
+"state": <Key:Unsigned>
 ```
 
 | Key | Value      |
@@ -683,7 +705,7 @@ No-reply.
 ### Image Type
 
 ```json
-"{Key:String}": "{Data:String}"
+"<Key:String>": "<Data:String>"
 ```
 
 Key:
@@ -700,7 +722,7 @@ Data: `BASE64`
 ### Performance Type
 
 ```json
-"perf": [{Value:JSON}]
+"perf": [<Value:JSON>]
 ```
 
 Value:
@@ -716,7 +738,7 @@ Value:
 ### Box Type
 
 ```json
-"boxes": [{Value:JSON}]
+"boxes": [<Value:JSON>]
 ```
 
 Value:
@@ -735,7 +757,7 @@ Value:
 ### Point Type
 
 ```json
-"points":  [{Value:JSON}]
+"points":  [<Value:JSON>]
 ```
 
 Value:
@@ -751,7 +773,7 @@ Value:
 ### Class Type
 
 ```json
-"classes": [{Value:JSON}]
+"classes": [<Value:JSON>]
 ```
 
 Value:
@@ -762,8 +784,3 @@ Value:
     70  // score
 ]
 ```
-
-### Appendix
-
-- `"input_from": {SensorType:Unsigned}`
-- `"model": { "type": {AlgorithmType:Unsigned},  ...}`

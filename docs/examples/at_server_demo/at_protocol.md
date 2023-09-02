@@ -717,12 +717,12 @@ Key:
 - `rgb888`
 - `yuv422`
 
-Data: `BASE64`
+Data: `<BASE64:String>`
 
 ### Performance Type
 
 ```json
-"perf": [<Value:JSON>]
+"perf": [<Value:JSONList>]
 ```
 
 Value:
@@ -738,7 +738,7 @@ Value:
 ### Box Type
 
 ```json
-"boxes": [<Value:JSON>]
+"boxes": [<Value:JSONList>]
 ```
 
 Value:
@@ -757,7 +757,7 @@ Value:
 ### Point Type
 
 ```json
-"points":  [<Value:JSON>]
+"points":  [<Value:JSONList>]
 ```
 
 Value:
@@ -773,7 +773,7 @@ Value:
 ### Class Type
 
 ```json
-"classes": [<Value:JSON>]
+"classes": [<Value:JSONList>]
 ```
 
 Value:

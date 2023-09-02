@@ -50,7 +50,8 @@ ReplExecutor::ReplExecutor(size_t worker_stack_size, size_t worker_priority)
       _worker_stack_size(worker_stack_size),
       _worker_priority(worker_priority) {
     static uint16_t worker_id = 0;
-    std::snprintf(_worker_name, configMAX_TASK_NAME_LEN - 1, "task_executor_%2X", worker_id++);
+    volatile size_t length = configMAX_TASK_NAME_LEN - 1;
+    std::snprintf(_worker_name, length, "task_executor_%2X", worker_id++);
 
     EL_ASSERT(_task_stop_requested.is_lock_free());
     EL_ASSERT(_worker_thread_stop_requested.is_lock_free());

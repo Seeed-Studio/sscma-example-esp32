@@ -219,7 +219,7 @@ class Storage {
         using pointer           = value_type*;
         using reference         = value_type&;
 
-        explicit Iterator(const Storage* const storage) : ___storage(storage), ___iterator(), ___reach_end(true) {
+        explicit Iterator(const Storage* const storage) : ___storage(storage), ___kvdb(nullptr), ___iterator(), ___reach_end(true) {
             if (!___storage) return;
             volatile const Guard guard(___storage);
             ___kvdb = storage->__kvdb;

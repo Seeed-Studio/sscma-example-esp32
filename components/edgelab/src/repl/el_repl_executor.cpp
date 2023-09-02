@@ -30,6 +30,7 @@
 #include <freertos/task.h>
 
 #include <atomic>
+#include <cstdio>
 #include <functional>
 #include <memory>
 #include <queue>
@@ -45,11 +46,11 @@ ReplExecutor::ReplExecutor(size_t worker_stack_size, size_t worker_priority)
       _worker_thread_stop_requested(false),
       _worker_ret(),
       _worker_handler(),
-      _worker_name(new char[configMAX_TASK_NAME_LEN]),
+      _worker_name(new char[configMAX_TASK_NAME_LEN]{}),
       _worker_stack_size(worker_stack_size),
       _worker_priority(worker_priority) {
     static uint16_t worker_id = 0;
-    sprintf(_worker_name, "task_executor_%2X", worker_id++);
+    std::snprintf(_worker_name, configMAX_TASK_NAME_LEN - 1, "task_executor_%2X", worker_id++);
 
     EL_ASSERT(_task_stop_requested.is_lock_free());
     EL_ASSERT(_worker_thread_stop_requested.is_lock_free());

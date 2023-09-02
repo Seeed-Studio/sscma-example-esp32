@@ -357,7 +357,6 @@ EL_ATTR_WEAK void rgb888_to_gray(const el_img_t* src, el_img_t* dst) {
 
             for (uint16_t j = 0; j < dw; ++j) {
                 init_index = ((j * beta_w) >> 16) + i_mul_bh_sw;
-                index      = j + i_mul_dw;
                 index      = ((dw - 1) - (j % dw)) * dh + (j / dw) + i;
 
                 b24 = *reinterpret_cast<const b24_t*>(src_p + (init_index * 3));

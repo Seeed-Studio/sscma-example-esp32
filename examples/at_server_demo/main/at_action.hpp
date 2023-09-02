@@ -16,8 +16,8 @@ typedef std::unordered_map<std::string, mutable_cb_t> mutable_map_t;
 class ActionDelegate {
    public:
     static ActionDelegate* get_delegate() {
-        static ActionDelegate event_delegate = ActionDelegate();
-        return &event_delegate;
+        static ActionDelegate action_delegate();
+        return &action_delegate;
     }
 
     ~ActionDelegate() { unset_condition(); }

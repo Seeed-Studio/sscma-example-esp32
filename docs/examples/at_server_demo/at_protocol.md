@@ -118,7 +118,7 @@ Common format of normal replies:
       |
       | Success
       |
-      v        +-> Operation response
+      v        +-> Operation Response
   Execute CMD -+
                +----------------------> Event Response(s)
 ```

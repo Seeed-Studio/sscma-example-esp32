@@ -146,40 +146,41 @@ void draw_results_on_image(const std::forward_list<el_point_t>& results, el_img_
 void draw_results_on_image(const std::forward_list<el_box_t>& results, el_img_t* img) {
     uint8_t i = 0;
     for (const auto& box : results) {
-        int16_t y = box.y - box.h / 2;
-        int16_t x = box.x - box.w / 2;
+        int16_t y = box.y - (box.h >> 1);
+        int16_t x = box.x - (box.w >> 1);
         edgelab::el_draw_rect(img, x, y, box.w, box.h, color_literal(++i), 4);
     }
 }
 
 std::string model_info_2_json(el_model_info_t model_info) {
     auto os{std::ostringstream(std::ios_base::ate)};
+
     os << "{\"id\": " << static_cast<unsigned>(model_info.id)
        << ", \"type\": " << static_cast<unsigned>(model_info.type) << ", \"address\": \"0x" << std::hex
        << static_cast<unsigned>(model_info.addr_flash) << "\", \"size\": \"0x" << static_cast<unsigned>(model_info.size)
        << "\"}";
-    return os.str();
+
+    return std::string(os.str());
 }
 
 std::string sensor_info_2_json(el_sensor_info_t sensor_info) {
     auto os{std::ostringstream(std::ios_base::ate)};
+
     os << "{\"id\": " << static_cast<unsigned>(sensor_info.id)
        << ", \"type\": " << static_cast<unsigned>(sensor_info.type)
        << ", \"state\": " << static_cast<unsigned>(sensor_info.state) << "}";
-    return os.str();
+
+    return std::string(os.str());
 }
 
 template <typename T> constexpr std::string results_2_json(const std::forward_list<T>& results) {
     auto os{std::ostringstream(std::ios_base::ate)};
-    using F                = std::function<void(void)>;
-    static F delim_f       = []() {};
-    static F print_delim_f = [&os]() { os << ", "; };
-    static F print_void_f  = [&]() { delim_f = print_delim_f; };
-    delim_f                = print_void_f;
+
+    DELIM_RESET;
     if constexpr (std::is_same<T, el_box_t>::value) {
         os << "\"boxes\": [";
         for (const auto& box : results) {
-            delim_f();
+            DELIM_PRINT(os);
             os << "[" << static_cast<unsigned>(box.x) << ", " << static_cast<unsigned>(box.y) << ", "
                << static_cast<unsigned>(box.w) << ", " << static_cast<unsigned>(box.h) << ", "
                << static_cast<unsigned>(box.target) << ", " << static_cast<unsigned>(box.score) << "]";
@@ -187,23 +188,24 @@ template <typename T> constexpr std::string results_2_json(const std::forward_li
     } else if constexpr (std::is_same<T, el_point_t>::value) {
         os << "\"points\": [";
         for (const auto& point : results) {
-            delim_f();
+            DELIM_PRINT(os);
             os << "[" << static_cast<unsigned>(point.x) << ", " << static_cast<unsigned>(point.y) << ", "
                << static_cast<unsigned>(point.target) << "]";
         }
     } else if constexpr (std::is_same<T, el_class_t>::value) {
         os << "\"classes\": [";
         for (const auto& cls : results) {
-            delim_f();
+            DELIM_PRINT(os);
             os << "[" << static_cast<unsigned>(cls.score) << ", " << static_cast<unsigned>(cls.target) << "]";
         }
     }
     os << "]";
-    return os.str();
+
+    return std::string(os.str());
 }
 
 // TODO: avoid repeatly allocate/release memory in for loop
-std::string img_2_json_str(const el_img_t* img) {
+std::string img_2_jpeg_json_str(const el_img_t* img) {
     using namespace edgelab;
     auto os = std::ostringstream(std::ios_base::ate);
 
@@ -234,15 +236,17 @@ std::string img_2_json_str(const el_img_t* img) {
 
 std::string simple_reply_ok(const std::string& cmd) {
     std::string str{};
+
     str += "{\"";
     str += cmd;
     str += "\": {\"status\": \"OK\"}}";
+
     return str;
 }
 
 template <typename ConfigType> std::string algorithm_config_2_json_str(const ConfigType& config) {
     using namespace edgelab;
-    auto os = std::ostringstream(std::ios_base::ate);
+    auto os{std::ostringstream(std::ios_base::ate)};
 
     if constexpr (std::is_same<ConfigType, el_algorithm_fomo_config_t>::value ||
                   std::is_same<ConfigType, el_algorithm_imcls_config_t>::value)
@@ -251,20 +255,20 @@ template <typename ConfigType> std::string algorithm_config_2_json_str(const Con
         os << "\"score_threshold\": " << static_cast<unsigned>(config.score_threshold)
            << ", \"iou_threshold\": " << static_cast<unsigned>(config.iou_threshold);
 
-    return os.str();
+    return std::string(os.str());
 }
 
 template <typename AlgorithmType>
 std::string img_invoke_results_2_json_str(
   const AlgorithmType* algorithm, const el_img_t* img, const std::string& cmd, bool result_only, el_err_code_t ret) {
     using namespace edgelab;
-    auto os = std::ostringstream(std::ios_base::ate);
+    auto os{std::ostringstream(std::ios_base::ate)};
 
     os << REPLY_EVT_HEADER << "\"name\": \"" << cmd << "\", \"code\": " << static_cast<int>(ret)
        << ", \"data\": {\"perf\": [" << static_cast<unsigned>(algorithm->get_preprocess_time()) << ", "
        << static_cast<unsigned>(algorithm->get_run_time()) << ", "
        << static_cast<unsigned>(algorithm->get_postprocess_time()) << "], " << results_2_json(algorithm->get_results());
-    if (!result_only) os << ", " << img_2_json_str(img);
+    if (!result_only) os << ", " << img_2_jpeg_json_str(img);
     os << "}}\n";
 
     return std::string(os.str());
@@ -307,7 +311,7 @@ template <typename AlgorithmType> class AlgorithmConfigHelper {
                   os << REPLY_CMD_HEADER << "\"name\": \"" << argv[0] << "\", \"code\": " << static_cast<int>(ret)
                      << ", \"data\": " << static_cast<unsigned>(this->_kv.value.score_threshold) << "}\n";
 
-                  auto str = os.str();
+                  const auto& str{os.str()};
                   this->_serial->send_bytes(str.c_str(), str.size());
 
                   return EL_OK;
@@ -320,7 +324,7 @@ template <typename AlgorithmType> class AlgorithmConfigHelper {
                 os << REPLY_CMD_HEADER << "\"name\": \"" << argv[0] << "\", \"code\": " << static_cast<int>(EL_OK)
                    << ", \"data\": " << static_cast<unsigned>(this->_algorithm->get_score_threshold()) << "}\n";
 
-                auto str = os.str();
+                const auto& str{os.str()};
                 this->_serial->send_bytes(str.c_str(), str.size());
 
                 return EL_OK;
@@ -343,7 +347,7 @@ template <typename AlgorithmType> class AlgorithmConfigHelper {
                   os << REPLY_CMD_HEADER << "\"name\": \"" << argv[0] << "\", \"code\": " << static_cast<int>(ret)
                      << ", \"data\": " << static_cast<unsigned>(this->_kv.value.iou_threshold) << "}\n";
 
-                  auto str = os.str();
+                  const auto& str{os.str()};
                   this->_serial->send_bytes(str.c_str(), str.size());
 
                   return EL_OK;
@@ -356,7 +360,7 @@ template <typename AlgorithmType> class AlgorithmConfigHelper {
                 os << REPLY_CMD_HEADER << "\"name\": \"" << argv[0] << "\", \"code\": " << static_cast<int>(EL_OK)
                    << ", \"data\": " << static_cast<unsigned>(this->_algorithm->get_iou_threshold()) << "}\n";
 
-                auto str = os.str();
+                const auto& str{os.str()};
                 this->_serial->send_bytes(str.c_str(), str.size());
 
                 return EL_OK;

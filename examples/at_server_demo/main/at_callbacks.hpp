@@ -25,7 +25,7 @@ void at_server_echo_cb(el_err_code_t ret, const std::string& msg) {
         os << REPLY_LOG_HEADER << "\"name\": \"AT\", \"code\": " << static_cast<int>(ret)
            << ", \"data\": " << string_2_str(msg) << "}\n";
 
-    auto str = os.str();
+    const auto& str{os.str()};
     serial->send_bytes(str.c_str(), str.size());
 }
 
@@ -39,7 +39,7 @@ void at_print_help(std::forward_list<el_repl_cmd_t> cmd_list) {
         os << "\n    " << cmd.desc << "\n";
     }
 
-    auto str = os.str();
+    const auto& str{os.str()};
     serial->send_bytes(str.c_str(), str.size());
 }
 
@@ -51,7 +51,7 @@ void at_get_device_id(const std::string& cmd) {
     os << REPLY_CMD_HEADER << "\"name\": \"" << cmd << "\", \"code\": " << static_cast<int>(EL_OK) << ", \"data\": \""
        << std::uppercase << std::hex << device->get_device_id() << "\"}\n";
 
-    auto str = os.str();
+    const auto& str{os.str()};
     serial->send_bytes(str.c_str(), str.size());
 }
 
@@ -63,7 +63,7 @@ void at_get_device_name(const std::string& cmd) {
     os << REPLY_CMD_HEADER << "\"name\": \"" << cmd << "\", \"code\": " << static_cast<int>(EL_OK) << ", \"data\": \""
        << device->get_device_name() << "\"}\n";
 
-    auto str = os.str();
+    const auto& str{os.str()};
     serial->send_bytes(str.c_str(), str.size());
 }
 
@@ -91,7 +91,7 @@ void at_get_device_status(const std::string& cmd,
        << ", \"model\": " << model_info_2_json(model_info) << ", \"sensor\": " << sensor_info_2_json(sensor_info)
        << "}, \"action\": " << string_2_str(action_cmd) << "}\n";
 
-    auto str = os.str();
+    const auto& str{os.str()};
     serial->send_bytes(str.c_str(), str.size());
 }
 
@@ -104,7 +104,7 @@ void at_get_version(const std::string& cmd) {
        << ", \"data\": {\"software\": \"" << EL_VERSION << "\", \"hardware\": \""
        << static_cast<unsigned>(device->get_chip_revision_id()) << "\"}}\n";
 
-    auto str = os.str();
+    const auto& str{os.str()};
     serial->send_bytes(str.c_str(), str.size());
 }
 
@@ -124,7 +124,7 @@ void at_get_available_algorithms(const std::string& cmd) {
     }
     os << "]}\n";
 
-    auto str = os.str();
+    const auto& str{os.str()};
     serial->send_bytes(str.c_str(), str.size());
 }
 
@@ -142,7 +142,7 @@ void at_get_available_models(const std::string& cmd) {
     }
     os << "]}\n";
 
-    auto str = os.str();
+    const auto& str{os.str()};
     serial->send_bytes(str.c_str(), str.size());
 }
 
@@ -184,7 +184,7 @@ ModelReply:
     os << REPLY_CMD_HEADER << "\"name\": \"" << cmd << "\", \"code\": " << static_cast<int>(ret)
        << ", \"data\": {\"model\": " << model_info_2_json(model_info) << "}}\n";
 
-    auto str = os.str();
+    const auto& str{os.str()};
     serial->send_bytes(str.c_str(), str.size());
 }
 
@@ -201,7 +201,7 @@ void at_get_available_sensors(const std::string& cmd) {
     }
     os << "]}\n";
 
-    auto str = os.str();
+    const auto& str{os.str()};
     serial->send_bytes(str.c_str(), str.size());
 }
 
@@ -250,7 +250,7 @@ SensorReply:
     os << REPLY_CMD_HEADER << "\"name\": \"" << cmd << "\", \"code\": " << static_cast<int>(ret)
        << ", \"data\": {\"sensor\": " << sensor_info_2_json(sensor_info) << "}}\n";
 
-    auto str = os.str();
+    const auto& str{os.str()};
     serial->send_bytes(str.c_str(), str.size());
 }
 
@@ -266,7 +266,7 @@ void at_run_sample(const std::string& cmd, int n_times, std::atomic<bool>& stop_
         os << REPLY_CMD_HEADER << "\"name\": \"" << cmd << "\", \"code\": " << static_cast<int>(ret)
            << ", \"data\": {\"sensor\": " << sensor_info_2_json(sensor_info) << "}}\n";
 
-        auto str = os.str();
+        const auto& str{os.str()};
         serial->send_bytes(str.c_str(), str.size());
     };
     auto event_reply = [&](const std::string& sample_data_str) {
@@ -274,7 +274,7 @@ void at_run_sample(const std::string& cmd, int n_times, std::atomic<bool>& stop_
         os << REPLY_EVT_HEADER << "\"name\": \"" << cmd << "\", \"code\": " << static_cast<int>(ret) << ", \"data\": {"
            << sample_data_str << "}}\n";
 
-        auto str = os.str();
+        const auto& str{os.str()};
         serial->send_bytes(str.c_str(), str.size());
     };
 
@@ -305,7 +305,7 @@ void at_run_sample(const std::string& cmd, int n_times, std::atomic<bool>& stop_
             if (ret != EL_OK) [[unlikely]]
                 goto SampleLoopErrorReply;
 
-            event_reply(img_2_json_str(&img));
+            event_reply(img_2_jpeg_json_str(&img));
 
             camera->stop_stream();  // Note: discarding return err_code (always EL_OK)
             continue;
@@ -338,7 +338,7 @@ void run_invoke_on_img(
                                              .rotate = EL_PIXEL_ROTATE_UNKNOWN};
     el_err_code_t ret             = algorithm ? EL_OK : EL_EINVAL;
     auto          event_reply     = [&]() {
-        auto str = img_invoke_results_2_json_str(algorithm, &img, cmd, result_only, ret);
+        const auto& str = img_invoke_results_2_json_str(algorithm, &img, cmd, result_only, ret);
         serial->send_bytes(str.c_str(), str.size());
     };
     if (ret != EL_OK) [[unlikely]] {
@@ -348,7 +348,7 @@ void run_invoke_on_img(
     {
         auto mutable_map = action_delegate->get_mutable_map();
         for (auto& kv : mutable_map) {
-            auto argv = tokenize_function_2_argv(kv.first);
+            const auto& argv = tokenize_function_2_argv(kv.first);
 
             if (!argv.size()) [[unlikely]]
                 continue;
@@ -436,7 +436,7 @@ void at_run_invoke(const std::string& cmd,
            << static_cast<unsigned>(algorithm_info.input_from) << ", \"config\": {" << algorithm_config
            << "}}, \"sensor\": " << sensor_info_2_json(sensor_info) << "}}\n";
 
-        auto str = os.str();
+        const auto& str{os.str()};
         serial->send_bytes(str.c_str(), str.size());
     };
 
@@ -527,7 +527,7 @@ void at_set_action(const std::vector<std::string>& argv) {
         os << REPLY_EVT_HEADER << "\"name\": \"" << argv[0] << "\", \"code\": " << static_cast<int>(ret)
            << ", \"data\": {\"true\": " << string_2_str(cmd) << "}}\n";
 
-        auto str = os.str();
+        const auto& str{os.str()};
         serial->send_bytes(str.c_str(), str.size());
     });
     cmd = argv[3];
@@ -549,7 +549,7 @@ ActionReply:
        << ", \"data\": {\"cond\": " << string_2_str(argv[1]) << ", \"true\": " << string_2_str(argv[2])
        << ", \"false_or_exception\": " << string_2_str(argv[3]) << "}}\n";
 
-    auto str = os.str();
+    const auto& str{os.str()};
     serial->send_bytes(str.c_str(), str.size());
 }
 
@@ -571,6 +571,6 @@ void at_unset_action(const std::string& cmd) {
     os << REPLY_CMD_HEADER << "\"name\": \"" << cmd << "\", \"code\": " << static_cast<int>(ret)
        << ", \"data\": " << string_2_str(action_cmd) << "}\n";
 
-    auto str = os.str();
+    const auto& str{os.str()};
     serial->send_bytes(str.c_str(), str.size());
 }

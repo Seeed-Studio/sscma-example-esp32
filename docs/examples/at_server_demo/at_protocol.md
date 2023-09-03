@@ -592,10 +592,10 @@ Request: `AT+HELP\n`
 Response:
 
 ```
-Command list:
-  AT+INVOKE=<N_TIMES,RESULT_ONLY>
-    Invoke for N times (-1 for infinity loop)
-  {String}...
+Command list:\n
+  AT+INVOKE=<N_TIMES,RESULT_ONLY>\n
+    Invoke for N times (-1 for infinity loop)\n
+  <String>\n...
 ```
 
 #### Reboot device

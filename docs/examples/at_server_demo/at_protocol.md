@@ -102,7 +102,7 @@ Common format of normal replies:
     - May recieve **Unhandled reply**.
 
 
-### Policy Graph
+#### Graph
 
 ```
             Receive Request

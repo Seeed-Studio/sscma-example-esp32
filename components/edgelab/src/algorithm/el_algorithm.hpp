@@ -26,39 +26,19 @@
 #ifndef _EL_ALGORITHM_HPP_
 #define _EL_ALGORITHM_HPP_
 
-#include <algorithm>
 #include <forward_list>
-#include <functional>
-#include <sstream>
-#include <string>
-#include <type_traits>
 
 #include "el_algorithm_fomo.hpp"
 #include "el_algorithm_imcls.hpp"
 #include "el_algorithm_pfld.hpp"
 #include "el_algorithm_yolo.hpp"
 #include "el_inference.hpp"
-#include "el_types.h"
 
 namespace edgelab {
 
 namespace algorithm::utility {
 
-el_algorithm_type_t el_algorithm_type_from_engine(const edgelab::InferenceEngine* engine) {
-#ifdef _EL_ALGORITHM_FOMO_HPP_
-    if (algorithm::FOMO::is_model_valid(engine)) return EL_ALGO_TYPE_FOMO;
-#endif
-#ifdef _EL_ALGORITHM_PFLD_HPP_
-    if (algorithm::PFLD::is_model_valid(engine)) return EL_ALGO_TYPE_PFLD;
-#endif
-#ifdef _EL_ALGORITHM_YOLO_HPP_
-    if (algorithm::YOLO::is_model_valid(engine)) return EL_ALGO_TYPE_YOLO;
-#endif
-#ifdef _EL_ALGORITHM_IMCLS_HPP_
-    if (algorithm::IMCLS::is_model_valid(engine)) return EL_ALGO_TYPE_IMCLS;
-#endif
-    return EL_ALGO_TYPE_UNDEFINED;
-}
+el_algorithm_type_t el_algorithm_type_from_engine(const edgelab::InferenceEngine* engine);
 
 }  // namespace algorithm::utility
 
@@ -67,67 +47,40 @@ using Algorithm = class algorithm::base::Algorithm;
 #ifdef _EL_ALGORITHM_FOMO_HPP_
 using AlgorithmFOMO = class algorithm::FOMO;
 #endif
+
 #ifdef _EL_ALGORITHM_PFLD_HPP_
 using AlgorithmPFLD = class algorithm::PFLD;
 #endif
+
 #ifdef _EL_ALGORITHM_YOLO_HPP_
 using AlgorithmYOLO = class algorithm::YOLO;
 #endif
+
 #ifdef _EL_ALGORITHM_IMCLS_HPP_
 using AlgorithmIMCLS = class algorithm::IMCLS;
 #endif
 
 class AlgorithmDelegate {
    public:
+    using InfoType = typename algorithm::types::el_algorithm_info_t;
+
     ~AlgorithmDelegate() = default;
 
-    static AlgorithmDelegate* get_delegate() {
-        static AlgorithmDelegate data_delegate = AlgorithmDelegate();
-        return &data_delegate;
-    }
+    static AlgorithmDelegate* get_delegate();
 
-    algorithm::types::el_algorithm_info_t get_algorithm_info(el_algorithm_type_t type) const {
-        auto it = std::find_if(_registered_algorithms.begin(),
-                               _registered_algorithms.end(),
-                               [&](const algorithm::types::el_algorithm_info_t* i) { return i->type == type; });
-        if (it != _registered_algorithms.end()) return **it;
-        return {};
-    }
+    InfoType get_algorithm_info(el_algorithm_type_t type) const;
 
-    const std::forward_list<const algorithm::types::el_algorithm_info_t*>& get_all_algorithm_info() const {
-        return _registered_algorithms;
-    }
+    const std::forward_list<const InfoType*>& get_all_algorithm_info() const;
 
-    size_t get_all_algorithm_info_count() const {
-        return std::distance(_registered_algorithms.begin(), _registered_algorithms.end());
-    }
+    size_t get_all_algorithm_info_count() const;
 
-    bool has_algorithm(el_algorithm_type_t type) const {
-        auto it = std::find_if(_registered_algorithms.begin(),
-                               _registered_algorithms.end(),
-                               [&](const algorithm::types::el_algorithm_info_t* i) { return i->type == type; });
-        return it != _registered_algorithms.end();
-    }
+    bool has_algorithm(el_algorithm_type_t type) const;
 
-    // TODO: add singleton algorithm handler
+   protected:
+    AlgorithmDelegate();
 
    private:
-    AlgorithmDelegate() {
-#ifdef _EL_ALGORITHM_FOMO_HPP_
-        _registered_algorithms.emplace_front(&AlgorithmFOMO::algorithm_info);
-#endif
-#ifdef _EL_ALGORITHM_PFLD_HPP_
-        _registered_algorithms.emplace_front(&AlgorithmPFLD::algorithm_info);
-#endif
-#ifdef _EL_ALGORITHM_YOLO_HPP_
-        _registered_algorithms.emplace_front(&AlgorithmYOLO::algorithm_info);
-#endif
-#ifdef _EL_ALGORITHM_IMCLS_HPP_
-        _registered_algorithms.emplace_front(&AlgorithmIMCLS::algorithm_info);
-#endif
-    }
-
-    std::forward_list<const algorithm::types::el_algorithm_info_t*> _registered_algorithms;
+    std::forward_list<const InfoType*> _registered_algorithms;
 };
 
 }  // namespace edgelab

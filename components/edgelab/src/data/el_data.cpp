@@ -1,7 +1,7 @@
 /*
  * The MIT License (MIT)
  *
- * Copyright (c) 2023 Seeed Technology Co.,Ltd
+ * Copyright (c) 2023 nullptr (Seeed Technology Inc.)
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,34 +23,28 @@
  *
  */
 
-#ifndef _EL_REPL_HPP_
-#define _EL_REPL_HPP_
+#include "el_data.hpp"
 
-#include "el_repl_executor.hpp"
-#include "el_repl_history.hpp"
-#include "el_repl_server.hpp"
+#include "el_data_models.hpp"
+#include "el_data_storage.hpp"
 
 namespace edgelab {
 
-using namespace repl;
+DataDelegate* DataDelegate::get_delegate() {
+    static DataDelegate data_delegate = DataDelegate();
+    return &data_delegate;
+}
 
-class ReplDelegate {
-   public:
-    ~ReplDelegate() = default;
+Models* DataDelegate::get_models_handler() {
+    static Models* models_handler = new Models{};
+    return models_handler;
+}
 
-    static ReplDelegate* get_delegate();
-
-    ReplExecutor* get_executor_handler();
-
-    ReplServer* get_server_handler();
-
-   protected:
-    ReplDelegate() = default;
-};
+#ifdef CONFIG_EL_LIB_FLASHDB
+Storage* DataDelegate::get_storage_handler() {
+    static Storage* storage_handler = new Storage{};
+    return storage_handler;
+}
+#endif
 
 }  // namespace edgelab
-
-// TODO: avoid expose this name space globally
-using namespace edgelab::repl::types;
-
-#endif

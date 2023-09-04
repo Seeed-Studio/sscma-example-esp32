@@ -26,6 +26,8 @@
 #ifndef _EL_INFERENCE_TFLITE_HPP_
 #define _EL_INFERENCE_TFLITE_HPP_
 
+#define TF_LITE_SATTIC_MEMORY
+
 #include <cstdint>
 
 #include "el_inference_base.hpp"

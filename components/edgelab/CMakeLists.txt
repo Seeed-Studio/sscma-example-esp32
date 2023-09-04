@@ -33,16 +33,16 @@ if(CONFIG_EL_LIB_FLASHDB)
         ${CMAKE_CURRENT_SOURCE_DIR}/third_party/FlashDB/fdb_utils.c
         ${CMAKE_CURRENT_SOURCE_DIR}/third_party/FlashDB/fdb.c
     )
-    list(APPEND INCLUDES_EDGELAB 
+    list(APPEND INCLUDES_EDGELAB
         ${CMAKE_CURRENT_SOURCE_DIR}/third_party/FlashDB
     )
 endif()
 
 if(CONFIG_EL_LIB_JPEGENC)
-    list(APPEND SRCS_EDGELAB 
+    list(APPEND SRCS_EDGELAB
         ${CMAKE_CURRENT_SOURCE_DIR}/third_party/JPEGENC/JPEGENC.cpp
     )
-    list(APPEND INCLUDES_EDGELAB 
+    list(APPEND INCLUDES_EDGELAB
         ${CMAKE_CURRENT_SOURCE_DIR}/third_party/JPEGENC
     )
 endif()
@@ -61,4 +61,3 @@ idf_component_register(
             INCLUDE_DIRS "${INCLUDES_EDGELAB}"
             REQUIRES ${pub_req}
             PRIV_REQUIRES ${priv_req})
-

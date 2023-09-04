@@ -23,8 +23,7 @@
  *
  */
 
-#ifndef _EL_REPL_HPP_
-#define _EL_REPL_HPP_
+#include "el_repl.hpp"
 
 #include "el_repl_executor.hpp"
 #include "el_repl_history.hpp"
@@ -34,23 +33,19 @@ namespace edgelab {
 
 using namespace repl;
 
-class ReplDelegate {
-   public:
-    ~ReplDelegate() = default;
+ReplDelegate* ReplDelegate::get_delegate() {
+    static ReplDelegate repl_delegate = ReplDelegate();
+    return &repl_delegate;
+}
 
-    static ReplDelegate* get_delegate();
+ReplExecutor* ReplDelegate::get_executor_handler() {
+    static ReplExecutor* executor_handler = new ReplExecutor{};
+    return executor_handler;
+}
 
-    ReplExecutor* get_executor_handler();
-
-    ReplServer* get_server_handler();
-
-   protected:
-    ReplDelegate() = default;
-};
+ReplServer* ReplDelegate::get_server_handler() {
+    static ReplServer* server_handler = new ReplServer{};
+    return server_handler;
+}
 
 }  // namespace edgelab
-
-// TODO: avoid expose this name space globally
-using namespace edgelab::repl::types;
-
-#endif

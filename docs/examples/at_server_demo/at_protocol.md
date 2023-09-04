@@ -1,4 +1,4 @@
-# AT Protocol Specification v2023.9.1
+# AT Protocol Specification v2023.9.4
 
 
 ## Transmission Layer
@@ -201,7 +201,7 @@ Response:
   "name": "VER?",
   "code": 0,
   "data": {
-    "software": "2023.9.1",
+    "software": "2023.9.4",
     "hardware": "1"
   }
 }\n

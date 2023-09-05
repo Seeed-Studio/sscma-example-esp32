@@ -1023,18 +1023,23 @@ EL_ATTR_WEAK void el_draw_point(el_img_t* img, int16_t x, int16_t y, uint32_t co
 }
 
 EL_ATTR_WEAK void el_fill_rect(el_img_t* img, int16_t x, int16_t y, int16_t w, int16_t h, uint32_t color) {
+    if ((w >> 15) || (h >> 15)) [[unlikely]]
+        return;
+
     el_pixel_format_t format = img->format;
     uint16_t          iw     = img->width;
     uint16_t          ih     = img->height;
-    x                        = x >= iw ? iw : x;
-    y                        = y >= ih ? ih : y;
-    w                        = x + w >= iw ? iw - x : w;
-    h                        = y + h >= ih ? ih - y : h;
-    int32_t  line_step       = 0;
-    uint8_t* data            = nullptr;
-    uint8_t  c0              = (color >> 16) & 0xFF;
-    uint8_t  c1              = (color >> 8) & 0xFF;
-    uint8_t  c2              = color;
+
+    x = x >= iw ? iw : x & ~(x >> 15);
+    y = y >= ih ? ih : y & ~(y >> 15);
+    w = x + w >= iw ? iw - x : w;
+    h = y + h >= ih ? ih - y : h;
+
+    int32_t  line_step = 0;
+    uint8_t* data      = nullptr;
+    uint8_t  c0        = (color >> 16) & 0xFF;
+    uint8_t  c1        = (color >> 8) & 0xFF;
+    uint8_t  c2        = color;
 
     switch (format) {
     case EL_PIXEL_FORMAT_GRAYSCALE:

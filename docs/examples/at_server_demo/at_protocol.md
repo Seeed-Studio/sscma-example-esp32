@@ -20,7 +20,7 @@
 Note:
 
 1. Each character of the command should be a ASCII `char8_t`.
-1. Command length is mutable, max length is limited to `127` (include the terminator), due to safety factors and resource limitations.
+1. Command length is mutable, max length is limited to `1024 - 1` (include the terminator), due to safety factors and resource limitations.
 
 #### Tagging
 
@@ -170,19 +170,7 @@ Response:
   "name": "STAT?",
   "code": 0,
   "data": {
-    "boot_count": 1520,
-    "model": {
-      "id": 2,
-      "type": 3,
-      "address": "0x500000",
-      "size": "0x41310"
-    },
-    "sensor": {
-      "id": 1,
-      "type": 1,
-      "state": 1
-    },
-    "action": "AT+ACTION=\"count(id,0)>=3\",\"LED=1\",\"LED=0\""
+    "boot_count": 1631
   }
 }\n
 ```
@@ -201,7 +189,7 @@ Response:
   "name": "VER?",
   "code": 0,
   "data": {
-    "software": "2023.9.4",
+    "software": "2023.9.5",
     "hardware": "1"
   }
 }\n
@@ -280,6 +268,28 @@ Response:
 
 Note: `"type": <AlgorithmType:Unsigned>`.
 
+#### Get current model info
+
+Request: `AT+MODEL?\r`
+
+Response:
+
+```json
+\r{
+  "type": 0,
+  "name": "MODEL?",
+  "code": 0,
+  "data": {
+    "id": 2,
+    "type": 3,
+    "address": "0x500000",
+    "size": "0x41310"
+  }
+}\n
+```
+
+Note: `"type": <AlgorithmType:Unsigned>`.
+
 #### Get available sensors
 
 Request: `AT+SENSORS?\r`
@@ -298,6 +308,78 @@ Response:
       "state": 1
     }
   ]
+}\n
+```
+
+Note: `"type": <AlgorithmType:Unsigned>`.
+
+#### Get current sensor info
+
+Request: `AT+SENSOR?\r`
+
+Response:
+
+```json
+\r{
+  "type": 0,
+  "name": "SENSOR?",
+  "code": 0,
+  "data": {
+    "id": 1,
+    "type": 1,
+    "state": 1
+  }
+}\n
+```
+
+Note: `"type": <AlgorithmType:Unsigned>`.
+
+#### Get sample status
+
+Request: `AT+SAMPLE?\r`
+
+Response:
+
+```json
+\r{
+  "type": 0,
+  "name": "SAMPLE?",
+  "code": 0,
+  "data": 0
+}\n
+```
+
+Note: `"data": 0` means not sampling, `"data": 1` means sampling.
+
+#### Get invoke status
+
+Request: `AT+INVOKE?\r`
+
+Response:
+
+```json
+\r{
+  "type": 0,
+  "name": "INVOKE",
+  "code": 0,
+  "data": 0
+}\n
+```
+
+Note: `"data": 0` means not invoking, `"data": 1` means invoking.
+
+#### Get stored custom info
+
+Request: `AT+INFO?\r`
+
+Response:
+
+```json
+\r{
+  "type": 0,
+  "name": "INFO?",
+  "code": 0,
+  "data": "Hello World!"
 }\n
 ```
 
@@ -338,6 +420,22 @@ Note:
 
 1. Available while invoking using a specified algorithm.
 1. Response `data` is the last valid config value.
+
+
+#### Get action info (Experimental)
+
+Request: `AT+ACTION?\r`
+
+Response:
+
+```json
+\r{
+  "type": 0,
+  "name": "ACTION?",
+  "code": 0,
+  "data": "AT+ACTION=\"count(id,0)>=3\",\"LED=1\",\"LED=0\""
+}\n
+```
 
 ### Execute operation
 
@@ -421,7 +519,7 @@ Events:
   "name": "SAMPLE",
   "code": 0,
   "data": {
-    "jpeg": "<BASE64:String>"
+    "image": "<BASE64JPEG:String>"
   }
 }\n
 ```
@@ -451,8 +549,8 @@ Response:
       "category": 1,
       "input_from": 1,
       "config": {
-        "score_threshold": 60,
-        "iou_threshold": 50
+        "tscore": 60,
+        "tiou": 50
       }
     },
     "sensor": {
@@ -495,6 +593,40 @@ Note:
 
 1. `"model": {..., "type": <AlgorithmType:Unsigned>,  ...}`.
 1. `"input_from": <SensorType:Unsigned>`.
+
+#### Store info string to device flash
+
+Pattern: `AT+INFO=<"INFO_STRING">\r`
+
+Request: `AT+INFO="Hello World!"\r`
+
+Response:
+
+```json
+\r{
+  "type": 0,
+  "name": "INFO",
+  "code": 0,
+  "data": "Hello World!"
+}\n
+```
+
+Note: Max string length is `1024 - strlen("AT+INFO=\"\"\r") - 1 - TagLength`.
+
+#### Remove stored info string from device flash
+
+Request: `AT+INFO!\r`
+
+Response:
+
+```json
+\r{
+  "type": 0,
+  "name": "INFO!",
+  "code": 0,
+  "data": "Hello World!"
+}\n
+```
 
 #### Set a condition action trigger (Experimental)
 
@@ -646,7 +778,18 @@ No-reply.
 
 Request: `AT+BREAK\r`
 
-No-reply.
+Response:
+
+```json
+\n{
+  "type": 0,
+  "name": "BREAK",
+  "code": 0,
+  "data": 1530898
+}\r
+```
+
+Note: The `"data": <Unsigned>` filed is timestamp.
 
 #### Yield I/O task for 10ms
 
@@ -740,7 +883,7 @@ No-reply.
 | `2` | Available  |
 | `3` | Locked     |
 
-### Image Type
+### Data Type (Sample or Invoke)
 
 ```json
 "<Key:String>": "<Data:String>"
@@ -748,12 +891,9 @@ No-reply.
 
 Key:
 
-- `undefined`
-- `grayscale`
-- `jpeg`
-- `rgb565`
-- `rgb888`
-- `yuv422`
+- `image`
+- `audio`
+- `raw`
 
 Data: `<BASE64:String>`
 

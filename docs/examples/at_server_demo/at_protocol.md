@@ -1,4 +1,4 @@
-# AT Protocol Specification v2023.9.4
+# AT Protocol Specification v2023.9.5
 
 
 ## Transmission Layer
@@ -15,7 +15,7 @@
     - Command tag (optional): `<String>@`
     - Command name: `<String>`
     - Command arguments (optional): `=<Any>...`
-- Command terminator: `\n`
+- Command terminator: `\r`
 
 Note:
 
@@ -27,11 +27,11 @@ Note:
 All `AT` commands support tagging with a `@` delimiter.
 
 ```
-AT+<Tag:String>@<Body:String>\n
+AT+<Tag:String>@<Body:String>\r
 ```
 
 Example;
-- Request: `AT+10@ID?\n`
+- Request: `AT+10@ID?\r`
 - Response:
 
     ```json
@@ -45,10 +45,10 @@ Example;
 
 ### Command Types
 
-- Read-only operation: `AT+<String>?\n`
-- Execute operation: `AT+<String>!` or `AT+<String>=<Any>,<Any>...\n`
-- Config operation: `AT+T<String>=<Any>\n`
-- Reserved operation: `AT+<String>\n` or `AT+<String>=<Any>\n`
+- Read-only operation: `AT+<String>?\r`
+- Execute operation: `AT+<String>!\r` or `AT+<String>=<Any>,<Any>...\r`
+- Config operation: `AT+T<String>=<Any>\r`
+- Reserved operation: `AT+<String>\r` or `AT+<String>=<Any>\r`
 
 Note: The type `<Any>` means a number in string format or a quoated string (include escape characters).
 
@@ -130,7 +130,7 @@ Common format of normal replies:
 
 #### Get device ID
 
-Request: `AT+ID?\n`
+Request: `AT+ID?\r`
 
 Response:
 
@@ -145,7 +145,7 @@ Response:
 
 #### Get device name
 
-Request: `AT+NAME?\n`
+Request: `AT+NAME?\r`
 
 Response:
 
@@ -160,7 +160,7 @@ Response:
 
 #### Get device status
 
-Request: `AT+STAT?\n`
+Request: `AT+STAT?\r`
 
 Response:
 
@@ -191,7 +191,7 @@ Note: `"model": {..., "type": <AlgorithmType:Unsigned>,  ...}`.
 
 #### Get version deatils
 
-Request: `AT+VER?\n`
+Request: `AT+VER?\r`
 
 Response:
 
@@ -214,7 +214,7 @@ Note:
 
 #### Get available algorithms
 
-Request: `AT+ALGO?\n`
+Request: `AT+ALGOS?\r`
 
 Response:
 
@@ -252,7 +252,7 @@ Note: `"input_from": <SensorType:Unsigned>`.
 
 #### Get available models
 
-Request: `AT+MODELS?\n`
+Request: `AT+MODELS?\r`
 
 Response:
 
@@ -282,7 +282,7 @@ Note: `"type": <AlgorithmType:Unsigned>`.
 
 #### Get available sensors
 
-Request: `AT+SENSORS?\n`
+Request: `AT+SENSORS?\r`
 
 Response:
 
@@ -301,13 +301,51 @@ Response:
 }\n
 ```
 
+#### Get score threshold
+
+Request: `AT+TSCORE?\r`
+
+Response:
+
+```json
+\r{
+  "type": 0,
+  "name": "TSCORE?",
+  "code": 0,
+  "data": 60
+}\n
+```
+
+1. Available while invoking using a specified algorithm.
+1. Response `data` is the last valid config value.
+
+#### Get IoU threshold
+
+Request: `AT+TIOU?\r`
+
+Response:
+
+```json
+\r{
+  "type": 0,
+  "name": "TIOU?",
+  "code": 0,
+  "data": 55
+}\n
+```
+
+Note:
+
+1. Available while invoking using a specified algorithm.
+1. Response `data` is the last valid config value.
+
 ### Execute operation
 
 #### Load a model by model ID
 
-Pattern: `AT+MODEL=<MODEL_ID>\n`
+Pattern: `AT+MODEL=<MODEL_ID>\r`
 
-Request: `AT+MODEL=2\n`
+Request: `AT+MODEL=2\r`
 
 Response:
 
@@ -331,9 +369,9 @@ Note: `"model": {..., "type": <AlgorithmType:Unsigned>,  ...}`.
 
 ####  Set a default sensor by sensor ID
 
-Pattern: `AT+SENSOR=<SENSOR_ID,ENABLE/DISABLE>\n`
+Pattern: `AT+SENSOR=<SENSOR_ID,ENABLE/DISABLE>\r`
 
-Request: `AT+SENSOR=1,1\n`
+Request: `AT+SENSOR=1,1\r`
 
 Response:
 
@@ -354,9 +392,9 @@ Response:
 
 ####  Sample data from current sensor
 
-Pattern: `AT+SAMPLE=<N_TIMES>\n`
+Pattern: `AT+SAMPLE=<N_TIMES>\r`
 
-Request: `AT+SAMPLE=1\n`
+Request: `AT+SAMPLE=1\r`
 
 Response:
 
@@ -390,9 +428,9 @@ Events:
 
 #### Invoke for N times
 
-Pattern: `AT+INVOKE=<N_TIMES,RESULT_ONLY>\n`
+Pattern: `AT+INVOKE=<N_TIMES,RESULT_ONLY>\r`
 
-Request: `AT+INVOKE=1,1\n`
+Request: `AT+INVOKE=1,1\r`
 
 Response:
 
@@ -460,9 +498,9 @@ Note:
 
 #### Set a condition action trigger (Experimental)
 
-Pattern: `AT+ACTION=<"COND","TRUE_CMD","FALSE_OR_EXCEPTION_CMD">\n`
+Pattern: `AT+ACTION=<"COND","TRUE_CMD","FALSE_OR_EXCEPTION_CMD">\r`
 
-Request: `AT+ACTION="count(target,0)>=3","LED=1","LED=0"\n`
+Request: `AT+ACTION="count(target,0)>=3","LED=1","LED=0"\r`
 
 Response:
 
@@ -516,7 +554,7 @@ Note:
 
 #### Unset a condition action trigger (Experimental)
 
-Request: `AT+ACTION!\n`
+Request: `AT+ACTION!\r`
 
 Response:
 
@@ -533,9 +571,9 @@ Response:
 
 #### Set score threshold
 
-Pattern: `AT+TSCORE=<SCORE_THRESHOLD>\n`
+Pattern: `AT+TSCORE=<SCORE_THRESHOLD>\r`
 
-Request: `AT+TSCORE=60\n`
+Request: `AT+TSCORE=60\r`
 
 Response:
 
@@ -554,9 +592,9 @@ Response:
 
 #### Set IoU threshold
 
-Pattern: `AT+TIOU=<IOU_THRESHOLD>\n`
+Pattern: `AT+TIOU=<IOU_THRESHOLD>\r`
 
-Request: `AT+TIOU=55\n`
+Request: `AT+TIOU=55\r`
 
 Response:
 
@@ -579,15 +617,15 @@ Note:
 
 #### Set LED status
 
-Pattern: `AT+LED=<ENABLE/DISABLE>\n`
+Pattern: `AT+LED=<ENABLE/DISABLE>\r`
 
-Request: `AT+LED=1\n`
+Request: `AT+LED=1\r`
 
 No-reply.
 
 #### List available commands
 
-Request: `AT+HELP\n`
+Request: `AT+HELP\r`
 
 Response:
 
@@ -600,19 +638,19 @@ Command list:\n
 
 #### Reboot device
 
-Request: `AT+RST\n`
+Request: `AT+RST\r`
 
 No-reply.
 
 #### Stop all running tasks
 
-Request: `AT+BREAK\n`
+Request: `AT+BREAK\r`
 
 No-reply.
 
 #### Yield I/O task for 10ms
 
-Request: `AT+YIELD\n`
+Request: `AT+YIELD\r`
 
 No-reply.
 

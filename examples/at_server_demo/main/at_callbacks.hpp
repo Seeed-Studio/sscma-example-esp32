@@ -67,29 +67,12 @@ void at_get_device_name(const std::string& cmd) {
     serial->send_bytes(str.c_str(), str.size());
 }
 
-void at_get_device_status(const std::string& cmd,
-                          int32_t            boot_count,
-                          uint8_t            current_model_id,
-                          uint8_t            current_sensor_id) {
-    auto* device          = Device::get_device();
-    auto* serial          = device->get_serial();
-    auto* data_delegate   = DataDelegate::get_delegate();
-    auto* models          = data_delegate->get_models_handler();
-    auto* storage         = data_delegate->get_storage_handler();
-    auto* action_delegate = ActionDelegate::get_delegate();
-    auto  os              = std::ostringstream(std::ios_base::ate);
-    char  action_cmd[128]{};
-
-    if (action_delegate->has_condition() && storage->contains("action_cmd"))
-        *storage >> el_make_storage_kv("action_cmd", action_cmd);
-
-    auto model_info  = models->get_model_info(current_model_id);
-    auto sensor_info = device->get_sensor_info(current_sensor_id);
+void at_get_device_status(const std::string& cmd, int32_t boot_count) {
+    auto* serial        = Device::get_device()->get_serial();
+    auto  os            = std::ostringstream(std::ios_base::ate);
 
     os << REPLY_CMD_HEADER << "\"name\": \"" << cmd << "\", \"code\": " << static_cast<int>(EL_OK)
-       << ", \"data\": {\"boot_count\": " << static_cast<unsigned>(boot_count)
-       << ", \"model\": " << model_info_2_json(model_info) << ", \"sensor\": " << sensor_info_2_json(sensor_info)
-       << "}, \"action\": " << string_2_str(action_cmd) << "}\n";
+       << ", \"data\": {\"boot_count\": " << static_cast<unsigned>(boot_count) << "}}\n";
 
     const auto& str{os.str()};
     serial->send_bytes(str.c_str(), str.size());
@@ -103,6 +86,17 @@ void at_get_version(const std::string& cmd) {
     os << REPLY_CMD_HEADER << "\"name\": \"" << cmd << "\", \"code\": " << static_cast<int>(EL_OK)
        << ", \"data\": {\"software\": \"" << EL_VERSION << "\", \"hardware\": \""
        << static_cast<unsigned>(device->get_chip_revision_id()) << "\"}}\n";
+
+    const auto& str{os.str()};
+    serial->send_bytes(str.c_str(), str.size());
+}
+
+void at_break(const std::string& cmd) {
+    auto* serial = Device::get_device()->get_serial();
+    auto  os     = std::ostringstream(std::ios_base::ate);
+
+    os << REPLY_CMD_HEADER << "\"name\": \"" << cmd << "\", \"code\": " << static_cast<int>(EL_OK)
+       << ", \"data\": " << el_get_time_ms() << "}\n";
 
     const auto& str{os.str()};
     serial->send_bytes(str.c_str(), str.size());
@@ -170,6 +164,12 @@ void at_set_model(const std::string& cmd, uint8_t model_id, InferenceEngine* eng
     if (ret != EL_OK) [[unlikely]]
         goto ModelError;
 
+    model_info.type = model_info.type ? model_info.type : el_algorithm_type_from_engine(engine);
+    if (model_info.type == 0) [[unlikely]] {
+        ret = EL_EINVAL;
+        goto ModelError;
+    }
+
     if (current_model_id != model_id) {
         current_model_id = model_id;
         *storage << el_make_storage_kv("current_model_id", current_model_id);
@@ -183,6 +183,29 @@ ModelError:
 ModelReply:
     os << REPLY_CMD_HEADER << "\"name\": \"" << cmd << "\", \"code\": " << static_cast<int>(ret)
        << ", \"data\": {\"model\": " << model_info_2_json(model_info) << "}}\n";
+
+    const auto& str{os.str()};
+    serial->send_bytes(str.c_str(), str.size());
+}
+
+void at_get_model_info(const std::string& cmd, const InferenceEngine* engine, uint8_t current_model_id) {
+    auto* serial        = Device::get_device()->get_serial();
+    auto* data_delegate = DataDelegate::get_delegate();
+    auto* models        = data_delegate->get_models_handler();
+    auto  os            = std::ostringstream(std::ios_base::ate);
+
+    el_model_info_t model_info = models->get_model_info(current_model_id);
+    el_err_code_t   ret        = model_info.id ? EL_OK : EL_EINVAL;
+    if (ret != EL_OK) [[unlikely]]
+        goto ModelInfoReply;
+
+    model_info.type = model_info.type ? model_info.type : el_algorithm_type_from_engine(engine);
+    if (model_info.type == 0) [[unlikely]]
+        ret = EL_EINVAL;
+
+ModelInfoReply:
+    os << REPLY_CMD_HEADER << "\"name\": \"" << cmd << "\", \"code\": " << static_cast<int>(ret)
+       << ", \"data\": " << model_info_2_json(model_info) << "}\n";
 
     const auto& str{os.str()};
     serial->send_bytes(str.c_str(), str.size());
@@ -254,7 +277,25 @@ SensorReply:
     serial->send_bytes(str.c_str(), str.size());
 }
 
-void at_run_sample(const std::string& cmd, int n_times, std::atomic<bool>& stop_token, uint8_t current_sensor_id) {
+void at_get_sensor_info(const std::string& cmd, uint8_t current_sensor_id) {
+    auto* device        = Device::get_device();
+    auto* serial        = device->get_serial();
+    auto  os            = std::ostringstream(std::ios_base::ate);
+
+    auto sensor_info = device->get_sensor_info(current_sensor_id);
+
+    os << REPLY_CMD_HEADER << "\"name\": \"" << cmd << "\", \"code\": " << static_cast<int>(EL_OK)
+       << ", \"data\": " << sensor_info_2_json(sensor_info) << "}\n";
+
+    const auto& str{os.str()};
+    serial->send_bytes(str.c_str(), str.size());
+}
+
+void at_run_sample(const std::string& cmd,
+                   int                n_times,
+                   std::atomic<bool>& stop_token,
+                   uint8_t            current_sensor_id,
+                   std::atomic<bool>& is_sample) {
     auto* device      = Device::get_device();
     auto* serial      = device->get_serial();
     auto  sensor_info = device->get_sensor_info(current_sensor_id);
@@ -296,6 +337,8 @@ void at_run_sample(const std::string& cmd, int n_times, std::atomic<bool>& stop_
                                    .format = EL_PIXEL_FORMAT_UNKNOWN,
                                    .rotate = EL_PIXEL_ROTATE_UNKNOWN};
 
+        is_sample.store(true);
+
         while ((n_times < 0 || --n_times >= 0) && !stop_token.load()) {
             ret = camera->start_stream();
             if (ret != EL_OK) [[unlikely]]
@@ -314,6 +357,9 @@ void at_run_sample(const std::string& cmd, int n_times, std::atomic<bool>& stop_
             event_reply("");
             break;
         }
+
+        is_sample.store(false);
+
         return;
     } else
         ret = EL_EINVAL;
@@ -323,8 +369,12 @@ SampleErrorReply:
 }
 
 template <typename AlgorithmType>
-void run_invoke_on_img(
-  AlgorithmType* algorithm, const std::string& cmd, int n_times, bool result_only, std::atomic<bool>& stop_token) {
+void run_invoke_on_img(AlgorithmType*     algorithm,
+                       const std::string& cmd,
+                       int                n_times,
+                       bool               result_only,
+                       std::atomic<bool>& stop_token,
+                       std::atomic<bool>& is_invoke) {
     auto*         device          = Device::get_device();
     auto*         camera          = device->get_camera();
     auto*         display         = device->get_display();
@@ -377,6 +427,8 @@ void run_invoke_on_img(
         action_delegate->set_mutable_map(mutable_map);
     }
 
+    is_invoke.store(true);
+
     while ((n_times < 0 || --n_times >= 0) && !stop_token.load()) {
         ret = camera->start_stream();
         if (ret != EL_OK) [[unlikely]]
@@ -406,6 +458,8 @@ void run_invoke_on_img(
         event_reply();
         break;
     }
+
+    is_invoke.store(false);
 }
 
 void at_run_invoke(const std::string& cmd,
@@ -414,7 +468,8 @@ void at_run_invoke(const std::string& cmd,
                    std::atomic<bool>& stop_token,
                    InferenceEngine*   engine,
                    uint8_t            current_model_id,
-                   uint8_t            current_sensor_id) {
+                   uint8_t            current_sensor_id,
+                   std::atomic<bool>& is_invoke) {
     auto* device             = Device::get_device();
     auto* serial             = device->get_serial();
     auto* algorithm_delegate = AlgorithmDelegate::get_delegate();
@@ -432,9 +487,9 @@ void at_run_invoke(const std::string& cmd,
         os << REPLY_CMD_HEADER << "\"name\": \"" << cmd << "\", \"code\": " << static_cast<int>(ret)
            << ", \"data\": {\"model\": " << model_info_2_json(model_info)
            << ", \"algorithm\": {\"type\": " << static_cast<unsigned>(algorithm_info.type)
-           << ", \"category\": " << static_cast<unsigned>(algorithm_info.categroy) << ", \"input_from\": "
-           << static_cast<unsigned>(algorithm_info.input_from) << ", \"config\": {" << algorithm_config
-           << "}}, \"sensor\": " << sensor_info_2_json(sensor_info) << "}}\n";
+           << ", \"category\": " << static_cast<unsigned>(algorithm_info.categroy)
+           << ", \"input_from\": " << static_cast<unsigned>(algorithm_info.input_from) << ", \"config\": {"
+           << algorithm_config << "}}, \"sensor\": " << sensor_info_2_json(sensor_info) << "}}\n";
 
         const auto& str{os.str()};
         serial->send_bytes(str.c_str(), str.size());
@@ -464,7 +519,7 @@ void at_run_invoke(const std::string& cmd,
         auto algo_config_helper{AlgorithmConfigHelper<AlgorithmIMCLS>(algorithm.get())};
         direct_reply(algorithm_config_2_json_str(algo_config_helper.dump_config()));
 
-        run_invoke_on_img(algorithm.get(), cmd, n_times, result_only, stop_token);
+        run_invoke_on_img(algorithm.get(), cmd, n_times, result_only, stop_token, is_invoke);
     }
         return;
 
@@ -474,7 +529,7 @@ void at_run_invoke(const std::string& cmd,
         auto algo_config_helper{AlgorithmConfigHelper<AlgorithmFOMO>(algorithm.get())};
         direct_reply(algorithm_config_2_json_str(algo_config_helper.dump_config()));
 
-        run_invoke_on_img(algorithm.get(), cmd, n_times, result_only, stop_token);
+        run_invoke_on_img(algorithm.get(), cmd, n_times, result_only, stop_token, is_invoke);
     }
         return;
 
@@ -482,7 +537,7 @@ void at_run_invoke(const std::string& cmd,
         std::unique_ptr<AlgorithmPFLD> algorithm(new AlgorithmPFLD(engine));
         direct_reply(algorithm_config_2_json_str(algorithm->get_algorithm_config()));
 
-        run_invoke_on_img(algorithm.get(), cmd, n_times, result_only, stop_token);
+        run_invoke_on_img(algorithm.get(), cmd, n_times, result_only, stop_token, is_invoke);
     }
         return;
 
@@ -492,7 +547,7 @@ void at_run_invoke(const std::string& cmd,
         auto algo_config_helper{AlgorithmConfigHelper<AlgorithmYOLO>(algorithm.get())};
         direct_reply(algorithm_config_2_json_str(algo_config_helper.dump_config()));
 
-        run_invoke_on_img(algorithm.get(), cmd, n_times, result_only, stop_token);
+        run_invoke_on_img(algorithm.get(), cmd, n_times, result_only, stop_token, is_invoke);
     }
         return;
 
@@ -505,6 +560,17 @@ InvokeErrorReply:
     direct_reply("");
 }
 
+void at_get_task_status(const std::string& cmd, const std::atomic<bool>& sta) {
+    auto* serial = Device::get_device()->get_serial();
+    auto  os     = std::ostringstream(std::ios_base::ate);
+
+    os << REPLY_CMD_HEADER << "\"name\": \"" << cmd << "\", \"code\": " << static_cast<int>(EL_OK)
+       << ", \"data\": " << (sta.load() ? 1 : 0) << "}\n";
+
+    const auto& str{os.str()};
+    serial->send_bytes(str.c_str(), str.size());
+}
+
 void at_set_action(const std::vector<std::string>& argv) {
     auto* serial          = Device::get_device()->get_serial();
     auto* storage         = DataDelegate::get_delegate()->get_storage_handler();
@@ -512,7 +578,7 @@ void at_set_action(const std::vector<std::string>& argv) {
     auto* action_delegate = ActionDelegate::get_delegate();
     auto  os              = std::ostringstream(std::ios_base::ate);
     auto  cmd             = std::string{};
-    char  action_cmd[128]{};
+    char  action[CMD_MAX_LENGTH]{};
 
     el_err_code_t ret = action_delegate->set_condition(argv[1]) ? EL_OK : EL_EINVAL;
     if (ret != EL_OK) [[unlikely]]
@@ -539,9 +605,8 @@ void at_set_action(const std::vector<std::string>& argv) {
         builder << "AT+" << argv[0] << '=' << string_2_str(argv[1]) << ',' << string_2_str(argv[2]) << ','
                 << string_2_str(argv[3]);
         cmd = builder.str();
-        std::strncpy(action_cmd, cmd.c_str(), sizeof(action_cmd) - 1);
-        auto kv = el_make_storage_kv("action_cmd", action_cmd);
-        *storage << kv;
+        std::strncpy(action, cmd.c_str(), sizeof(action) - 1);
+        ret = storage->emplace(el_make_storage_kv("edgelab_action", action)) ? EL_OK : EL_EIO;
     }
 
 ActionReply:
@@ -554,22 +619,93 @@ ActionReply:
 }
 
 void at_unset_action(const std::string& cmd) {
-    auto* serial          = Device::get_device()->get_serial();
-    auto* storage         = DataDelegate::get_delegate()->get_storage_handler();
-    auto* action_delegate = ActionDelegate::get_delegate();
-    auto  os              = std::ostringstream(std::ios_base::ate);
-    char  action_cmd[128]{};
+    auto*         serial          = Device::get_device()->get_serial();
+    auto*         storage         = DataDelegate::get_delegate()->get_storage_handler();
+    auto*         action_delegate = ActionDelegate::get_delegate();
+    auto          os              = std::ostringstream(std::ios_base::ate);
+    char          action[CMD_MAX_LENGTH]{};
     el_err_code_t ret = EL_EINVAL;
 
-    if (action_delegate->has_condition() && storage->contains("action_cmd")) {
-        *storage >> el_make_storage_kv("action_cmd", action_cmd);
+    if (action_delegate->has_condition() && storage->contains("edgelab_action")) {
+        *storage >> el_make_storage_kv("edgelab_action", action);
 
         action_delegate->unset_condition();
-        ret = storage->erase("action_cmd") ? EL_OK : EL_EIO;
+        ret = storage->erase("edgelab_action") ? EL_OK : EL_EINVAL;
     }
 
     os << REPLY_CMD_HEADER << "\"name\": \"" << cmd << "\", \"code\": " << static_cast<int>(ret)
-       << ", \"data\": " << string_2_str(action_cmd) << "}\n";
+       << ", \"data\": " << string_2_str(action) << "}\n";
+
+    const auto& str{os.str()};
+    serial->send_bytes(str.c_str(), str.size());
+}
+
+void at_get_action(const std::string& cmd) {
+    auto*         serial          = Device::get_device()->get_serial();
+    auto*         storage         = DataDelegate::get_delegate()->get_storage_handler();
+    auto*         action_delegate = ActionDelegate::get_delegate();
+    auto          os              = std::ostringstream(std::ios_base::ate);
+    char          action[CMD_MAX_LENGTH]{};
+    el_err_code_t ret = EL_EINVAL;
+
+    if (action_delegate->has_condition() && storage->contains("edgelab_action"))
+        ret = storage->get(el_make_storage_kv("edgelab_action", action)) ? EL_OK : EL_EINVAL;
+
+    os << REPLY_CMD_HEADER << "\"name\": \"" << cmd << "\", \"code\": " << static_cast<int>(ret)
+       << ", \"data\": " << string_2_str(action) << "}\n";
+
+    const auto& str{os.str()};
+    serial->send_bytes(str.c_str(), str.size());
+}
+
+void at_set_info(const std::vector<std::string>& argv) {
+    auto*         serial  = Device::get_device()->get_serial();
+    auto*         storage = DataDelegate::get_delegate()->get_storage_handler();
+    auto          os      = std::ostringstream(std::ios_base::ate);
+    char          info[CMD_MAX_LENGTH]{};
+    el_err_code_t ret = EL_EINVAL;
+
+    std::strncpy(info, argv[1].c_str(), sizeof(info) - 1);
+    ret = storage->emplace(el_make_storage_kv("edgelab_info", info)) ? EL_OK : EL_EINVAL;
+
+    os << REPLY_CMD_HEADER << "\"name\": \"" << argv[0] << "\", \"code\": " << static_cast<int>(ret)
+       << ", \"data\": " << string_2_str(info) << "}\n";
+
+    const auto& str{os.str()};
+    serial->send_bytes(str.c_str(), str.size());
+}
+
+void at_unset_info(const std::string& cmd) {
+    auto*         serial  = Device::get_device()->get_serial();
+    auto*         storage = DataDelegate::get_delegate()->get_storage_handler();
+    auto          os      = std::ostringstream(std::ios_base::ate);
+    char          info[CMD_MAX_LENGTH]{};
+    el_err_code_t ret = EL_EINVAL;
+
+    if (storage->contains("edgelab_info")) {
+        *storage >> el_make_storage_kv("edgelab_info", info);
+        ret = storage->erase("edgelab_info") ? EL_OK : EL_EIO;
+    }
+
+    os << REPLY_CMD_HEADER << "\"name\": \"" << cmd << "\", \"code\": " << static_cast<int>(ret)
+       << ", \"data\": " << string_2_str(info) << "}\n";
+
+    const auto& str{os.str()};
+    serial->send_bytes(str.c_str(), str.size());
+}
+
+void at_get_info(const std::string& cmd) {
+    auto*         serial  = Device::get_device()->get_serial();
+    auto*         storage = DataDelegate::get_delegate()->get_storage_handler();
+    auto          os      = std::ostringstream(std::ios_base::ate);
+    char          info[CMD_MAX_LENGTH]{};
+    el_err_code_t ret = EL_EINVAL;
+
+    if (storage->contains("edgelab_info"))
+        ret = storage->get(el_make_storage_kv("edgelab_info", info)) ? EL_OK : EL_EINVAL;
+
+    os << REPLY_CMD_HEADER << "\"name\": \"" << cmd << "\", \"code\": " << static_cast<int>(ret)
+       << ", \"data\": " << string_2_str(info) << "}\n";
 
     const auto& str{os.str()};
     serial->send_bytes(str.c_str(), str.size());

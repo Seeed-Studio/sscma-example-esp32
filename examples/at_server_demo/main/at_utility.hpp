@@ -118,7 +118,7 @@ std::string img_2_jpeg_json_str(const el_img_t* img) {
     if (!img || !img->data) [[unlikely]]
         return {};
 
-    os << "\"jpeg\": \"";
+    os << "\"image\": \"";
     size_t size     = img->width * img->height * 3;
     auto   jpeg_img = el_img_t{.data   = new uint8_t[size]{},
                                .size   = size,
@@ -156,10 +156,10 @@ template <typename ConfigType> std::string algorithm_config_2_json_str(const Con
 
     if constexpr (std::is_same<ConfigType, el_algorithm_fomo_config_t>::value ||
                   std::is_same<ConfigType, el_algorithm_imcls_config_t>::value)
-        os << "\"score_threshold\": " << static_cast<unsigned>(config.score_threshold);
+        os << "\"tscore\": " << static_cast<unsigned>(config.score_threshold);
     else if constexpr (std::is_same<ConfigType, el_algorithm_yolo_config_t>::value)
-        os << "\"score_threshold\": " << static_cast<unsigned>(config.score_threshold)
-           << ", \"iou_threshold\": " << static_cast<unsigned>(config.iou_threshold);
+        os << "\"tscore\": " << static_cast<unsigned>(config.score_threshold)
+           << ", \"tiou\": " << static_cast<unsigned>(config.iou_threshold);
 
     return std::string(os.str());
 }

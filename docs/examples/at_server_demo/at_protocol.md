@@ -311,7 +311,7 @@ Response:
 }\n
 ```
 
-Note: `"type": <AlgorithmType:Unsigned>`.
+Note: `"type": <SensorType:Unsigned>`.
 
 #### Get current sensor info
 
@@ -332,7 +332,7 @@ Response:
 }\n
 ```
 
-Note: `"type": <AlgorithmType:Unsigned>`.
+Note: `"type": <SensorType:Unsigned>`.
 
 #### Get sample status
 

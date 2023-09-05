@@ -80,7 +80,7 @@ size_t SerialEsp::get_line(char* buffer, size_t size, const char delim) {
     size_t pos{0};
     char   c{'\0'};
     while (pos < size - 2) {
-        if (!usb_serial_jtag_read_bytes(&c, 1, 15 / portTICK_PERIOD_MS)) continue;
+        if (!usb_serial_jtag_read_bytes(&c, 1, 10 / portTICK_PERIOD_MS)) continue;
 
         if (c == delim) [[unlikely]] {
             buffer[pos++] = c;
@@ -101,7 +101,7 @@ el_err_code_t SerialEsp::read_bytes(char* buffer, size_t size) {
     while (size) {
         size_t bytes_to_read{size < _driver_config.rx_buffer_size ? size : _driver_config.rx_buffer_size};
 
-        read += usb_serial_jtag_read_bytes(buffer + pos_of_bytes, bytes_to_read, 15 / portTICK_PERIOD_MS);
+        read += usb_serial_jtag_read_bytes(buffer + pos_of_bytes, bytes_to_read, 10 / portTICK_PERIOD_MS);
         pos_of_bytes += bytes_to_read;
         size -= bytes_to_read;
     }
@@ -120,7 +120,7 @@ el_err_code_t SerialEsp::send_bytes(const char* buffer, size_t size) {
     while (size) {
         size_t bytes_to_send{size < _driver_config.tx_buffer_size ? size : _driver_config.tx_buffer_size};
 
-        sent += usb_serial_jtag_write_bytes(buffer + pos_of_bytes, bytes_to_send, 20 / portTICK_PERIOD_MS);
+        sent += usb_serial_jtag_write_bytes(buffer + pos_of_bytes, bytes_to_send, 10 / portTICK_PERIOD_MS);
         pos_of_bytes += bytes_to_send;
         size -= bytes_to_send;
     }

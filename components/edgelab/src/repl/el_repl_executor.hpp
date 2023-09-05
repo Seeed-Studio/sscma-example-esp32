@@ -59,8 +59,8 @@ class ReplExecutor {
     const char* get_worker_name() const;
 
    protected:
-    inline void m_lock() const { xSemaphoreTake(_task_queue_lock, portMAX_DELAY); }
-    inline void m_unlock() const { xSemaphoreGive(_task_queue_lock); }
+    void m_lock() const;
+    void m_unlock() const;
 
     void        run();
     static void c_run(void* this_pointer);

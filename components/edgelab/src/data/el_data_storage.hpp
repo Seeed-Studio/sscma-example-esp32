@@ -75,7 +75,7 @@ static inline constexpr edgelab::data::types::el_storage_kv_t<ValueTypeNoCV> el_
     return edgelab::data::types::el_storage_kv_t<ValueTypeNoCV>(key, std::forward<ValueTypeNoCV>(value));
 }
 
-static inline constexpr unsigned long djb2_hash(const unsigned char* bytes) {
+static inline unsigned long djb2_hash(const unsigned char* bytes) {
     unsigned long hash = 0x1505;
     unsigned char byte;
     while ((byte = *bytes++)) hash = ((hash << 5) + hash) + byte;
@@ -132,6 +132,8 @@ class Storage {
 
     el_err_code_t init(const char* name = CONFIG_EL_STORAGE_NAME, const char* path = CONFIG_EL_STORAGE_PATH);
     void          deinit();
+
+    struct Iterator;
 
     bool contains(const char* key) const;
 
@@ -212,79 +214,29 @@ class Storage {
         return fdb_kv_set_blob(__kvdb, kv.key, fdb_blob_make(&blob, &kv.value, kv.size)) == FDB_NO_ERR;
     }
 
-    struct Iterator {
-        using iterator_category = std::forward_iterator_tag;
-        using difference_type   = std::ptrdiff_t;
-        using value_type        = const char[FDB_KV_NAME_MAX];
-        using pointer           = value_type*;
-        using reference         = value_type&;
-
-        explicit Iterator(const Storage* const storage) : ___storage(storage), ___kvdb(nullptr), ___iterator(), ___reach_end(true) {
-            if (!___storage) return;
-            volatile const Guard guard(___storage);
-            ___kvdb = storage->__kvdb;
-            if (___kvdb) [[likely]] {
-                fdb_kv_iterator_init(___kvdb, &___iterator);
-                ___reach_end = !fdb_kv_iterate(___kvdb, &___iterator);
-            }
-        }
-
-        reference operator*() const { return ___iterator.curr_kv.name; }
-
-        pointer operator->() const { return &___iterator.curr_kv.name; }
-
-        Iterator& operator++() {
-            if (!___storage || !___kvdb) [[unlikely]]
-                return *this;
-            volatile const Guard guard(___storage);
-            ___reach_end = !fdb_kv_iterate(___kvdb, &___iterator);
-            return *this;
-        }
-
-        Iterator operator++(int) {
-            Iterator tmp = *this;
-            ++(*this);
-            return tmp;
-        }
-
-        friend bool operator==(const Iterator& lfs, const Iterator& rhs) {
-            return lfs.___reach_end == rhs.___reach_end;
-        };
-
-        friend bool operator!=(const Iterator& lfs, const Iterator& rhs) {
-            return lfs.___reach_end != rhs.___reach_end;
-        }
-
-       protected:
-        const Storage* const ___storage;
-        fdb_kvdb_t           ___kvdb;
-        fdb_kv_iterator      ___iterator;
-        bool                 ___reach_end;
-    };
-
-    Iterator begin() { return Iterator(this); }
-    Iterator end() { return Iterator(nullptr); }
-    Iterator cbegin() const { return Iterator(this); }
-    Iterator cend() const { return Iterator(nullptr); }
+    Iterator begin();
+    Iterator end();
+    Iterator cbegin() const;
+    Iterator cend() const;
 
     bool erase(const char* key);
     void clear();
     bool reset();
 
    protected:
-    inline void m_lock() const noexcept { xSemaphoreTake(__lock, portMAX_DELAY); }
-    inline void m_unlock() const noexcept { xSemaphoreGive(__lock); }
-
     struct Guard {
         Guard(const Storage* const storage) noexcept : ___storage(storage) { ___storage->m_lock(); }
         ~Guard() noexcept { ___storage->m_unlock(); }
-        
+
         Guard(const Guard&)            = delete;
         Guard& operator=(const Guard&) = delete;
 
        private:
         const Storage* const ___storage;
     };
+
+    inline void m_lock() const { xSemaphoreTake(__lock, portMAX_DELAY); }
+    inline void m_unlock() const { xSemaphoreGive(__lock); }
 
    private:
     mutable SemaphoreHandle_t __lock;

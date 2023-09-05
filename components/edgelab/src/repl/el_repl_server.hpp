@@ -103,19 +103,6 @@ class ReplServer {
     void          loop(char c);
 
    protected:
-    void m_unregister_cmd(const std::string& cmd);
-
-    el_err_code_t m_exec_cmd(const std::string& line);
-
-    template <typename... Args> inline void m_echo_cb(el_err_code_t ret, Args&&... args) {
-        auto os{std::ostringstream(std::ios_base::ate)};
-        ((os << (std::forward<Args>(args))), ...);
-        _echo_cb(ret, os.str());
-    }
-
-    inline void m_lock(SemaphoreHandle_t lock) const { xSemaphoreTake(lock, portMAX_DELAY); }
-    inline void m_unlock(SemaphoreHandle_t lock) const { xSemaphoreGive(lock); }
-
     struct Guard {
         Guard(const ReplServer* const repl_server, SemaphoreHandle_t& lock) noexcept
             : __repl_server(repl_server), __lock(lock) {
@@ -130,6 +117,19 @@ class ReplServer {
         const ReplServer* const __repl_server;
         SemaphoreHandle_t&      __lock;
     };
+
+    void m_unregister_cmd(const std::string& cmd);
+
+    el_err_code_t m_exec_cmd(const std::string& line);
+
+    template <typename... Args> inline void m_echo_cb(el_err_code_t ret, Args&&... args) {
+        auto os{std::ostringstream(std::ios_base::ate)};
+        ((os << (std::forward<Args>(args))), ...);
+        _echo_cb(ret, os.str());
+    }
+
+    inline void m_lock(SemaphoreHandle_t lock) const { xSemaphoreTake(lock, portMAX_DELAY); }
+    inline void m_unlock(SemaphoreHandle_t lock) const { xSemaphoreGive(lock); }
 
    private:
     ReplHistory _history;

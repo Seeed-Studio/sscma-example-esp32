@@ -41,7 +41,7 @@ namespace types {
 struct el_algorithm_fomo_config_t {
     static constexpr el_algorithm_info_t info{
       .type = EL_ALGO_TYPE_FOMO, .categroy = EL_ALGO_CAT_DET, .input_from = EL_SENSOR_TYPE_CAM};
-    uint8_t score_threshold;
+    uint8_t score_threshold = 80;
 };
 
 }  // namespace types
@@ -55,7 +55,7 @@ class FOMO : public edgelab::algorithm::base::Algorithm {
 
     static InfoType algorithm_info;
 
-    FOMO(EngineType* engine, ScoreType score_threshold = 50);
+    FOMO(EngineType* engine, ScoreType score_threshold = 80);
     FOMO(EngineType* engine, const ConfigType& config);
     ~FOMO();
 

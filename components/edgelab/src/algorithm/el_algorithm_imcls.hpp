@@ -41,7 +41,7 @@ namespace types {
 struct el_algorithm_imcls_config_t {
     static constexpr el_algorithm_info_t info{
       .type = EL_ALGO_TYPE_IMCLS, .categroy = EL_ALGO_CAT_CLS, .input_from = EL_SENSOR_TYPE_CAM};
-    uint8_t score_threshold;
+    uint8_t score_threshold = 50;
 };
 
 }  // namespace types

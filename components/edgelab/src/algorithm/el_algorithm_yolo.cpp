@@ -87,7 +87,7 @@ bool YOLO::is_model_valid(const EngineType* engine) {
     if (output_shape.size != 3 ||            // B, IB, BC...
         output_shape.dims[0] != 1 ||         // B = 1
         output_shape.dims[1] != ibox_len ||  // IB is based on input shape
-        output_shape.dims[2] < 6 ||          // 6 <= BC - 5[XYWHC] <= 80
+        output_shape.dims[2] < 6 ||          // 6 <= BC - 5[XYWHC] <= 80 (could be larger than 80)
         output_shape.dims[2] > 85)
         return false;
 

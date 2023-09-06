@@ -41,8 +41,8 @@ namespace types {
 struct el_algorithm_yolo_config_t {
     static constexpr el_algorithm_info_t info{
       .type = EL_ALGO_TYPE_YOLO, .categroy = EL_ALGO_CAT_DET, .input_from = EL_SENSOR_TYPE_CAM};
-    uint8_t score_threshold;
-    uint8_t iou_threshold;
+    uint8_t score_threshold = 50;
+    uint8_t iou_threshold = 45;
 };
 
 }  // namespace types

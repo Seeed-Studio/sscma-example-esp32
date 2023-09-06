@@ -244,7 +244,7 @@ extern "C" void app_main(void) {
         if (storage->contains("edgelab_action")) {
             char action[CMD_MAX_LENGTH]{};
             *storage >> el_make_storage_kv("edgelab_action", action);
-            instance->exec(action);
+            instance->exec(action_str_2_cmd(action));
         }
         // cmd = std::string("AT+INVOKE=-1,1");
         // instance->exec(cmd);

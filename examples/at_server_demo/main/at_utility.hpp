@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <forward_list>
 #include <iomanip>
@@ -320,4 +321,31 @@ std::vector<std::string> tokenize_function_2_argv(const std::string& input) {
     argv.shrink_to_fit();
 
     return argv;
+}
+
+std::string action_str_2_json(const char* str) {
+    std::ostringstream         os;
+    std::string                buf;
+    std::stringstream          ss(str);
+    std::array<std::string, 3> argv_3{};
+
+    for (size_t i = 0; i < argv_3.size() && std::getline(ss, buf, '\t'); ++i) argv_3[i] = string_2_str(buf);
+
+    os << "\"cond\": " << string_2_str(argv_3[0]) << ", \"true\": " << string_2_str(argv_3[1])
+       << ", \"false_or_exception\": " << string_2_str(argv_3[2]);
+
+    return std::string(os.str());
+}
+
+std::string action_str_2_cmd(const char* str) {
+    std::ostringstream         os;
+    std::string                buf;
+    std::stringstream          ss(str);
+    std::array<std::string, 3> argv_3{};
+
+    for (size_t i = 0; i < argv_3.size() && std::getline(ss, buf, '\t'); ++i) argv_3[i] = buf;
+
+    os << "AT+ACTION=" << string_2_str(argv_3[0]) << "," << string_2_str(argv_3[1]) << "," << string_2_str(argv_3[2]);
+
+    return std::string(os.str());
 }

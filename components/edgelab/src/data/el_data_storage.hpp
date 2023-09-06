@@ -140,7 +140,7 @@ class Storage {
     // size of the buffer should be equal to handler->value_len
     template <typename ValueType, typename std::enable_if<!std::is_const<ValueType>::value>::type* = nullptr>
     bool get(types::el_storage_kv_t<ValueType>& kv) const {
-        volatile const Guard guard(this);
+        const Guard guard(this);
         if (!kv.size || !__kvdb) [[unlikely]]
             return false;
 

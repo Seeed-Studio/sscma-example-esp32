@@ -74,10 +74,10 @@ void el_model_partition_mmap_deinit(spi_flash_mmap_handle_t* mmap_handler);
         #define FDB_KV_AUTO_UPDATE
     #endif
     #define FDB_USING_FAL_MODE
-    #define FDB_WRITE_GRAN       (1)
-    #define FLASH_ERASE_MIN_SIZE (4 * 1024)
+    #define FDB_WRITE_GRAN (1)
+    #define FDB_BLOCK_SIZE (8 * 1024)
 
-    #ifdef CONFIG_EL_DEBUG
+    #if CONFIG_EL_DEBUG >= 1
         #define FDB_DEBUG_ENABLE
     #endif
 

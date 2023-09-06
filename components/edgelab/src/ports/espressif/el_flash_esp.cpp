@@ -33,10 +33,10 @@ static SemaphoreHandle_t      el_flash_db_lock      = NULL;
 const static esp_partition_t* el_flash_db_partition = NULL;
 
 el_err_code_t el_model_partition_mmap_init(const char*              partition_name,
-                                    uint32_t*                partition_start_addr,
-                                    uint32_t*                partition_size,
-                                    const uint8_t**          flash_2_memory_map,
-                                    spi_flash_mmap_handle_t* mmap_handler) {
+                                           uint32_t*                partition_start_addr,
+                                           uint32_t*                partition_size,
+                                           const uint8_t**          flash_2_memory_map,
+                                           spi_flash_mmap_handle_t* mmap_handler) {
     const esp_partition_t* partition{
       esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_DATA_UNDEFINED, partition_name)};
     if (!partition) return EL_EINVAL;
@@ -92,10 +92,10 @@ static int el_flash_db_write(long offset, const uint8_t* buf, size_t size) {
 
 static int el_flash_db_erase(long offset, size_t size) {
     esp_err_t ret;
-    int32_t   erase_size = ((size - 1) / FLASH_ERASE_MIN_SIZE) + 1;
+    int32_t   erase_size = ((size - 1) / FDB_BLOCK_SIZE) + 1;
 
     xSemaphoreTake(el_flash_db_lock, portMAX_DELAY);
-    ret = esp_partition_erase_range(el_flash_db_partition, offset, erase_size * FLASH_ERASE_MIN_SIZE);
+    ret = esp_partition_erase_range(el_flash_db_partition, offset, erase_size * FDB_BLOCK_SIZE);
     xSemaphoreGive(el_flash_db_lock);
 
     return ret;
@@ -106,10 +106,10 @@ static int el_flash_db_erase(long offset, size_t size) {
 const struct fal_flash_dev el_flash_db_nor_flash0 = {
   .name       = NOR_FLASH_DEV_NAME,
   .addr       = 0x0,
-  .len        = 64 * 1024,
-  .blk_size   = FLASH_ERASE_MIN_SIZE,
+  .len        = 192 * 1024,
+  .blk_size   = FDB_BLOCK_SIZE,
   .ops        = {el_flash_db_init, el_flash_db_read, el_flash_db_write, el_flash_db_erase},
-  .write_gran = 1,
+  .write_gran = FDB_WRITE_GRAN,
 };
 
 #endif

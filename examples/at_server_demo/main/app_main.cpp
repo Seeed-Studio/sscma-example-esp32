@@ -188,7 +188,7 @@ extern "C" void app_main(void) {
 
     // Note: AT+ACTION="count(id,0)>=3","LED=1","LED=0"
     instance->register_cmd("ACTION",
-                           "Set a condition action trigger",
+                           "Set action trigger",
                            "\"COND\",\"TRUE_CMD\",\"FALSE_OR_EXCEPTION_CMD\"",
                            el_repl_cmd_cb_t([&](std::vector<std::string> argv) {
                                at_set_action(argv);
@@ -196,13 +196,13 @@ extern "C" void app_main(void) {
                            }));
 
     instance->register_cmd(
-      "ACTION!", "Reset action trigger condition", "", el_repl_cmd_cb_t([&](std::vector<std::string> argv) {
+      "ACTION!", "Remove action trigger", "", el_repl_cmd_cb_t([&](std::vector<std::string> argv) {
           at_unset_action(argv[0]);
           return EL_OK;
       }));
 
     instance->register_cmd(
-      "ACTION?", "Get action trigger raw command", "", el_repl_cmd_cb_t([&](std::vector<std::string> argv) {
+      "ACTION?", "Get action trigger", "", el_repl_cmd_cb_t([&](std::vector<std::string> argv) {
           at_get_action(argv[0]);
           return EL_OK;
       }));
@@ -216,13 +216,13 @@ extern "C" void app_main(void) {
                            }));
 
     instance->register_cmd(
-      "INFO!", "Remove stored info string from device flash", "", el_repl_cmd_cb_t([&](std::vector<std::string> argv) {
+      "INFO!", "Remove info string from device flash", "", el_repl_cmd_cb_t([&](std::vector<std::string> argv) {
           at_unset_info(argv[0]);
           return EL_OK;
       }));
 
     instance->register_cmd(
-      "INFO?", "Get stored info string from device flash", "", el_repl_cmd_cb_t([&](std::vector<std::string> argv) {
+      "INFO?", "Get info string from device flash", "", el_repl_cmd_cb_t([&](std::vector<std::string> argv) {
           at_get_info(argv[0]);
           return EL_OK;
       }));

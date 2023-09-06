@@ -1,4 +1,4 @@
-# AT Protocol Specification v2023.9.5
+# AT Protocol Specification v2023.9.6
 
 
 ## Transmission Layer
@@ -215,22 +215,33 @@ Response:
     {
       "type": 4,
       "categroy": 3,
-      "input_from": 1
+      "input_from": 1,
+      "config": {
+        "tscore": 50
+      }
     },
     {
       "type": 3,
       "categroy": 1,
-      "input_from": 1
+      "input_from": 1,
+      "config": {
+        "tscore": 50,
+        "tiou": 40
+      }
     },
     {
       "type": 2,
       "categroy": 2,
-      "input_from": 1
+      "input_from": 1,
+      "config": {}
     },
     {
       "type": 1,
       "categroy": 1,
-      "input_from": 1
+      "input_from": 1,
+      "config": {
+        "tscore": 80
+      }
     }
   ]
 }\n

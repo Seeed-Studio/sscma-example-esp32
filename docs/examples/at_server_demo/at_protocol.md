@@ -20,7 +20,7 @@
 Note:
 
 1. Each character of the command should be a ASCII `char8_t`.
-1. Command length is mutable, max length is limited to `1024 - 1` (include the terminator), due to safety factors and resource limitations.
+1. Command length is mutable, max length is limited to `4096 - 1` (include the terminator), due to safety factors and resource limitations.
 
 #### Tagging
 
@@ -390,7 +390,10 @@ Response:
   "type": 0,
   "name": "INFO?",
   "code": 0,
-  "data": "Hello World!"
+  "data": {
+    "crc16_maxim": 43073,
+    "info": "Hello World!"
+  }
 }\n
 ```
 
@@ -444,9 +447,16 @@ Response:
   "type": 0,
   "name": "ACTION?",
   "code": 0,
-  "data": "AT+ACTION=\"count(id,0)>=3\",\"LED=1\",\"LED=0\""
+  "data": {
+    "crc16_maxim": 31621,
+    "cond": "count(target,0)>=3",
+    "true": "LED=1",
+    "false_or_exception": "LED=0"
+  }
 }\n
 ```
+
+Note: `crc16_maxim` is calculated on string `cond + '\t' + true + '\t' + false_or_exception`.
 
 ### Execute operation
 
@@ -618,11 +628,13 @@ Response:
   "type": 0,
   "name": "INFO",
   "code": 0,
-  "data": "Hello World!"
+  "data": {
+    "crc16_maxim": 43073
+  }
 }\n
 ```
 
-Note: Max string length is `1024 - strlen("AT+INFO=\"\"\r") - 1 - TagLength`.
+Note: Max string length is `4096 - strlen("AT+INFO=\"\"\r") - 1 - TagLength`.
 
 #### Remove stored info string from device flash
 
@@ -635,7 +647,9 @@ Response:
   "type": 0,
   "name": "INFO!",
   "code": 0,
-  "data": "Hello World!"
+  "data": {
+    "crc16_maxim": 43073
+  }
 }\n
 ```
 
@@ -653,6 +667,7 @@ Response:
   "name": "ACTION",
   "code": 0,
   "data": {
+    "crc16_maxim": 31621,
     "cond": "count(target,0)>=3",
     "true": "LED=1",
     "false_or_exception": "LED=0"
@@ -672,6 +687,8 @@ Events:
   }
 }\n
 ```
+
+Note: `crc16_maxim` is calculated on string `cond + '\t' + true + '\t' + false_or_exception`.
 
 Note:
 
@@ -706,9 +723,13 @@ Response:
   "type": 0,
   "name": "ACTION!",
   "code": 0,
-  "data": "AT+ACTION=\"count(id,0)>=3\",\"LED=1\",\"LED=0\""
+  "data": {
+    "crc16_maxim": 31621
+  }
 }\n
 ```
+
+Note: `crc16_maxim` is calculated on string `cond + '\t' + true + '\t' + false_or_exception`.
 
 ### Config operation
 

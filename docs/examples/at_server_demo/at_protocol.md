@@ -379,7 +379,7 @@ Response:
 
 Note: `"data": 0` means not invoking, `"data": 1` means invoking.
 
-#### Get stored custom info
+#### Get info string from device flash
 
 Request: `AT+INFO?\r`
 
@@ -509,7 +509,7 @@ Response:
 }\n
 ```
 
-####  Sample data from current sensor
+#### Sample data from current sensor
 
 Pattern: `AT+SAMPLE=<N_TIMES>\r`
 
@@ -636,7 +636,7 @@ Response:
 
 Note: Max string length is `4096 - strlen("AT+INFO=\"\"\r") - 1 - TagLength`.
 
-#### Remove stored info string from device flash
+#### Remove info string from device flash
 
 Request: `AT+INFO!\r`
 
@@ -653,7 +653,7 @@ Response:
 }\n
 ```
 
-#### Set a condition action trigger (Experimental)
+#### Set action trigger (Experimental)
 
 Pattern: `AT+ACTION=<"COND","TRUE_CMD","FALSE_OR_EXCEPTION_CMD">\r`
 
@@ -683,7 +683,7 @@ Events:
   "name": "ACTION",
   "code": 0,
   "data": {
-    "true": "AT+LED=1"
+    "true": "LED=1"
   }
 }\n
 ```
@@ -712,7 +712,7 @@ Note:
     - Compare operator.
     - Logic operator.
 
-#### Unset a condition action trigger (Experimental)
+#### Remove action trigger (Experimental)
 
 Request: `AT+ACTION!\r`
 

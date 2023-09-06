@@ -11,7 +11,7 @@
 extern "C" void app_main(void) {
     // get resource handler and init resources
     auto* device        = Device::get_device();
-    auto* display       = device->get_display();
+    // auto* display       = device->get_display();
     auto* serial        = device->get_serial();
     auto* repl          = ReplDelegate::get_delegate();
     auto* instance      = repl->get_server_handler();
@@ -22,7 +22,7 @@ extern "C" void app_main(void) {
     auto* engine        = new InferenceEngine();
 
     // init resource
-    display->init();
+    // display->init();
     serial->init();
     instance->init(at_server_echo_cb);
     models->init();

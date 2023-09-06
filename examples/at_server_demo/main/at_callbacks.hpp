@@ -68,8 +68,8 @@ void at_get_device_name(const std::string& cmd) {
 }
 
 void at_get_device_status(const std::string& cmd, int32_t boot_count) {
-    auto* serial        = Device::get_device()->get_serial();
-    auto  os            = std::ostringstream(std::ios_base::ate);
+    auto* serial = Device::get_device()->get_serial();
+    auto  os     = std::ostringstream(std::ios_base::ate);
 
     os << REPLY_CMD_HEADER << "\"name\": \"" << cmd << "\", \"code\": " << static_cast<int>(EL_OK)
        << ", \"data\": {\"boot_count\": " << static_cast<unsigned>(boot_count) << "}}\n";
@@ -104,17 +104,42 @@ void at_break(const std::string& cmd) {
 
 void at_get_available_algorithms(const std::string& cmd) {
     auto* serial                = Device::get_device()->get_serial();
-    auto* algorithm_delegate    = AlgorithmDelegate::get_delegate();
-    auto& registered_algorithms = algorithm_delegate->get_all_algorithm_info();
+    auto& registered_algorithms = AlgorithmDelegate::get_delegate()->get_all_algorithm_info();
+    auto* storage               = DataDelegate::get_delegate()->get_storage_handler();
     auto  os                    = std::ostringstream(std::ios_base::ate);
 
     os << REPLY_CMD_HEADER << "\"name\": \"" << cmd << "\", \"code\": " << static_cast<int>(EL_OK) << ", \"data\": [";
     DELIM_RESET;
     for (const auto& i : registered_algorithms) {
         DELIM_PRINT(os);
-        os << "{\"type\": " << static_cast<unsigned>(i->type)
-           << ", \"categroy\": " << static_cast<unsigned>(i->categroy)
-           << ", \"input_from\": " << static_cast<unsigned>(i->input_from) << "}";
+        switch (i->type) {
+        case EL_ALGO_TYPE_FOMO: {
+            el_algorithm_fomo_config_t info_and_conf{};
+            auto                       kv{el_make_storage_kv_from_type(info_and_conf)};
+            if (storage->contains(kv.key)) *storage >> el_make_storage_kv_from_type(info_and_conf);
+            os << algorithm_info_and_conf_2_json_str(info_and_conf);
+        } break;
+        case EL_ALGO_TYPE_IMCLS: {
+            el_algorithm_imcls_config_t info_and_conf{};
+            auto                        kv{el_make_storage_kv_from_type(info_and_conf)};
+            if (storage->contains(kv.key)) *storage >> el_make_storage_kv_from_type(info_and_conf);
+            os << algorithm_info_and_conf_2_json_str(info_and_conf);
+        } break;
+        case EL_ALGO_TYPE_PFLD: {
+            el_algorithm_pfld_config_t info_and_conf{};
+            auto                       kv{el_make_storage_kv_from_type(info_and_conf)};
+            if (storage->contains(kv.key)) *storage >> el_make_storage_kv_from_type(info_and_conf);
+            os << algorithm_info_and_conf_2_json_str(info_and_conf);
+        } break;
+        case EL_ALGO_TYPE_YOLO: {
+            el_algorithm_yolo_config_t info_and_conf{};
+            auto                       kv{el_make_storage_kv_from_type(info_and_conf)};
+            if (storage->contains(kv.key)) *storage >> el_make_storage_kv_from_type(info_and_conf);
+            os << algorithm_info_and_conf_2_json_str(info_and_conf);
+        } break;
+        default:
+            break;
+        }
     }
     os << "]}\n";
 
@@ -278,9 +303,9 @@ SensorReply:
 }
 
 void at_get_sensor_info(const std::string& cmd, uint8_t current_sensor_id) {
-    auto* device        = Device::get_device();
-    auto* serial        = device->get_serial();
-    auto  os            = std::ostringstream(std::ios_base::ate);
+    auto* device = Device::get_device();
+    auto* serial = device->get_serial();
+    auto  os     = std::ostringstream(std::ios_base::ate);
 
     auto sensor_info = device->get_sensor_info(current_sensor_id);
 
@@ -375,9 +400,9 @@ void run_invoke_on_img(AlgorithmType*     algorithm,
                        bool               result_only,
                        std::atomic<bool>& stop_token,
                        std::atomic<bool>& is_invoke) {
-    auto*         device          = Device::get_device();
-    auto*         camera          = device->get_camera();
-    auto*         display         = device->get_display();
+    auto* device = Device::get_device();
+    auto* camera = device->get_camera();
+    // auto*         display         = device->get_display();
     auto*         action_delegate = ActionDelegate::get_delegate();
     auto*         serial          = device->get_serial();
     auto          img             = el_img_t{.data   = nullptr,
@@ -442,10 +467,10 @@ void run_invoke_on_img(AlgorithmType*     algorithm,
         if (ret != EL_OK) [[unlikely]]
             goto InvokeErrorReply;
 
-        draw_results_on_image(algorithm->get_results(), &img);
-        ret = display->show(&img);
-        if (ret != EL_OK) [[unlikely]]
-            goto InvokeErrorReply;
+        // draw_results_on_image(algorithm->get_results(), &img);
+        // ret = display->show(&img);
+        // if (ret != EL_OK) [[unlikely]]
+        //     goto InvokeErrorReply;
 
         action_delegate->evalute();
 
@@ -483,13 +508,11 @@ void at_run_invoke(const std::string& cmd,
 
     el_err_code_t ret = EL_OK;
 
-    auto direct_reply = [&](const std::string& algorithm_config) {
+    auto direct_reply = [&](const std::string& algorithm_info_and_conf) {
         os << REPLY_CMD_HEADER << "\"name\": \"" << cmd << "\", \"code\": " << static_cast<int>(ret)
            << ", \"data\": {\"model\": " << model_info_2_json(model_info)
-           << ", \"algorithm\": {\"type\": " << static_cast<unsigned>(algorithm_info.type)
-           << ", \"category\": " << static_cast<unsigned>(algorithm_info.categroy)
-           << ", \"input_from\": " << static_cast<unsigned>(algorithm_info.input_from) << ", \"config\": {"
-           << algorithm_config << "}}, \"sensor\": " << sensor_info_2_json(sensor_info) << "}}\n";
+           << ", \"algorithm\": " << algorithm_info_and_conf << ", \"sensor\": " << sensor_info_2_json(sensor_info)
+           << "}}\n";
 
         const auto& str{os.str()};
         serial->send_bytes(str.c_str(), str.size());
@@ -517,7 +540,7 @@ void at_run_invoke(const std::string& cmd,
         std::unique_ptr<AlgorithmIMCLS> algorithm(new AlgorithmIMCLS(engine));
 
         auto algo_config_helper{AlgorithmConfigHelper<AlgorithmIMCLS>(algorithm.get())};
-        direct_reply(algorithm_config_2_json_str(algo_config_helper.dump_config()));
+        direct_reply(algorithm_info_and_conf_2_json_str(algo_config_helper.dump_config()));
 
         run_invoke_on_img(algorithm.get(), cmd, n_times, result_only, stop_token, is_invoke);
     }
@@ -527,7 +550,7 @@ void at_run_invoke(const std::string& cmd,
         std::unique_ptr<AlgorithmFOMO> algorithm(new AlgorithmFOMO(engine));
 
         auto algo_config_helper{AlgorithmConfigHelper<AlgorithmFOMO>(algorithm.get())};
-        direct_reply(algorithm_config_2_json_str(algo_config_helper.dump_config()));
+        direct_reply(algorithm_info_and_conf_2_json_str(algo_config_helper.dump_config()));
 
         run_invoke_on_img(algorithm.get(), cmd, n_times, result_only, stop_token, is_invoke);
     }
@@ -535,7 +558,7 @@ void at_run_invoke(const std::string& cmd,
 
     case EL_ALGO_TYPE_PFLD: {
         std::unique_ptr<AlgorithmPFLD> algorithm(new AlgorithmPFLD(engine));
-        direct_reply(algorithm_config_2_json_str(algorithm->get_algorithm_config()));
+        direct_reply(algorithm_info_and_conf_2_json_str(algorithm->get_algorithm_config()));
 
         run_invoke_on_img(algorithm.get(), cmd, n_times, result_only, stop_token, is_invoke);
     }
@@ -545,7 +568,7 @@ void at_run_invoke(const std::string& cmd,
         std::unique_ptr<AlgorithmYOLO> algorithm(new AlgorithmYOLO(engine));
 
         auto algo_config_helper{AlgorithmConfigHelper<AlgorithmYOLO>(algorithm.get())};
-        direct_reply(algorithm_config_2_json_str(algo_config_helper.dump_config()));
+        direct_reply(algorithm_info_and_conf_2_json_str(algo_config_helper.dump_config()));
 
         run_invoke_on_img(algorithm.get(), cmd, n_times, result_only, stop_token, is_invoke);
     }

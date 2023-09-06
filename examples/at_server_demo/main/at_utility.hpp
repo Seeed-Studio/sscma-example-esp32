@@ -150,16 +150,20 @@ std::string simple_reply_ok(const std::string& cmd) {
     return str;
 }
 
-template <typename ConfigType> std::string algorithm_config_2_json_str(const ConfigType& config) {
+template <typename InfoConfType> std::string algorithm_info_and_conf_2_json_str(const InfoConfType& info_and_conf) {
     using namespace edgelab;
     auto os{std::ostringstream(std::ios_base::ate)};
 
-    if constexpr (std::is_same<ConfigType, el_algorithm_fomo_config_t>::value ||
-                  std::is_same<ConfigType, el_algorithm_imcls_config_t>::value)
-        os << "\"tscore\": " << static_cast<unsigned>(config.score_threshold);
-    else if constexpr (std::is_same<ConfigType, el_algorithm_yolo_config_t>::value)
-        os << "\"tscore\": " << static_cast<unsigned>(config.score_threshold)
-           << ", \"tiou\": " << static_cast<unsigned>(config.iou_threshold);
+    os << "{\"type\": " << static_cast<unsigned>(info_and_conf.info.type)
+       << ", \"categroy\": " << static_cast<unsigned>(info_and_conf.info.categroy)
+       << ", \"input_from\": " << static_cast<unsigned>(info_and_conf.info.input_from) << ", \"config\": {";
+    if constexpr (std::is_same<InfoConfType, el_algorithm_fomo_config_t>::value ||
+                  std::is_same<InfoConfType, el_algorithm_imcls_config_t>::value)
+        os << "\"tscore\": " << static_cast<unsigned>(info_and_conf.score_threshold);
+    else if constexpr (std::is_same<InfoConfType, el_algorithm_yolo_config_t>::value)
+        os << "\"tscore\": " << static_cast<unsigned>(info_and_conf.score_threshold)
+           << ", \"tiou\": " << static_cast<unsigned>(info_and_conf.iou_threshold);
+    os << "}}";
 
     return std::string(os.str());
 }

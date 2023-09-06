@@ -611,16 +611,16 @@ void at_set_action(const std::vector<std::string>& argv) {
 
     cmd = argv[2];
     cmd.insert(0, "AT+");
-    action_delegate->set_true_cb([=]() {
-        el_err_code_t ret = instance->exec_non_lock(cmd);
-
+    {
         auto os = std::ostringstream(std::ios_base::ate);
         os << REPLY_EVT_HEADER << "\"name\": \"" << argv[0] << "\", \"code\": " << static_cast<int>(ret)
-           << ", \"data\": {\"true\": " << string_2_str(cmd) << "}}\n";
-
-        const auto& str{os.str()};
-        serial->send_bytes(str.c_str(), str.size());
-    });
+           << ", \"data\": {\"true\": " << string_2_str(argv[2]) << "}}\n";
+        auto str{os.str()};
+        action_delegate->set_true_cb([=]() {
+            el_err_code_t ret = instance->exec_non_lock(cmd);
+            serial->send_bytes(str.c_str(), str.size());
+        });
+    }
     cmd = argv[3];
     cmd.insert(0, "AT+");
     action_delegate->set_false_exception_cb([=]() { instance->exec_non_lock(cmd); });

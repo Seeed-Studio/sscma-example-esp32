@@ -31,16 +31,16 @@ class ActionDelegate {
     bool set_condition(const std::string& input) {
         const Guard guard(this);
 
-        intr::Lexer  lexer(input);
-        intr::Parser parser(lexer);
+        intr::Lexer    lexer(input);
+        intr::Mutables mutables;
+        intr::Parser   parser(lexer, mutables);
 
         _node = parser.parse();
 
         if (!_node) [[unlikely]]
             return false;
 
-        const auto& mutable_keys = parser.get_mutable();
-        for (const auto& key : mutable_keys) _mutable_map[key] = nullptr;
+        for (const auto& key : mutables) _mutable_map[key] = nullptr;
 
         return true;
     }

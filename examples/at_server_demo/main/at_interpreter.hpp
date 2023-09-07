@@ -1,5 +1,6 @@
 #pragma once
 
+#include <forward_list>
 #include <functional>
 #include <locale>
 #include <string>
@@ -17,6 +18,8 @@ struct Token {
 };
 
 enum class NodeType { IDENTIFIER, FUNCTION_CALL };
+
+typedef std::forward_list<std::string> Mutables;
 
 typedef std::function<int(NodeType, const std::string&)> EvalCbType;
 
@@ -277,7 +280,8 @@ using namespace intr::types;
 
 class Parser {
    public:
-    Parser(Lexer& lexer) : _lexer(lexer), _current_token(lexer.get_next_token()) {}
+    Parser(Lexer& lexer, Mutables& mutables)
+        : _lexer(lexer), _current_token(lexer.get_next_token()), _mutables(mutables) {}
 
     ~Parser() = default;
 
@@ -297,12 +301,10 @@ class Parser {
         return _node_stack.top();
     }
 
-    const std::forward_list<std::string>& get_mutable() { return _mutable; }
-
    protected:
     bool parse_expression() {
         if (_current_token.type == TokenType::IDENTIFIER) {
-            _mutable.emplace_front(_current_token.value);
+            _mutables.emplace_front(_current_token.value);
             _node_stack.push(new IdentifierNode(_current_token.value));
             return true;
         }
@@ -313,7 +315,7 @@ class Parser {
         }
 
         if (_current_token.type == TokenType::FUNCTION) {
-            _mutable.emplace_front(_current_token.value);
+            _mutables.emplace_front(_current_token.value);
             _node_stack.push(new FunctionCallNode(_current_token.value));
             return true;
         }
@@ -339,7 +341,7 @@ class Parser {
         }
 
         if (_current_token.type == TokenType::LPARN) {
-            _node_stack.push(Parser(_lexer).parse());
+            _node_stack.push(Parser(_lexer, _mutables).parse());
             return true;
         }
 
@@ -352,10 +354,10 @@ class Parser {
     }
 
    private:
-    Lexer&                         _lexer;
-    Token                          _current_token;
-    std::stack<ASTNode*>           _node_stack;
-    std::forward_list<std::string> _mutable;
+    Lexer&               _lexer;
+    Token                _current_token;
+    std::stack<ASTNode*> _node_stack;
+    Mutables&            _mutables;
 };
 
 }  // namespace intr

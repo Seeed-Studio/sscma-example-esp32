@@ -602,8 +602,8 @@ Events:
         83,
         77,
         65,
-        0,
-        70
+        70,
+        0
       ]
     ]
   }
@@ -657,7 +657,7 @@ Response:
 
 Pattern: `AT+ACTION=<"COND","TRUE_CMD","FALSE_OR_EXCEPTION_CMD">\r`
 
-Request: `AT+ACTION="count(target,0)>=3","LED=1","LED=0"\r`
+Request: `AT+ACTION="(count(target,0)>=3)||(max_score(target,0)>=60)","LED=1","LED=0"\r`
 
 Response:
 
@@ -959,8 +959,8 @@ Value:
     83, // y
     77, // w
     65, // h
-    0,  // target id
-    70  // score
+    70, // score
+    0  // target id
 ]
 ```
 
@@ -976,6 +976,7 @@ Value:
 [
     87, // x
     83, // y
+    70, // score
     0   // target id
 ]
 ```
@@ -990,7 +991,7 @@ Value:
 
 ```json
 [
-    0,  // target id
     70  // score
+    0,  // target id
 ]
 ```

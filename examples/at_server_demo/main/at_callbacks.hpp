@@ -448,6 +448,30 @@ void run_invoke_on_img(AlgorithmType*     algorithm,
                         return init;
                     };
                 }
+            } else if (argv[0] == "max_score") {
+                // max score
+                if (argv.size() == 1)
+                    kv.second = [=]() -> int {
+                        uint8_t     init = 0;
+                        const auto& res  = algorithm->get_results();
+                        for (const auto& v : res)
+                            if (v.score > init) init = v.score;
+                        return init;
+                    };
+
+                // max score filtered by target id
+                if (argv.size() == 3 && argv[1] == "target") {
+                    uint8_t target = std::atoi(argv[2].c_str());
+                    kv.second      = [=]() -> int {
+                        uint8_t     init = 0;
+                        const auto& res  = algorithm->get_results();
+                        for (const auto& v : res)
+                            if (v.target == target && v.score > init) init = v.score;
+
+
+                        return init;
+                    };
+                }
             }
         }
         action_delegate->set_mutable_map(mutable_map);
@@ -612,12 +636,12 @@ void at_set_action(const std::vector<std::string>& argv) {
     cmd = argv[2];
     cmd.insert(0, "AT+");
     {
-        auto os = std::ostringstream(std::ios_base::ate);
-        os << REPLY_EVT_HEADER << "\"name\": \"" << argv[0] << "\", \"code\": " << static_cast<int>(ret)
-           << ", \"data\": {\"true\": " << string_2_str(argv[2]) << "}}\n";
-        auto str{os.str()};
         action_delegate->set_true_cb([=]() {
             el_err_code_t ret = instance->exec_non_lock(cmd);
+            auto          os  = std::ostringstream(std::ios_base::ate);
+            os << REPLY_EVT_HEADER << "\"name\": \"" << argv[0] << "\", \"code\": " << static_cast<int>(ret)
+               << ", \"data\": {\"true\": " << string_2_str(argv[2]) << "}}\n";
+            auto str{os.str()};
             serial->send_bytes(str.c_str(), str.size());
         });
     }
@@ -681,9 +705,6 @@ void at_get_action(const std::string& cmd) {
         ret         = storage->get(el_make_storage_kv("edgelab_action", action)) ? EL_OK : EL_EINVAL;
         crc16_maxim = el_crc16_maxim(reinterpret_cast<const uint8_t*>(&action[0]), std::strlen(&action[0]));
     }
-
-    os << REPLY_CMD_HEADER << "\"name\": \"" << cmd << "\", \"code\": " << static_cast<int>(ret)
-       << ", \"data\": " << string_2_str(action) << "}\n";
 
     os << REPLY_CMD_HEADER << "\"name\": \"" << cmd << "\", \"code\": " << static_cast<int>(ret)
        << ", \"data\": {\"crc16_maxim\": " << static_cast<unsigned>(crc16_maxim) << ", " << action_str_2_json(action)

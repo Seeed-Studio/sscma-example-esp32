@@ -37,7 +37,7 @@
     //      2: print warning
     //      3: print info
     //      4: print verbose
-    #define CONFIG_EL_DEBUG 4
+    #define CONFIG_EL_DEBUG 3
 #endif
 
 /* porting config check */

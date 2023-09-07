@@ -39,7 +39,7 @@
 
 namespace edgelab::data {
 
-Storage::Storage() noexcept : __lock(xSemaphoreCreateCounting(1, 1)), __kvdb(new fdb_kvdb{}) {
+Storage::Storage() : __lock(xSemaphoreCreateCounting(1, 1)), __kvdb(new fdb_kvdb{}) {
     EL_ASSERT(__lock);
     EL_ASSERT(__kvdb);
 }

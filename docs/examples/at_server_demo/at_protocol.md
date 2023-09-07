@@ -449,8 +449,8 @@ Response:
   "name": "ACTION?",
   "code": 0,
   "data": {
-    "crc16_maxim": 31621,
-    "cond": "count(target,0)>=3",
+    "crc16_maxim": 16828,
+    "cond": "(count(target,0)>=3)||(max_score(target,0)>=80)",
     "true": "LED=1",
     "false_or_exception": "LED=0"
   }
@@ -658,7 +658,7 @@ Response:
 
 Pattern: `AT+ACTION=<"COND","TRUE_CMD","FALSE_OR_EXCEPTION_CMD">\r`
 
-Request: `AT+ACTION="(count(target,0)>=3)||(max_score(target,0)>=60)","LED=1","LED=0"\r`
+Request: `AT+ACTION="(count(target,0)>=3)||(max_score(target,0)>=80)","LED=1","LED=0"\r`
 
 Response:
 
@@ -668,8 +668,8 @@ Response:
   "name": "ACTION",
   "code": 0,
   "data": {
-    "crc16_maxim": 31621,
-    "cond": "count(target,0)>=3",
+    "crc16_maxim": 16828,
+    "cond": "(count(target,0)>=3)||(max_score(target,0)>=80)",
     "true": "LED=1",
     "false_or_exception": "LED=0"
   }
@@ -729,7 +729,7 @@ Response:
   "name": "ACTION!",
   "code": 0,
   "data": {
-    "crc16_maxim": 31621
+    "crc16_maxim": 16828
   }
 }\n
 ```

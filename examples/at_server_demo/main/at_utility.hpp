@@ -90,14 +90,14 @@ template <typename T> constexpr std::string results_2_json(const std::forward_li
             DELIM_PRINT(os);
             os << "[" << static_cast<unsigned>(box.x) << ", " << static_cast<unsigned>(box.y) << ", "
                << static_cast<unsigned>(box.w) << ", " << static_cast<unsigned>(box.h) << ", "
-               << static_cast<unsigned>(box.target) << ", " << static_cast<unsigned>(box.score) << "]";
+               << static_cast<unsigned>(box.score) << ", " << static_cast<unsigned>(box.target) << "]";
         }
     } else if constexpr (std::is_same<T, el_point_t>::value) {
         os << "\"points\": [";
         for (const auto& point : results) {
             DELIM_PRINT(os);
             os << "[" << static_cast<unsigned>(point.x) << ", " << static_cast<unsigned>(point.y) << ", "
-               << static_cast<unsigned>(point.target) << "]";
+               << static_cast<unsigned>(point.score) << ", " << static_cast<unsigned>(point.target) << "]";
         }
     } else if constexpr (std::is_same<T, el_class_t>::value) {
         os << "\"classes\": [";
@@ -329,7 +329,7 @@ std::string action_str_2_json(const char* str) {
     std::stringstream          ss(str);
     std::array<std::string, 3> argv_3{};
 
-    for (size_t i = 0; i < argv_3.size() && std::getline(ss, buf, '\t'); ++i) argv_3[i] = string_2_str(buf);
+    for (size_t i = 0; i < argv_3.size() && std::getline(ss, buf, '\t'); ++i) argv_3[i] = buf;
 
     os << "\"cond\": " << string_2_str(argv_3[0]) << ", \"true\": " << string_2_str(argv_3[1])
        << ", \"false_or_exception\": " << string_2_str(argv_3[2]);

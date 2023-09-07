@@ -61,7 +61,10 @@ DeviceEsp::DeviceEsp() {
 
     this->_camera  = static_cast<CameraEsp*>(new CameraEsp());
     this->_display = static_cast<DisplayEsp*>(new DisplayEsp());
-    this->_serial  = static_cast<SerialEsp*>(new SerialEsp());
+    this->_serial  = static_cast<SerialEsp*>(new SerialEsp(usb_serial_jtag_driver_config_t{
+        .tx_buffer_size = 8192,
+        .rx_buffer_size = 8192
+    }));
 
     uint8_t sensor_id = 0;
     this->_registered_sensors.emplace_front(el_sensor_info_t{

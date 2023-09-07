@@ -24,8 +24,8 @@ class ActionDelegate {
 
     bool has_condition() {
         const Guard guard(this);
-        
-        return _node ? true: false;
+
+        return _node ? true : false;
     }
 
     bool set_condition(const std::string& input) {

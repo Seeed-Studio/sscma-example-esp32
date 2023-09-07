@@ -197,6 +197,7 @@ class Lexer {
             if (is_logical_operator(_current_char)) {
                 size_t head = _index;
                 if (advance() && is_logical_operator(_current_char)) {
+                    advance();
                     return Token{.type = TokenType::OPERATOR, .value = _input.substr(head, _index - head)};
                 }
                 break;  // skip error

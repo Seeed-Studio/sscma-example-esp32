@@ -47,7 +47,7 @@ extern "C" void app_main(void) {
     *storage << el_make_storage_kv("boot_count", ++boot_count);
 
     // register repl commands (overrite help)
-    instance->register_cmd("HELP", "List available commands", "", [&](std::vector<std::string> argv) {
+    instance->register_cmd("HELP?", "List available commands", "", [&](std::vector<std::string> argv) {
         const auto& registered_cmds = instance->get_registered_cmds();
         at_print_help(registered_cmds);
         return EL_OK;
@@ -186,7 +186,10 @@ extern "C" void app_main(void) {
           return EL_OK;
       }));
 
-    // Note: AT+ACTION="count(id,0)>=3","LED=1","LED=0"
+    // Note:
+    //    AT+ACTION="count(id,0)>=3","LED=1","LED=0"
+    //    AT+ACTION="max_score(target,0)>=80","LED=1","LED=0"
+    //    AT+ACTION="(count(target,0)>=3)||(max_score(target,0)>=80)","LED=1","LED=0"
     instance->register_cmd("ACTION",
                            "Set action trigger",
                            "\"COND\",\"TRUE_CMD\",\"FALSE_OR_EXCEPTION_CMD\"",
@@ -231,21 +234,24 @@ extern "C" void app_main(void) {
     // setup components
     {
         std::string cmd;
+
         if (current_model_id) {
             cmd = std::string("AT+MODEL=") + std::to_string(current_model_id);
             instance->exec(cmd);
         }
+
         if (current_sensor_id) {
             cmd = std::string("AT+SENSOR=") + std::to_string(current_sensor_id) + ",1";
             instance->exec(cmd);
         }
+
         if (storage->contains("edgelab_action")) {
             char action[CMD_MAX_LENGTH]{};
             *storage >> el_make_storage_kv("edgelab_action", action);
             instance->exec(action_str_2_cmd(action));
         }
-        // cmd = std::string("AT+INVOKE=-1,1");
-        // instance->exec(cmd);
+
+        set_system_ready();
     }
 
     // enter service pipeline (TODO: pipeline builder)

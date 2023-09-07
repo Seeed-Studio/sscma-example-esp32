@@ -18,6 +18,10 @@
 #include "el_device_esp.h"
 #include "el_hash.h"
 
+static std::atomic<bool> is_ready{false};
+
+void set_system_ready() { is_ready.store(true); }
+
 void at_server_echo_cb(el_err_code_t ret, const std::string& msg) {
     auto* serial = Device::get_device()->get_serial();
     auto  os     = std::ostringstream(std::ios_base::ate);
@@ -73,7 +77,8 @@ void at_get_device_status(const std::string& cmd, int32_t boot_count) {
     auto  os     = std::ostringstream(std::ios_base::ate);
 
     os << REPLY_CMD_HEADER << "\"name\": \"" << cmd << "\", \"code\": " << static_cast<int>(EL_OK)
-       << ", \"data\": {\"boot_count\": " << static_cast<unsigned>(boot_count) << "}}\n";
+       << ", \"data\": {\"boot_count\": " << static_cast<unsigned>(boot_count)
+       << ", \"is_ready\": " << (is_ready.load() ? 1 : 0) << "}}\n";
 
     const auto& str{os.str()};
     serial->send_bytes(str.c_str(), str.size());
@@ -198,7 +203,8 @@ void at_set_model(const std::string& cmd, uint8_t model_id, InferenceEngine* eng
 
     if (current_model_id != model_id) {
         current_model_id = model_id;
-        *storage << el_make_storage_kv("current_model_id", current_model_id);
+        if (is_ready.load()) [[likely]]
+            *storage << el_make_storage_kv("current_model_id", current_model_id);
     }
 
     goto ModelReply;
@@ -286,7 +292,8 @@ void at_set_sensor(const std::string& cmd, uint8_t sensor_id, bool enable, uint8
 
         if (current_sensor_id != sensor_id) {
             current_sensor_id = sensor_id;
-            *storage << el_make_storage_kv("current_sensor_id", current_sensor_id);
+            if (is_ready.load()) [[likely]]
+                *storage << el_make_storage_kv("current_sensor_id", current_sensor_id);
         }
     } else
         ret = EL_ENOTSUP;
@@ -468,7 +475,6 @@ void run_invoke_on_img(AlgorithmType*     algorithm,
                         for (const auto& v : res)
                             if (v.target == target && v.score > init) init = v.score;
 
-
                         return init;
                     };
                 }
@@ -649,10 +655,11 @@ void at_set_action(const std::vector<std::string>& argv) {
     cmd.insert(0, "AT+");
     action_delegate->set_false_exception_cb([=]() { instance->exec_non_lock(cmd); });
 
-    {
+    if (is_ready.load()) [[likely]] {
         auto builder = std::ostringstream(std::ios_base::ate);
         builder << argv[1] << '\t' << argv[2] << '\t' << argv[3];
-        cmd         = builder.str();
+        cmd = builder.str();
+
         crc16_maxim = el_crc16_maxim(reinterpret_cast<const uint8_t*>(cmd.c_str()), cmd.size());
         std::strncpy(action, cmd.c_str(), sizeof(action) - 1);
         ret = storage->emplace(el_make_storage_kv("edgelab_action", action)) ? EL_OK : EL_EIO;

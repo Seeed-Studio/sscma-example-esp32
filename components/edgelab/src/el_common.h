@@ -32,7 +32,7 @@
 #include "el_misc.h"
 #include "el_types.h"
 
-#define EL_VERSION "2023.9.6"
+#define EL_VERSION "2023.09.07"
 
 #define EL_CONCAT(a, b) a##b
 #define EL_STRINGIFY(s) #s

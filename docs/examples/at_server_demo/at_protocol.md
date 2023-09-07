@@ -1,4 +1,4 @@
-# AT Protocol Specification v2023.9.6
+# AT Protocol Specification v2023.09.07
 
 
 ## Transmission Layer
@@ -170,7 +170,8 @@ Response:
   "name": "STAT?",
   "code": 0,
   "data": {
-    "boot_count": 1631
+    "boot_count": 1631,
+    "is_ready": 1
   }
 }\n
 ```
@@ -189,7 +190,7 @@ Response:
   "name": "VER?",
   "code": 0,
   "data": {
-    "software": "2023.9.5",
+    "software": "2023.09.07",
     "hardware": "1"
   }
 }\n
@@ -688,22 +689,26 @@ Events:
 }\n
 ```
 
-Note: `crc16_maxim` is calculated on string `cond + '\t' + true + '\t' + false_or_exception`.
+Function map:
+
+| Name                   | Brief                                                  |
+|------------------------|--------------------------------------------------------|
+| `count()`              | Count the number of all results                        |
+| `count(target,id)`     | Count the number of the results filter by a target id  |
+| `max_score()`          | Get the max score of all results                       |
+| `max_score(target,id)` | Get the max score of the results filter by a target id |
 
 Note:
 
+1. The `crc16_maxim` is calculated on string `cond + '\t' + true + '\t' + false_or_exception`.
 1. Only have events reply when condition evaluation is `true`.
 1. When evaluation fail, if it is a condition function call, identifier or operator, its value will be `0` and with no exception reply.
 1. Complex conditions are supported, e.g.:
-
-    ```
-    1. (count(target,0)-count(target,1))>=(count(target,3)+count(target,4)+count(target,5))
-
-    2. (count(target,0)>1)&&(count(target,3)<=5)||((count(target,4)+count(target,2))<10)
-
-    3. count()>10
-    ```
-
+    - `count(target,0)>=3`
+    - `max_score(target,0)>=80`
+    - `(count(target,0)>=3)||(max_score(target,0)>=80)`
+    - `(count(target,0)-count(target,1))>=(count(target,3)+count(target,4)+count(target,5))`
+    - `(count(target,0)>1)&&(count(target,3)<=5)||((count(target,4)+count(target,2))<10)`
 1. Supported expression tokens:
     - Unsigned constant.
     - Integeral identifier.
@@ -789,7 +794,7 @@ No-reply.
 
 #### List available commands
 
-Request: `AT+HELP\r`
+Request: `AT+HELP?\r`
 
 Response:
 

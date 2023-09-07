@@ -965,7 +965,7 @@ Value:
     77, // w
     65, // h
     70, // score
-    0  // target id
+    0   // target id
 ]
 ```
 

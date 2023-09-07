@@ -73,6 +73,7 @@ typedef struct EL_ATTR_PACKED el_box_t {
 typedef struct EL_ATTR_PACKED el_point_t {
     uint16_t x;
     uint16_t y;
+    uint8_t  score;
     uint8_t  target;
 } el_point_t;
 
@@ -175,7 +176,7 @@ typedef union EL_ATTR_PACKED el_model_header_t {
 
 /**
  * @brief Mdoel Info Specification
- * @details 
+ * @details
  *      valid id range [1, 15]:
  *          0 -> undefined
  *          each model should have a unique id

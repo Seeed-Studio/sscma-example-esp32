@@ -1,4 +1,4 @@
-# AT Protocol Specification v2023.09.07
+# AT Protocol Specification v2023.09.08
 
 
 ## Transmission Layer
@@ -190,7 +190,7 @@ Response:
   "name": "VER?",
   "code": 0,
   "data": {
-    "software": "2023.09.07",
+    "software": "2023.09.08",
     "hardware": "1"
   }
 }\n
@@ -637,23 +637,6 @@ Response:
 
 Note: Max string length is `4096 - strlen("AT+INFO=\"\"\r") - 1 - TagLength`.
 
-#### Remove info string from device flash
-
-Request: `AT+INFO!\r`
-
-Response:
-
-```json
-\r{
-  "type": 0,
-  "name": "INFO!",
-  "code": 0,
-  "data": {
-    "crc16_maxim": 43073
-  }
-}\n
-```
-
 #### Set action trigger (Experimental)
 
 Pattern: `AT+ACTION=<"COND","TRUE_CMD","FALSE_OR_EXCEPTION_CMD">\r`
@@ -716,25 +699,6 @@ Note:
     - Binary operator.
     - Compare operator.
     - Logic operator.
-
-#### Remove action trigger (Experimental)
-
-Request: `AT+ACTION!\r`
-
-Response:
-
-```json
-\r{
-  "type": 0,
-  "name": "ACTION!",
-  "code": 0,
-  "data": {
-    "crc16_maxim": 16828
-  }
-}\n
-```
-
-Note: `crc16_maxim` is calculated on string `cond + '\t' + true + '\t' + false_or_exception`.
 
 ### Config operation
 

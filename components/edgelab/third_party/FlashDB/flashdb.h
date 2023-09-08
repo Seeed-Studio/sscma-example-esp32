@@ -12,13 +12,12 @@
 #ifndef _FLASHDB_H_
 #define _FLASHDB_H_
 
-#include <fdb_cfg.h>
-
-#include <stdbool.h>
-#include <stddef.h>
 #include <stdint.h>
+#include <stddef.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <time.h>
+#include <fdb_cfg.h>
 
 #ifdef FDB_USING_FAL_MODE
 #include <fal.h>
@@ -60,7 +59,7 @@ bool              fdb_kv_iterate      (fdb_kvdb_t db, fdb_kv_iterator_t itr);
 bool              find_kv             (fdb_kvdb_t db, const char* key, fdb_kv_t kv);
 
 /* Time series log API like a TSDB */
-fdb_err_t fdb_tsl_append(fdb_tsdb_t db, fdb_blob_t blob);
+fdb_err_t  fdb_tsl_append      (fdb_tsdb_t db, fdb_blob_t blob);
 void       fdb_tsl_iter        (fdb_tsdb_t db, fdb_tsl_cb cb, void *cb_arg);
 void       fdb_tsl_iter_reverse(fdb_tsdb_t db, fdb_tsl_cb cb, void *cb_arg);
 void       fdb_tsl_iter_by_time(fdb_tsdb_t db, fdb_time_t from, fdb_time_t to, fdb_tsl_cb cb, void *cb_arg);

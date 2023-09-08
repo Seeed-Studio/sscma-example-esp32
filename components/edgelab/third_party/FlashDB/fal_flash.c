@@ -36,9 +36,9 @@ int fal_flash_init(void)
 
     for (i = 0; i < device_table_len; i++)
     {
-        // assert(device_table[i]->ops.read);
-        // assert(device_table[i]->ops.write);
-        // assert(device_table[i]->ops.erase);
+        assert(device_table[i]->ops.read);
+        assert(device_table[i]->ops.write);
+        assert(device_table[i]->ops.erase);
         /* init flash device on flash table */
         if (device_table[i]->ops.init)
         {

@@ -57,7 +57,7 @@ fdb_err_t _fdb_init_ex(fdb_db_t db, const char *name, const char *path, fdb_db_t
         fal_init();
         /* check the flash partition */
         if ((db->storage.part = fal_partition_find(path)) == NULL) {
-            // FDB_INFO("Error: Partition (%s) not found.\n", path);
+            FDB_INFO("Error: Partition (%s) not found.\n", path);
             return FDB_PART_NOT_FOUND;
         }
 
@@ -67,7 +67,7 @@ fdb_err_t _fdb_init_ex(fdb_db_t db, const char *name, const char *path, fdb_db_t
         } else {
             /* must be aligned with block size */
             if (db->sec_size % block_size != 0) {
-                // // FDB_INFO("Error: db sector size (%" PRIu32 ") MUST align with block size (%" PRIu32 ").\n", db->sec_size, block_size);
+                FDB_INFO("Error: db sector size (%" PRIu32 ") MUST align with block size (%" PRIu16 ").\n", db->sec_size, block_size);
                 return FDB_INIT_FAILED;
             }
         }
@@ -80,12 +80,12 @@ fdb_err_t _fdb_init_ex(fdb_db_t db, const char *name, const char *path, fdb_db_t
     FDB_ASSERT((db->sec_size & (db->sec_size - 1)) == 0);
     /* must align with sector size */
     if (db->max_size % db->sec_size != 0) {
-        // FDB_INFO("Error: db total size (%" PRIu32 ") MUST align with sector size (%" PRIu32 ").\n", db->max_size, db->sec_size);
+        FDB_INFO("Error: db total size (%" PRIu32 ") MUST align with sector size (%" PRIu32 ").\n", db->max_size, db->sec_size);
         return FDB_INIT_FAILED;
     }
     /* must has more than or equal 2 sectors */
     if (db->max_size / db->sec_size < 2) {
-        // FDB_INFO("Error: db MUST has more than or equal 2 sectors, current has %" PRIu32 " sector(s)\n", db->max_size / db->sec_size);
+        FDB_INFO("Error: db MUST has more than or equal 2 sectors, current has %" PRIu32 " sector(s)\n", db->max_size / db->sec_size);
         return FDB_INIT_FAILED;
     }
 
@@ -98,13 +98,13 @@ void _fdb_init_finish(fdb_db_t db, fdb_err_t result)
     if (result == FDB_NO_ERR) {
         db->init_ok = true;
         if (!log_is_show) {
-            // FDB_INFO("FlashDB V%s is initialize success.\n", FDB_SW_VERSION);
-            // FDB_INFO("You can get the latest version on https://github.com/armink/FlashDB .\n");
+            FDB_INFO("FlashDB V%s is initialize success.\n", FDB_SW_VERSION);
+            FDB_INFO("You can get the latest version on https://github.com/armink/FlashDB .\n");
             log_is_show = true;
         }
     } else if (!db->not_formatable) {
-        // FDB_INFO("Error: %s (%s@%s) is initialize fail (%d).\n", db->type == FDB_DB_TYPE_KV ? "KVDB" : "TSDB",
-                // db->name, _fdb_db_path(db), (int)result);
+        FDB_INFO("Error: %s (%s@%s) is initialize fail (%d).\n", db->type == FDB_DB_TYPE_KV ? "KVDB" : "TSDB",
+                db->name, _fdb_db_path(db), (int)result);
     }
 }
 

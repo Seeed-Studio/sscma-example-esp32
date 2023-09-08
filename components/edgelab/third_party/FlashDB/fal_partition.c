@@ -202,29 +202,19 @@ int fal_partition_init(void)
         goto _exit;
     }
 
-
-
     /* find partition table location */
     {
         uint8_t read_buf[64];
 
         part_table_offset -= sizeof(read_buf);
-
-
-        printf("---- %ld\n",  part_table_offset);
-
         while (part_table_offset >= 0)
         {
-            
             if (flash_dev->ops.read(part_table_offset, read_buf, sizeof(read_buf)) > 0)
             {
                 /* find magic word in read buf */
                 for (i = 0; i < sizeof(read_buf) - sizeof(read_magic_word) + 1; i++)
                 {
-                   
                     read_magic_word = read_buf[0 + i] + (read_buf[1 + i] << 8) + (read_buf[2 + i] << 16) + (read_buf[3 + i] << 24);
-                   
-                   
                     if (read_magic_word == ((FAL_PART_MAGIC_WORD_H << 16) + FAL_PART_MAGIC_WORD_L))
                     {
                         part_table_find_ok = 1;
@@ -237,15 +227,12 @@ int fal_partition_init(void)
             }
             else
             {
-                 printf("----  read failed");
                 /* read failed */
                 break;
             }
 
             if (part_table_find_ok)
             {
-
-                 printf("----  part_table_find_ok");
                 break;
             }
             else
@@ -263,7 +250,6 @@ int fal_partition_init(void)
                 else
                 {
                     /* find failed */
-                    printf("----  find failed ");
                     break;
                 }
             }
@@ -284,7 +270,6 @@ int fal_partition_init(void)
 
         if (new_part->magic_word != ((FAL_PART_MAGIC_WORD_H << 16) + FAL_PART_MAGIC_WORD_L))
         {
-            
             break;
         }
 

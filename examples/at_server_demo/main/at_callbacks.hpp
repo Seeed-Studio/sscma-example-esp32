@@ -626,22 +626,25 @@ void at_get_task_status(const std::string& cmd, const std::atomic<bool>& sta) {
 }
 
 void at_set_action(const std::vector<std::string>& argv) {
-    auto*    serial          = Device::get_device()->get_serial();
-    auto*    storage         = DataDelegate::get_delegate()->get_storage_handler();
-    auto*    instance        = ReplDelegate::get_delegate()->get_server_handler();
-    auto*    action_delegate = ActionDelegate::get_delegate();
-    auto     os              = std::ostringstream(std::ios_base::ate);
-    auto     cmd             = std::string{};
-    char     action[CMD_MAX_LENGTH]{};
-    uint16_t crc16_maxim = 0xffff;
+    auto*       serial          = Device::get_device()->get_serial();
+    auto*       storage         = DataDelegate::get_delegate()->get_storage_handler();
+    auto*       instance        = ReplDelegate::get_delegate()->get_server_handler();
+    auto*       action_delegate = ActionDelegate::get_delegate();
+    auto        os              = std::ostringstream(std::ios_base::ate);
+    std::string cmd{};
+    char        action[CMD_MAX_LENGTH]{};
+    uint16_t    crc16_maxim = 0xffff;
 
-    el_err_code_t ret = action_delegate->set_condition(argv[1]) ? EL_OK : EL_EINVAL;
-    if (ret != EL_OK) [[unlikely]]
-        goto ActionReply;
+    el_err_code_t ret = EL_OK;
+    if (argv[1].size()) [[likely]] {
+        ret = action_delegate->set_condition(argv[1]) ? EL_OK : EL_EINVAL;
+        if (ret != EL_OK) [[unlikely]]
+            goto ActionReply;
+    }
 
-    cmd = argv[2];
-    cmd.insert(0, "AT+");
-    {
+    if (argv[2].size()) [[likely]] {
+        cmd = argv[2];
+        cmd.insert(0, "AT+");
         action_delegate->set_true_cb([=]() {
             el_err_code_t ret = instance->exec_non_lock(cmd);
             auto          os  = std::ostringstream(std::ios_base::ate);
@@ -651,9 +654,12 @@ void at_set_action(const std::vector<std::string>& argv) {
             serial->send_bytes(str.c_str(), str.size());
         });
     }
-    cmd = argv[3];
-    cmd.insert(0, "AT+");
-    action_delegate->set_false_exception_cb([=]() { instance->exec_non_lock(cmd); });
+
+    if (argv[3].size()) [[likely]] {
+        cmd = argv[3];
+        cmd.insert(0, "AT+");
+        action_delegate->set_false_exception_cb([=]() { instance->exec_non_lock(cmd); });
+    }
 
     if (is_ready.load()) [[likely]] {
         auto builder = std::ostringstream(std::ios_base::ate);
@@ -675,30 +681,6 @@ ActionReply:
     serial->send_bytes(str.c_str(), str.size());
 }
 
-void at_unset_action(const std::string& cmd) {
-    auto*         serial          = Device::get_device()->get_serial();
-    auto*         storage         = DataDelegate::get_delegate()->get_storage_handler();
-    auto*         action_delegate = ActionDelegate::get_delegate();
-    auto          os              = std::ostringstream(std::ios_base::ate);
-    uint16_t      crc16_maxim     = 0xffff;
-    el_err_code_t ret             = EL_EINVAL;
-
-    if (action_delegate->has_condition() && storage->contains("edgelab_action")) {
-        char action[CMD_MAX_LENGTH]{};
-        *storage >> el_make_storage_kv("edgelab_action", action);
-        crc16_maxim = el_crc16_maxim(reinterpret_cast<const uint8_t*>(&action[0]), std::strlen(&action[0]));
-
-        action_delegate->unset_condition();
-        ret = storage->erase("edgelab_action") ? EL_OK : EL_EINVAL;
-    }
-
-    os << REPLY_CMD_HEADER << "\"name\": \"" << cmd << "\", \"code\": " << static_cast<int>(ret)
-       << ", \"data\": {\"crc16_maxim\": " << static_cast<unsigned>(crc16_maxim) << "}}\n";
-
-    const auto& str{os.str()};
-    serial->send_bytes(str.c_str(), str.size());
-}
-
 void at_get_action(const std::string& cmd) {
     auto*         serial          = Device::get_device()->get_serial();
     auto*         storage         = DataDelegate::get_delegate()->get_storage_handler();
@@ -706,7 +688,7 @@ void at_get_action(const std::string& cmd) {
     auto          os              = std::ostringstream(std::ios_base::ate);
     uint16_t      crc16_maxim     = 0xffff;
     char          action[CMD_MAX_LENGTH]{};
-    el_err_code_t ret = EL_EINVAL;
+    el_err_code_t ret = EL_OK;
 
     if (action_delegate->has_condition() && storage->contains("edgelab_action")) {
         ret         = storage->get(el_make_storage_kv("edgelab_action", action)) ? EL_OK : EL_EINVAL;
@@ -739,32 +721,12 @@ void at_set_info(const std::vector<std::string>& argv) {
     serial->send_bytes(str.c_str(), str.size());
 }
 
-void at_unset_info(const std::string& cmd) {
-    auto*         serial  = Device::get_device()->get_serial();
-    auto*         storage = DataDelegate::get_delegate()->get_storage_handler();
-    auto          os      = std::ostringstream(std::ios_base::ate);
-    char          info[CMD_MAX_LENGTH]{};
-    el_err_code_t ret = EL_EINVAL;
-
-    if (storage->contains("edgelab_info")) {
-        *storage >> el_make_storage_kv("edgelab_info", info);
-        ret = storage->erase("edgelab_info") ? EL_OK : EL_EIO;
-    }
-
-    os << REPLY_CMD_HEADER << "\"name\": \"" << cmd << "\", \"code\": " << static_cast<int>(ret)
-       << ", \"data\": {\"crc16_maxim\": "
-       << static_cast<unsigned>(el_crc16_maxim(reinterpret_cast<uint8_t*>(&info[0]), std::strlen(&info[0]))) << "}}\n";
-
-    const auto& str{os.str()};
-    serial->send_bytes(str.c_str(), str.size());
-}
-
 void at_get_info(const std::string& cmd) {
     auto*         serial  = Device::get_device()->get_serial();
     auto*         storage = DataDelegate::get_delegate()->get_storage_handler();
     auto          os      = std::ostringstream(std::ios_base::ate);
     char          info[CMD_MAX_LENGTH]{};
-    el_err_code_t ret = EL_EINVAL;
+    el_err_code_t ret = EL_OK;
 
     if (storage->contains("edgelab_info"))
         ret = storage->get(el_make_storage_kv("edgelab_info", info)) ? EL_OK : EL_EINVAL;

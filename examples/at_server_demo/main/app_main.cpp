@@ -198,11 +198,6 @@ extern "C" void app_main(void) {
                                return EL_OK;
                            }));
 
-    instance->register_cmd("ACTION!", "Remove action trigger", "", el_repl_cmd_cb_t([&](std::vector<std::string> argv) {
-                               at_unset_action(argv[0]);
-                               return EL_OK;
-                           }));
-
     instance->register_cmd("ACTION?", "Get action trigger", "", el_repl_cmd_cb_t([&](std::vector<std::string> argv) {
                                at_get_action(argv[0]);
                                return EL_OK;
@@ -215,12 +210,6 @@ extern "C" void app_main(void) {
                                at_set_info(argv);
                                return EL_OK;
                            }));
-
-    instance->register_cmd(
-      "INFO!", "Remove info string from device flash", "", el_repl_cmd_cb_t([&](std::vector<std::string> argv) {
-          at_unset_info(argv[0]);
-          return EL_OK;
-      }));
 
     instance->register_cmd(
       "INFO?", "Get info string from device flash", "", el_repl_cmd_cb_t([&](std::vector<std::string> argv) {

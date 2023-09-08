@@ -74,19 +74,16 @@ class ActionDelegate {
 
         if (!_node) [[unlikely]]
             return false;
-        if (!_true_cb) [[unlikely]]
-            return false;
-        if (!_false_or_exception_cb) [[unlikely]]
-            return false;
 
         if (_node->evaluate([this](intr::types::NodeType, const std::string& name) {
                 auto it = this->_mutable_map.find(name);
                 if (it != this->_mutable_map.end() && it->second) [[likely]]
                     return it->second();
                 return 0;
-            }))
-            _true_cb();
-        else
+            })) {
+            if (_true_cb) [[likely]]
+                _true_cb();
+        } else if (_false_or_exception_cb) [[likely]]
             _false_or_exception_cb();
 
         return true;

@@ -255,9 +255,8 @@ extern "C" void app_main(void) {
     }
 
     // enter service pipeline (TODO: pipeline builder)
-    char* buf = new char[CMD_MAX_LENGTH + 1]{};
+    char* buf = new char[CMD_MAX_LENGTH + sizeof(int)]{};
     for (;;) {
-        vTaskDelay(10 / portTICK_PERIOD_MS);
         serial->get_line(buf, CMD_MAX_LENGTH);
         instance->exec(buf);
     }

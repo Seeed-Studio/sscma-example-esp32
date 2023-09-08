@@ -243,13 +243,16 @@ el_err_code_t ReplServer::m_exec_cmd(const std::string& cmd) {
     types::el_repl_cmd_t cmd_copy = *it;
     m_unlock(_cmd_list_lock);
 
+    if (!cmd_copy.cmd_cb) [[unlikely]]
+        return ret;
+
     // tokenize
     std::vector<std::string> argv;
     argv.push_back(cmd_name);
     std::stack<char> stk;
     size_t           index = 0;
     size_t           size  = cmd_args.size();
-    while (index < size) {
+    while (index < size && argv.size() < (cmd_copy._argc + 1)) {
         char c = cmd_args.at(index);
         if (c == '\'' || c == '"') [[unlikely]] {
             stk.push(c);
@@ -274,14 +277,12 @@ el_err_code_t ReplServer::m_exec_cmd(const std::string& cmd) {
     }
     argv.shrink_to_fit();
 
-    if (cmd_copy.cmd_cb) {
-        if (cmd_copy._argc != argv.size() - 1) [[unlikely]] {
-            m_echo_cb(EL_EINVAL, "Command ", cmd_name, " got wrong arguements.\n");
-            return ret;
-        }
-        ret = cmd_copy.cmd_cb(std::move(argv));
+    if (argv.size() != (cmd_copy._argc + 1)) [[unlikely]] {
+        m_echo_cb(EL_EINVAL, "Command ", cmd_name, " got wrong arguements.\n");
+        return ret;
     }
 
+    ret = cmd_copy.cmd_cb(std::move(argv));
     if (ret != EL_OK) [[unlikely]]
         m_echo_cb(EL_EINVAL, "Command ", cmd_name, " failed.\n");
 

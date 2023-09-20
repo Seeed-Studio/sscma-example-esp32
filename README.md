@@ -1,14 +1,16 @@
-# EdgeLab Deployment on Espressif Chipsets
+# SSCMA Deployment on Espressif Chipsets
 
 <div align="center">
-  <img width="100%" src="https://user-images.githubusercontent.com/20147381/206665275-feceede2-c68c-4259-a4db-541b3bd25b2f.png">
+  <img width="100%" src="https://cdn.jsdelivr.net/gh/Seeed-Studio/SSCMA-Micro@dev/docs/images/sscma.png">
 </div>
+
+
 
 English | [简体中文](README_zh-CN.md)
 
 ## Introduction
 
-The project provides examples of how to deploy models from EdgeLab to Espressif chipsets. It is based on the [ESP-IDF](https://github.com/espressif/esp-idf) and [TFLite-Micro](https://github.com/tensorflow/tflite-micro).
+The project provides examples of how to deploy models from SSCMA to Espressif chipsets. It is based on the [ESP-IDF](https://github.com/espressif/esp-idf) and [TFLite-Micro](https://github.com/tensorflow/tflite-micro).
 
 
 ## Getting Started
@@ -17,20 +19,20 @@ The project provides examples of how to deploy models from EdgeLab to Espressif 
 
 Follow instructions in this guide
 [ESP-IDF - Get Started](https://docs.espressif.com/projects/esp-idf/en/latest/get-started/index.html)
-to setup the built toolchain used by EdgeLab examples. Currently we're using the latest version `v5.1`.
+to setup the built toolchain used by SSCMA examples. Currently we're using the latest version `v5.1`.
 
 ### Clone and Setup the Repository
 
 1. Clone our repository.
 
     ```sh
-    git clone https://github.com/Seeed-Studio/edgelab-example-esp32
+    git clone https://github.com/Seeed-Studio/sscma-example-esp32
     ```
 
-2. Go to `edgelab-example-esp32` folder.
+2. Go to `sscma-example-esp32` folder.
 
     ```sh
-    cd edgelab-example-esp32
+    cd sscma-example-esp32
     ```
 
 3. Fetch the submodules.
@@ -103,12 +105,12 @@ to setup the built toolchain used by EdgeLab examples. Currently we're using the
 
 ### Supported Models and Performance
 
-Please refer to [EdgeLab Model Zoo](https://github.com/Seeed-Studio/edgelab-model-zoo) for details.
+Please refer to [SSCMA Model Zoo](https://github.com/Seeed-Studio/sscma-model-zoo) for details.
 
 
 ## Contributing
 
-- If you find any issue in using these examples, or wish to submit an enhancement request, please use the raise a [Issue](https://github.com/Seeed-Studio/edgelab-example-esp32/issues) or submit a [Pull Request](https://github.com/Seeed-Studio/edgelab-example-esp32/pulls).
+- If you find any issue in using these examples, or wish to submit an enhancement request, please use the raise a [Issue](https://github.com/Seeed-Studio/sscma-example-esp32/issues) or submit a [Pull Request](https://github.com/Seeed-Studio/sscma-example-esp32/pulls).
 
 
 ## License

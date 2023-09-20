@@ -6,4 +6,4 @@
 	url = https://github.com/espressif/esp32-camera
 [submodule "components/sscma-micro"]
 	path = components/sscma-micro
-	url = https://github.com/iChizer0/SSCMA-Micro
+	url = https://github.com/Seeed-Studio/SSCMA-Micro

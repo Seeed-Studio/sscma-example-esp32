@@ -1,7 +1,0 @@
-menu "Algorithm Configuration"
-    config EL_ALGORITHM_YOLO
-        bool "YOLO"
-        default y
-        help
-            Enable YOLO algorithm
-endmenu

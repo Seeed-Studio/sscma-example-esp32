@@ -1,10 +1,14 @@
 #include <stdio.h>
 
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+
 #include "core/edgelab.h"
 #include "sscma/repl/executor.hpp"
 
 extern "C" void app_main() {
     using namespace sscma;
+    using namespace sscma::repl;
 
     auto* executor = new Executor();
 

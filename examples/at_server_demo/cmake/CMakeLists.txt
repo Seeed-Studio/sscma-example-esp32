@@ -6,9 +6,9 @@ FILE(GLOB_RECURSE SSCMA_SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/core/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/core/*.c
     ${CMAKE_CURRENT_SOURCE_DIR}/sscma/*.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/porting/*.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/porting/*.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/porting/*.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/porting/espressif/*.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/porting/espressif/*.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/porting/espressif/*.c
 )
 
 set(SSCMA_INCLUDES
@@ -16,31 +16,29 @@ set(SSCMA_INCLUDES
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party
 )
 
-if(CONFIG_EL_LIB_FLASHDB)
-    list(APPEND SSCMA_SRCS
-        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/FlashDB/fal_flash.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/FlashDB/fal_partition.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/FlashDB/fal_rtt.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/FlashDB/fal.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/FlashDB/fdb_file.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/FlashDB/fdb_kvdb.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/FlashDB/fdb_tsdb.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/FlashDB/fdb_utils.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/FlashDB/fdb.c
-    )
-    list(APPEND SSCMA_INCLUDES
-        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/FlashDB
-    )
-endif()
+# FlashDB
+list(APPEND SSCMA_SRCS
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/FlashDB/fal_flash.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/FlashDB/fal_partition.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/FlashDB/fal_rtt.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/FlashDB/fal.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/FlashDB/fdb_file.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/FlashDB/fdb_kvdb.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/FlashDB/fdb_tsdb.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/FlashDB/fdb_utils.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/FlashDB/fdb.c
+)
+list(APPEND SSCMA_INCLUDES
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/FlashDB
+)
 
-if(CONFIG_EL_LIB_JPEGENC)
-    list(APPEND SSCMA_SRCS
-        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/JPEGENC/JPEGENC.cpp
-    )
-    list(APPEND SSCMA_INCLUDES
-        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/JPEGENC
-    )
-endif()
+#JPEGENC
+list(APPEND SSCMA_SRCS
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/JPEGENC/JPEGENC.cpp
+)
+list(APPEND SSCMA_INCLUDES
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/JPEGENC
+)
 
 message(STATUS "SSCMA_SRCS: ${SSCMA_SRCS}")
 message(STATUS "SSCMA_INCLUDES: ${SSCMA_INCLUDES}")

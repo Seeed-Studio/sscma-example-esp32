@@ -50,7 +50,18 @@ if("${IDF_VERSION_MAJOR}.${IDF_VERSION_MINOR}" VERSION_GREATER "4.1")
 endif()
 
 idf_component_register(
-            SRCS "${SSCMA_SRCS}"
-            INCLUDE_DIRS "${SSCMA_INCLUDES}"
-            REQUIRES ${pub_req}
-            PRIV_REQUIRES ${priv_req})
+    SRCS "${SSCMA_SRCS}"
+    INCLUDE_DIRS "${SSCMA_INCLUDES}"
+    REQUIRES ${pub_req}
+    PRIV_REQUIRES ${priv_req}
+)
+
+target_compile_definitions(
+    ${COMPONENT_TARGET}
+    PUBLIC
+    -DCONFIG_EL_TARGET_ESPPRESSIF
+    -DCONFIG_EL_BOARD_SEEED_XIAO_ESP32S3
+    -DCONFIG_EL_HAS_FREERTOS_SUPPORT=1
+    -DCONFIG_EL_LIB_FLASHDB
+    -DCONFIG_EL_LIB_JPEGENC
+)

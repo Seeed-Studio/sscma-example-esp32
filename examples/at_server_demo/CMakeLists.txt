@@ -2,8 +2,6 @@
 # CMakeLists in this exact order for cmake to work correctly
 cmake_minimum_required(VERSION 3.5)
 
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/cmake/el_config.h
-     DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/../../components/sscma-micro/core)
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/cmake/CMakeLists.txt
      DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/../../components/sscma-micro)
 

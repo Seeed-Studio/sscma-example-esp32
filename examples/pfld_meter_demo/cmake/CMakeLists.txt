@@ -47,7 +47,7 @@ message(STATUS "SSCMA_INCLUDES: ${SSCMA_INCLUDES}")
 set(priv_req esp-tflite-micro screen esp32-camera)
 
 if("${IDF_VERSION_MAJOR}.${IDF_VERSION_MINOR}" VERSION_GREATER "4.1")
-    list(APPEND priv_req esp_timer driver spi_flash esp_partition efuse)
+    list(APPEND priv_req esp_timer driver spi_flash esp_partition efuse esp_event esp_wifi mqtt nvs_flash)
 endif()
 
 idf_component_register(

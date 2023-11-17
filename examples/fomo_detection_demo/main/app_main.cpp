@@ -1,7 +1,7 @@
 #include <inttypes.h>
 #include <stdio.h>
 
-#include "core/edgelab.h"
+#include "core/el_api.h"
 #include "fomo_mobilenetv2_model_data.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"

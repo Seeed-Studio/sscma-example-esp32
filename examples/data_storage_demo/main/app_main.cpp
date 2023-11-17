@@ -2,7 +2,7 @@
 
 #include <stdio.h>
 
-#include "core/edgelab.h"
+#include "core/el_api.h"
 
 struct some_config_t {
     int val;

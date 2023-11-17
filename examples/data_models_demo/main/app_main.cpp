@@ -2,7 +2,7 @@
 
 #include <stdio.h>
 
-#include "core/edgelab.h"
+#include "core/el_api.h"
 
 extern "C" void app_main()
 {

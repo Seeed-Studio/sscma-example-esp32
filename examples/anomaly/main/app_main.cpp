@@ -10,8 +10,8 @@
 
 #include "test_data.h"
 
-#define LODA_COMPILE true
-#define KMEANS_COMPILE false
+#define LODA_COMPILE false
+#define KMEANS_COMPILE true
 
 // inspired by https://github.com/yzhao062/pyod
 class Anomaly
@@ -265,7 +265,7 @@ public:
   std::vector<float> decision_function(std::vector<std::vector<float>> &data)
   {
 
-    std::vector<int> labels(data.size(), 0); // normal
+    std::vector<float> labels(data.size(), 0); // normal
     std::vector<std::tuple<uint16_t, float>> clusters = K_Means::calculate_clusters(data);
     for (int i = 0; i < data.size(); i++)
     {
@@ -476,18 +476,18 @@ extern "C" void app_main()
   qma7981_set_range(QMA_RANGE_8G);
   std::vector<std::vector<float>> X;
   std::cout << "Collecting data..." << std::endl;
-  for (int i = 0; i < 100; ++i)
+  for (int i = 0; i < 30; ++i)
   {
     std::cout << "Iteration " << i << std::endl;
-    std::vector<float> row = std::vector<float>(30 * 3);
-    for (int j = 0; j < 30; ++j)
+    std::vector<float> row = std::vector<float>(60 * 3);
+    for (int j = 0; j < 60; ++j)
     {
       float x, y, z;
       // std::cout << "x: " << x << " y: " << y << " z: " << z << std::endl;
       qma7981_get_acce(&x, &y, &z);
-      row[j * 3] = x * 9.8;
-      row[j * 3 + 1] = y * 9.8;
-      row[j * 3 + 2] = z * 9.8;
+      row[j * 3] = x;
+      row[j * 3 + 1] = y;
+      row[j * 3 + 2] = z;
       vTaskDelay(16 / portTICK_PERIOD_MS);
     }
     X.push_back(row);
@@ -498,7 +498,7 @@ extern "C" void app_main()
   int n_random_cuts = 100;
   LODA detector(contamination, n_bins, n_random_cuts);
 #elif KMEANS_COMPILE
-  int cluster_num = 16;
+  int cluster_num = 3;
   int max_iteration = 20;
   float contamination = 0.0;
   K_Means detector(contamination, cluster_num, max_iteration);
@@ -515,15 +515,15 @@ extern "C" void app_main()
     std::vector<std::vector<float>> Y;
     for (int i = 0; i < 1; ++i)
     {
-      std::vector<float> row = std::vector<float>(30 * 3);
-      for (int j = 0; j < 30; ++j)
+      std::vector<float> row = std::vector<float>(60 * 3);
+      for (int j = 0; j < 60; ++j)
       {
         float x, y, z;
         qma7981_get_acce(&x, &y, &z);
         // std::cout << "x: " << x << " y: " << y << " z: " << z << std::endl;
-        row[j * 3] = x * 9.8;
-        row[j * 3 + 1] = y * 9.8;
-        row[j * 3 + 2] = z * 9.8;
+        row[j * 3] = x;
+        row[j * 3 + 1] = y;
+        row[j * 3 + 2] = z;
         vTaskDelay(16 / portTICK_PERIOD_MS);
       }
       Y.push_back(row);

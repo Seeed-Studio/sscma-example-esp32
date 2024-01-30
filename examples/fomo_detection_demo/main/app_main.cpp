@@ -1,10 +1,8 @@
-#include <inttypes.h>
-#include <stdio.h>
-
-#include "core/edgelab.h"
+#include "core/algorithm/el_algorithm_fomo.h"
+#include "core/engine/el_engine_tflite.h"
+#include "core/utils/el_cv.h"
 #include "fomo_mobilenetv2_model_data.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
+#include "porting/el_device.h"
 
 #define kTensorArenaSize (1024 * 1024)
 

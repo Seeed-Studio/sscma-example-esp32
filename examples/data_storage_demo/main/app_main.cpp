@@ -2,45 +2,42 @@
 
 #include <stdio.h>
 
-#include "core/edgelab.h"
+#include "core/data/el_data_storage.hpp"
 
 struct some_config_t {
     int val;
 };
 
-extern "C" void app_main()
-{
+extern "C" void app_main() {
     using namespace edgelab;
     using namespace edgelab::utility;
 
     printf("Data storage demo:\n");
 
     printf("Geting storage handler from data delegate...\n");
-    auto* storage = new edgelab::Storage();
+    auto* storage = edgelab::Storage::get_ptr();
 
     printf("Init storage...\n");
     storage->init();
 
     printf("Quering storage keys ->\n");
-    for (const auto& k : *storage)
-        printf("\t%s\n", k);
+    for (const auto& k : *storage) printf("\t%s\n", k);
 
     printf("Clearing storage...\n");
     storage->clear();
 
     printf("Quering storage keys ->\n");
-    for (const auto& k : *storage)
-        printf("\t%s\n", k);
+    for (const auto& k : *storage) printf("\t%s\n", k);
 
     {
         printf("Emplace KV to storage ->\n");
 
-        auto kv = el_make_storage_kv("key_1", 1);
+        auto kv    = el_make_storage_kv("key_1", 1);
         bool is_ok = storage->emplace(kv);
         printf("\tstore KV (%s, %d), %s\n", kv.key, kv.value, is_ok ? "ok" : "fail");
 
         int value = 2;
-        is_ok = storage->emplace(el_make_storage_kv("key_2", value));
+        is_ok     = storage->emplace(el_make_storage_kv("key_2", value));
         printf("\tstore KV (key_2, 2), %s\n", is_ok ? "ok" : "fail");
 
         kv = el_make_storage_kv("key_3", 3);
@@ -52,7 +49,7 @@ extern "C" void app_main()
         printf("\tstore KV (key_5, %s)\n", str);
 
         some_config_t some_config = some_config_t{.val = 42};
-        auto kv_1 = el_make_storage_kv_from_type(some_config);
+        auto          kv_1        = el_make_storage_kv_from_type(some_config);
         *storage << kv_1;
         printf("\tstore type KV (%s, some_config_t{ int val = %d; })\n", kv_1.key, kv_1.value.val);
     }
@@ -60,7 +57,7 @@ extern "C" void app_main()
     {
         printf("Get KV from storage ->\n");
 
-        auto kv = el_make_storage_kv("key_1", 0);
+        auto kv    = el_make_storage_kv("key_1", 0);
         bool is_ok = storage->get(kv);
         printf("\tget KV (%s, %d), %s\n", kv.key, kv.value, is_ok ? "ok" : "fail");
 
@@ -78,14 +75,13 @@ extern "C" void app_main()
         printf("\tget KV (key_5, %s)\n", str);
 
         some_config_t some_config = some_config_t{.val = 42};
-        auto kv_2 = el_make_storage_kv_from_type(some_config);
+        auto          kv_2        = el_make_storage_kv_from_type(some_config);
         *storage >> kv_2;
         printf("\tget type KV (%s, some_config_t{ int val = %d; })\n", kv_2.key, kv_2.value.val);
     }
 
     printf("Quering storage keys ->\n");
-    for (const auto& k : *storage)
-        printf("\t%s\n", k);
+    for (const auto& k : *storage) printf("\t%s\n", k);
 
     {
         printf("Other storage API ->\n");
@@ -99,12 +95,9 @@ extern "C" void app_main()
         has_key = storage->contains("some_key");
         printf("\tstorage %s the key (some_key)\n", has_key ? "has" : "doesn't have");
 
-        auto kv = el_make_storage_kv("key_2", 2);
+        auto kv          = el_make_storage_kv("key_2", 2);
         bool is_emplaced = storage->try_emplace(kv);
-        printf("\t%s KV (%s, %d)\n",
-               is_emplaced ? "emplaced" : "not emplaced existing",
-               kv.key,
-               kv.value);
+        printf("\t%s KV (%s, %d)\n", is_emplaced ? "emplaced" : "not emplaced existing", kv.key, kv.value);
     }
 
     // TODO: move freeRTOS, ESP related function call to EdgeLab

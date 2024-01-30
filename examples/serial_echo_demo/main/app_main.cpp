@@ -1,9 +1,4 @@
-#include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
-#include <inttypes.h>
-#include <stdio.h>
-
-#include "core/edgelab.h"
+#include "porting/el_device.h"
 
 extern "C" void app_main(void) {
     using namespace edgelab;
@@ -24,7 +19,7 @@ extern "C" void app_main(void) {
         serial->get_line(buffer, buffer_size);
         serial->send_bytes(buffer, strlen(buffer));
 
-        vTaskDelay(100 / portTICK_PERIOD_MS);
+        el_sleep(20);
     }
 
     delete[] buffer;

@@ -1,9 +1,7 @@
-#include <inttypes.h>
-#include <stdio.h>
-
-#include "core/edgelab.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
+#include "core/algorithm/el_algorithm_yolo.h"
+#include "core/engine/el_engine_tflite.h"
+#include "core/utils/el_cv.h"
+#include "porting/el_device.h"
 #include "yolo_model_data.h"
 
 #define kTensorArenaSize (1024 * 1024)

@@ -1,10 +1,8 @@
-#include <inttypes.h>
-#include <stdio.h>
-
-#include "core/edgelab.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
+#include "core/algorithm/el_algorithm_imcls.h"
+#include "core/engine/el_engine_tflite.h"
+#include "core/utils/el_cv.h"
 #include "mobilenetv2_model_data.h"
+#include "porting/el_device.h"
 
 #define kTensorArenaSize (1024 * 1024)
 
@@ -22,7 +20,7 @@ extern "C" void app_main(void) {
     auto* tensor_arena = heap_caps_malloc(kTensorArenaSize, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     engine->init(tensor_arena, kTensorArenaSize);
     engine->load_model(g_mobilenetv2_model_data, g_mobilenetv2_model_data_len);
-    auto* algorithm = new AlgorithmIMCLS(engine, 20); // we already have softmax
+    auto* algorithm = new AlgorithmIMCLS(engine, 20);  // we already have softmax
 
     while (true) {
         el_img_t img;
@@ -39,7 +37,7 @@ extern "C" void app_main(void) {
         display->show(&img);
         camera->stop_stream();
 
-        vTaskDelay(200 / portTICK_PERIOD_MS);
+        el_sleep(100);
     }
 
     delete algorithm;

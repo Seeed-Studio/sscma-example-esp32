@@ -45,9 +45,10 @@ message(STATUS "SSCMA_SRCS: ${SSCMA_SRCS}")
 message(STATUS "SSCMA_INCLUDES: ${SSCMA_INCLUDES}")
 
 set(priv_req esp-tflite-micro screen esp32-camera)
+set(network_req mqtt nvs_flash esp_event esp_netif esp_wifi lwip mdns)
 
 if("${IDF_VERSION_MAJOR}.${IDF_VERSION_MINOR}" VERSION_GREATER "4.1")
-    list(APPEND priv_req esp_timer driver spi_flash esp_partition efuse)
+    list(APPEND priv_req ${network_req} esp_timer driver spi_flash esp_partition efuse)
 endif()
 
 idf_component_register(

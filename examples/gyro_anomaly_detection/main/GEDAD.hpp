@@ -275,12 +275,13 @@ template <typename DataType, typename DistType = float, size_t Channels = 3u> cl
         mt19937                          gen(rd());
         uniform_int_distribution<size_t> dis(range_start, range_end);
         size_t                           rand_index;
-        for (auto it = begin(view_index); it != end(view_index); ++it) {
+        for (auto it = begin(view_index); it != end(view_index);) {
             rand_index = dis(gen);
             if (find(begin(view_index), it, rand_index) != it) {
                 continue;  // skip if the index is already in the view_index
             }
             *it = rand_index;
+            ++it
         }
 
         return view_index;

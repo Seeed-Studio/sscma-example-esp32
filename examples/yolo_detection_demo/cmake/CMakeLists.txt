@@ -17,6 +17,17 @@ set(SSCMA_INCLUDES
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party
 )
 
+list(APPEND SSCMA_SRCS
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/ByteTrack/BYTETracker.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/ByteTrack/kalmanFilter.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/ByteTrack/lapjv.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/ByteTrack/STrack.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/ByteTrack/utils.cpp
+)
+list(APPEND SSCMA_INCLUDES
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/ByteTrack
+)
+
 # FlashDB
 list(APPEND SSCMA_SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/FlashDB/fal_flash.c
@@ -48,7 +59,7 @@ set(priv_req esp-tflite-micro screen esp32-camera)
 set(network_req mqtt nvs_flash esp_event esp_netif esp_wifi lwip mdns)
 
 if("${IDF_VERSION_MAJOR}.${IDF_VERSION_MINOR}" VERSION_GREATER "4.1")
-    list(APPEND priv_req ${network_req} esp_timer driver spi_flash esp_partition efuse)
+    list(APPEND priv_req ${network_req} esp_timer driver spi_flash esp_partition efuse eigen)
 endif()
 
 idf_component_register(

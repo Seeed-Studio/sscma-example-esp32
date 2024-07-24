@@ -19,11 +19,11 @@
 #include <cstdint>
 #include <cstring>
 #include <iostream>
+#include <map>
 #include <memory>
 #include <new>
 #include <ostream>
 #include <random>
-#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -122,7 +122,7 @@ template <typename DataType = float, size_t Channels = 3u> class GEDAD {
     mutable array<vector<DataType>, Channels> _cached_view;
 };
 
-template <typename DataType = float, size_t Channels = 3u> class GEDADNN : public GEDAD<DataType, Channels> {
+template <typename DataType = float, size_t Channels = 3u> class GEDADNN final : public GEDAD<DataType, Channels> {
    public:
     explicit GEDADNN(size_t   buffer_size,
                      size_t   tensor_arena_size,
@@ -250,10 +250,10 @@ template <typename DataType = float, size_t Channels = 3u> class GEDADNN : publi
           _perf, "pre-process", preProcess(view_size, rescale, rescale_squeeze, rescale_expand, cwt_std, cwt_mean));
         AD_PERF_TIME_MS(_perf, "invoke", _interpreter->Invoke());
 
-        array<DataType, 2> losses;
-        AD_PERF_TIME_MS(_perf, "post-process", postProcess(losses));
+        array<DataType, 2> results;
+        AD_PERF_TIME_MS(_perf, "post-process", postProcess(results));
 
-        return make_pair(losses[0], losses[1]);
+        return make_pair(results[0], results[1]);
     }
 
     void printPerf() const {
@@ -482,10 +482,10 @@ template <typename DataType = float, size_t Channels = 3u> class GEDADNN : publi
         }
     }
 
-    void postProcess(array<DataType, 2>& losses) {
+    void postProcess(array<DataType, 2>& results) {
         const auto outputs = _outputs.size();
         assert(outputs == _cached_outputs.size());
-        assert(outputs == losses.size());
+        assert(outputs == results.size());
         for (size_t i = 0; i < outputs; ++i) {
             const auto output_i            = _outputs[i]->data.int8;
             auto&      cached_output_i     = _cached_outputs[i];
@@ -499,7 +499,7 @@ template <typename DataType = float, size_t Channels = 3u> class GEDADNN : publi
             }
 
             assert(_cached_inputs[i].size() == cached_output_i.size());
-            losses[i] = dsp::psnr<DataType>(_cached_inputs[i], cached_output_i);
+            results[i] = dsp::psnr<DataType>(_cached_inputs[i], cached_output_i);
         }
     }
 
@@ -541,7 +541,7 @@ template <typename DataType = float, size_t Channels = 3u> class GEDADNN : publi
     array<vector<DataType>, 2> _cached_outputs;
 
 #ifdef AD_PERF
-    unordered_map<string, int64_t> _perf;
+    map<string, int64_t> _perf;
 #endif
 };
 

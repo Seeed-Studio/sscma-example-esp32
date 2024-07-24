@@ -63,8 +63,8 @@ static void gyroSampleCallback(TimerHandle_t xTimer) {
     #if DEBUG > 2
     if (gyroSampleCount < GYRO_SAMPLE_SIZE_MIN) {
         std::cout << std::fixed << std::setprecision(5) << "sample " << gyroSampleCount << ":" << std::endl;
-        std::cout << "  x: " << xyz[0] << " y: " << xyz[1] << " z: " << xyz[2] << std::endl;
-        std::cout << "  duration: " << duration << "ms" << std::endl;
+        std::cout << "  x: " << xyz[0] << " y: " << xyz[1] << " z: " << xyz[2] << "  duration: " << duration << "ms"
+                  << std::endl;
     }
     #endif
 #endif
@@ -89,7 +89,7 @@ static void gyroSensorInit() {
 static void gedadPredictTask(void*) {
     static auto start             = std::chrono::high_resolution_clock::now();
     static auto end               = std::chrono::high_resolution_clock::now();
-    static auto last_sample_count = 0;
+    static auto last_sample_count = gyroSampleCount;
 
     while (true) {
         start                        = std::chrono::high_resolution_clock::now();
@@ -104,9 +104,9 @@ static void gedadPredictTask(void*) {
         std::cout << "Predict loss: " << l1 << " " << l2 << std::endl;
         auto duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
         std::cout << "Predict time: " << duration_ms << "ms" << std::endl;
-        std::cout << "Sampled: " << gyroSampleCount << " samples" << std::endl;
+        std::cout << "Sampled: " << sample_count_diff << " (" << gyroSampleCount << ")" << std::endl;
         std::cout << "Data skipped: " << (has_data_skipped ? "yes" : "no") << std::endl;
-        std::cout << "Coverage: " << 1.0 - (sample_count_diff / GYRO_VIEW_SIZE) << std::endl;
+        std::cout << "Coverage: " << 1.0 - (float(sample_count_diff) / float(GYRO_VIEW_SIZE)) << std::endl;
 
         int32_t delay = GYRO_SAMPLE_DELAY_MS - duration_ms;
         if (delay > 0) {

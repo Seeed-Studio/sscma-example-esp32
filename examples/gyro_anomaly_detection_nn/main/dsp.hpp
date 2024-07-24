@@ -1057,7 +1057,7 @@ void cwt(cwt_ctx_t<T>&         ctx,
                 const auto scale_mul_step = std::max(scale * x_step, static_cast<P>(DSP_EPS));
                 for (size_t j = 0; j < psi_arange_end; ++j) {
                     const auto idx = static_cast<size_t>(std::floor(static_cast<P>(psi_arange[j]) / scale_mul_step));
-                    if (idx >= n_psi) {
+                    if (idx >= n_psi) [[unlikely]] {
                         break;
                     }
                     psi_indices[len_psi_indices++] = idx;

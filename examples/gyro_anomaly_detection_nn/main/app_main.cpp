@@ -22,6 +22,7 @@
 #define GYRO_BUFFER_SIZE         6144
 #define GYRO_VIEW_SIZE           2048
 #define GYRO_SAMPLE_SIZE_MIN     2048
+#define GYRO_SAMPLE_MODE         1
 
 #define TFLITE_TENSOR_ARENA_SIZE (512 * 1024)
 
@@ -40,6 +41,12 @@ static void gyroSampleCallback(TimerHandle_t xTimer) {
 
     static std::array<float, 3> xyz;
     qma7981_get_acce(&xyz[0], &xyz[1], &xyz[2]);
+
+    auto        current_time     = std::chrono::high_resolution_clock::now();
+    static auto last_sample_time = current_time;
+    auto duration    = std::chrono::duration_cast<std::chrono::milliseconds>(current_time - last_sample_time).count();
+    last_sample_time = current_time;
+
     xyz[0] *= GRAVITY_EARTH;
     xyz[1] *= GRAVITY_EARTH;
     xyz[2] *= GRAVITY_EARTH;
@@ -48,11 +55,18 @@ static void gyroSampleCallback(TimerHandle_t xTimer) {
         gedad->pushToBuffer(xyz);
         gyroSampleCount = gyroSampleCount + 1;
     }
-#if DEBUG > 2
+
+#if GYRO_SAMPLE_MODE == 1
+    std::cout << std::fixed << std::setprecision(5) << xyz[0] << " " << xyz[1] << " " << xyz[2] << " " << duration
+              << std::endl;
+#else
+    #if DEBUG > 2
     if (gyroSampleCount < GYRO_SAMPLE_SIZE_MIN) {
-        std::cout << std::fixed << std::setprecision(5) << "sample " << gyroSampleCount << ":\n  x: " << xyz[0]
-                  << " y: " << xyz[1] << " z: " << xyz[2] << std::endl;
+        std::cout << std::fixed << std::setprecision(5) << "sample " << gyroSampleCount << ":" << std::endl;
+        std::cout << "  x: " << xyz[0] << " y: " << xyz[1] << " z: " << xyz[2] << std::endl;
+        std::cout << "  duration: " << duration << "ms" << std::endl;
     }
+    #endif
 #endif
 }
 
@@ -102,6 +116,7 @@ static void gedadPredictTask(void*) {
     }
 }
 
+#if GYRO_SAMPLE_MODE == 0
 extern "C" void app_main() {
     // print heap info
     multi_heap_info_t heapInfo;
@@ -156,3 +171,34 @@ extern "C" void app_main() {
         vTaskDelay(10000 / portTICK_PERIOD_MS);
     }
 }
+#else
+extern "C" void app_main() {
+    // print heap info
+    multi_heap_info_t heapInfo;
+    heap_caps_get_info(&heapInfo, MALLOC_CAP_8BIT);
+    std::cout << "Heap info:" << std::endl;
+    std::cout << "  total: " << heapInfo.total_allocated_bytes << " bytes" << std::endl;
+    std::cout << "  free: " << heapInfo.total_free_bytes << " bytes" << std::endl;
+    std::cout << "  minimum free: " << heapInfo.minimum_free_bytes << " bytes" << std::endl;
+    std::cout << "  largest free block: " << heapInfo.largest_free_block << " bytes" << std::endl;
+    std::cout << std::endl;
+
+    // initialize gyro sensor
+    std::cout << "Initializing gyro sensor..." << std::endl;
+    gyroSensorInit();
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+
+    // start sampling
+    std::cout << "Start sampling in 3 seconds";
+    for (size_t i = 0; i < 3; ++i) {
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        std::cout << "." << std::flush;
+    }
+    std::cout << std::endl;
+    gyroSampleFlag = true;
+
+    while (1) {
+        vTaskDelay(10000 / portTICK_PERIOD_MS);
+    }
+}
+#endif

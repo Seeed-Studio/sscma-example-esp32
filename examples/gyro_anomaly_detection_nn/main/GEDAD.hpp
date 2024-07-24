@@ -237,16 +237,21 @@ template <typename DataType = float, size_t Channels = 3u> class GEDADNN : publi
         return os;
     }
 
-    void predict(size_t                           view_size,
-                 DataType                         squeeze  = 0.02,
-                 DataType                         expand   = 50.0,
-                 const array<DataType, Channels>& cwt_std  = {1.0, 1.0, 1.0},
-                 const array<DataType, Channels>& cwt_mean = {0.0, 0.0, 0.0}) {
+    decltype(auto) predict(size_t                           view_size,
+                           DataType                         squeeze  = 0.02,
+                           DataType                         expand   = 50.0,
+                           const array<DataType, Channels>& cwt_std  = {1.0, 1.0, 1.0},
+                           const array<DataType, Channels>& cwt_mean = {0.0, 0.0, 0.0}) {
         assert(view_size <= this->_buffer_size);
         assert(view_size > 0);
 
         AD_PERF_TIME_MS(_perf, "pre-process", preProcess(view_size, squeeze, expand, cwt_std, cwt_mean));
         AD_PERF_TIME_MS(_perf, "invoke", _interpreter->Invoke());
+
+        array<DataType, 2> losses;
+        AD_PERF_TIME_MS(_perf, "post-process", postProcess(losses));
+
+        return make_pair(losses[0], losses[1]);
     }
 
     void printPerf() const {
@@ -309,6 +314,8 @@ template <typename DataType = float, size_t Channels = 3u> class GEDADNN : publi
 
             for (size_t i = 0; i < inputs; ++i) {
                 _inputs.push_back(_interpreter->input_tensor(i));
+
+                assert(i < _cached_inputs.size());
             }
 
             assert(_inputs.size() == 1);
@@ -317,6 +324,11 @@ template <typename DataType = float, size_t Channels = 3u> class GEDADNN : publi
             assert(_inputs[0]->dims->data[1] == 32);
             assert(_inputs[0]->dims->data[2] == 32);
             assert(_inputs[0]->dims->data[3] == 3);
+
+            const auto size = _inputs[0]->dims->data[1] * _inputs[0]->dims->data[2] * _inputs[0]->dims->data[3];
+            for (auto& i : _cached_inputs) {
+                i.resize(size);
+            }
 
             _resize_input_shape[0] = _inputs[0]->dims->data[1];
             _resize_input_shape[1] = _inputs[0]->dims->data[2];
@@ -334,6 +346,11 @@ template <typename DataType = float, size_t Channels = 3u> class GEDADNN : publi
                 assert(_outputs[i]->dims->data[1] == 32);
                 assert(_outputs[i]->dims->data[2] == 32);
                 assert(_outputs[i]->dims->data[3] == 3);
+
+                assert(i < _cached_outputs.size());
+                const auto size = _outputs[i]->dims->data[0] * _outputs[i]->dims->data[1] * _outputs[i]->dims->data[2] *
+                                  _outputs[i]->dims->data[3];
+                _cached_outputs[i].resize(size);
             }
 
             assert(_outputs.size() == 2);
@@ -356,6 +373,11 @@ template <typename DataType = float, size_t Channels = 3u> class GEDADNN : publi
         const auto input_stride_whc = input_stride_wh * input_shape[3];
         const auto input_batch_0    = _inputs[0]->data.int8;
         const auto input_batch_1    = _inputs[0]->data.int8 + input_stride_whc;
+
+        auto& cached_inputs_0 = _cached_inputs[0];
+        auto& cached_inputs_1 = _cached_inputs[1];
+        assert(cached_inputs_0.size() == input_stride_whc);
+        assert(cached_inputs_1.size() == input_stride_whc);
 
         assert(_inputs[0]->quantization.type == kTfLiteAffineQuantization);
         assert(_inputs[0]->quantization.params != nullptr);
@@ -440,14 +462,39 @@ template <typename DataType = float, size_t Channels = 3u> class GEDADNN : publi
             const auto& mtf_result = _mtf_ctx.result;
             assert(_resize_ctx.result.size() == input_stride_wh);
             assert(_mtf_ctx.result.size() == input_stride_wh);
+
             const auto cwt_std_i  = cwt_std[i];
             const auto cwt_mean_i = cwt_mean[i];
             for (size_t j = 0, k = 0; (j < input_stride_wh) & (j < input_stride_whc); ++j, k += Channels) {
                 const auto k_add_i      = k + i;
                 const auto cwt_result_j = (cwt_result[j] - cwt_mean_i) / cwt_std_i;
-                input_batch_0[k_add_i]  = round((static_cast<DataType>(cwt_result_j) / scale) + zero_point);
-                input_batch_1[k_add_i]  = round((static_cast<DataType>(mtf_result[j]) / scale) + zero_point);
+
+                cached_inputs_0[k_add_i] = cwt_result_j;
+                cached_inputs_1[k_add_i] = mtf_result[j];
+                input_batch_0[k_add_i]   = round((static_cast<DataType>(cwt_result_j) / scale) + zero_point);
+                input_batch_1[k_add_i]   = round((static_cast<DataType>(mtf_result[j]) / scale) + zero_point);
             }
+        }
+    }
+
+    void postProcess(array<DataType, 2>& losses) {
+        const auto outputs = _outputs.size();
+        assert(outputs == _cached_outputs.size());
+        assert(outputs == losses.size());
+        for (size_t i = 0; i < outputs; ++i) {
+            const auto output_i            = _outputs[i]->data.int8;
+            auto&      cached_output_i     = _cached_outputs[i];
+            const auto size                = cached_output_i.size();
+            const auto quantization_params = static_cast<TfLiteAffineQuantization*>(_outputs[i]->quantization.params);
+            const auto zero_point          = quantization_params->zero_point->data[0];
+            const auto scale               = quantization_params->scale->data[0];
+
+            for (size_t j = 0; j < size; ++j) {
+                cached_output_i[j] = static_cast<DataType>(output_i[j] - zero_point) * scale;
+            }
+
+            assert(_cached_inputs[i].size() == cached_output_i.size());
+            losses[i] = dsp::psnr<DataType>(_cached_inputs[i], cached_output_i);
         }
     }
 
@@ -484,6 +531,9 @@ template <typename DataType = float, size_t Channels = 3u> class GEDADNN : publi
 
     dsp::resize_ctx_t<DataType> _resize_ctx;
     array<int32_t, 2>           _resize_input_shape;
+
+    array<vector<DataType>, 2> _cached_inputs;
+    array<vector<DataType>, 2> _cached_outputs;
 
 #ifdef AD_PERF
     unordered_map<string, int64_t> _perf;

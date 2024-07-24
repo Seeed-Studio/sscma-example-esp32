@@ -840,7 +840,7 @@ decltype(auto) psnr(const Container& target, const Container& preds) {
         for (size_t i = 0; i < n_target; ++i) {
             const auto target_i = target[i];
             max                 = std::max(max, target_i);
-            const auto diff     = target_i - preds[i];
+            const auto diff     = preds[i] - target_i;
             mse += diff * diff;
         }
         mse /= static_cast<T>(n_target);

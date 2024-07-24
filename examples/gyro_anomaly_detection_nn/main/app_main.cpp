@@ -19,9 +19,9 @@
 #define GEDAD_PREDICT_DELAY_MS   (GYRO_SAMPLE_DELAY_MS / 2)
 #define GEDAD_YIELD_DELAY_MS     5
 
-#define GYRO_BUFFER_SIZE         8192
+#define GYRO_BUFFER_SIZE         6144
 #define GYRO_VIEW_SIZE           2048
-#define GYRO_SAMPLE_SIZE_MIN     1024
+#define GYRO_SAMPLE_SIZE_MIN     2048
 
 #define TFLITE_TENSOR_ARENA_SIZE (512 * 1024)
 
@@ -73,20 +73,25 @@ static void gyroSensorInit() {
 }
 
 static void gedadPredictTask(void*) {
-    static auto start = std::chrono::high_resolution_clock::now();
-    static auto end   = std::chrono::high_resolution_clock::now();
+    static auto start             = std::chrono::high_resolution_clock::now();
+    static auto end               = std::chrono::high_resolution_clock::now();
+    static auto last_sample_count = 0;
 
     while (true) {
-        start = std::chrono::high_resolution_clock::now();
-        gedad->predict(GYRO_VIEW_SIZE);
-        end = std::chrono::high_resolution_clock::now();
+        start                        = std::chrono::high_resolution_clock::now();
+        const auto sample_count_diff = gyroSampleCount - last_sample_count;
+        last_sample_count            = gyroSampleCount;
+        const auto [l1, l2]          = gedad->predict(GYRO_VIEW_SIZE);
+        end                          = std::chrono::high_resolution_clock::now();
+        const bool has_data_skipped  = sample_count_diff > GYRO_VIEW_SIZE;
 
         gedad->printPerf();
 
+        std::cout << "Predict loss: " << l1 << " " << l2 << std::endl;
         auto duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
         std::cout << "Predict time: " << duration_ms << "ms" << std::endl;
-        std::cout << std::endl;
         std::cout << "Sampled " << gyroSampleCount << " samples" << std::endl;
+        std::cout << "Data skipped: " << (has_data_skipped ? "yes" : "no") << std::endl;
 
         int32_t delay = GYRO_SAMPLE_DELAY_MS - duration_ms;
         if (delay > 0) {

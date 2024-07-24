@@ -22,7 +22,7 @@
 #define GYRO_BUFFER_SIZE         6144
 #define GYRO_VIEW_SIZE           2048
 #define GYRO_SAMPLE_SIZE_MIN     2048
-#define GYRO_SAMPLE_MODE         1
+#define GYRO_SAMPLE_MODE         0
 
 #define TFLITE_TENSOR_ARENA_SIZE (512 * 1024)
 
@@ -104,8 +104,9 @@ static void gedadPredictTask(void*) {
         std::cout << "Predict loss: " << l1 << " " << l2 << std::endl;
         auto duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
         std::cout << "Predict time: " << duration_ms << "ms" << std::endl;
-        std::cout << "Sampled " << gyroSampleCount << " samples" << std::endl;
+        std::cout << "Sampled: " << gyroSampleCount << " samples" << std::endl;
         std::cout << "Data skipped: " << (has_data_skipped ? "yes" : "no") << std::endl;
+        std::cout << "Coverage: " << 1.0 - (sample_count_diff / GYRO_VIEW_SIZE) << std::endl;
 
         int32_t delay = GYRO_SAMPLE_DELAY_MS - duration_ms;
         if (delay > 0) {

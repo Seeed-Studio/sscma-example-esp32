@@ -238,14 +238,16 @@ template <typename DataType = float, size_t Channels = 3u> class GEDADNN : publi
     }
 
     decltype(auto) predict(size_t                           view_size,
-                           DataType                         squeeze  = 0.02,
-                           DataType                         expand   = 50.0,
-                           const array<DataType, Channels>& cwt_std  = {1.0, 1.0, 1.0},
-                           const array<DataType, Channels>& cwt_mean = {0.0, 0.0, 0.0}) {
+                           bool                             rescale         = true,
+                           DataType                         rescale_squeeze = 0.02,
+                           DataType                         rescale_expand  = 50.0,
+                           const array<DataType, Channels>& cwt_std         = {1.0, 1.0, 1.0},
+                           const array<DataType, Channels>& cwt_mean        = {0.0, 0.0, 0.0}) {
         assert(view_size <= this->_buffer_size);
         assert(view_size > 0);
 
-        AD_PERF_TIME_MS(_perf, "pre-process", preProcess(view_size, squeeze, expand, cwt_std, cwt_mean));
+        AD_PERF_TIME_MS(
+          _perf, "pre-process", preProcess(view_size, rescale, rescale_squeeze, rescale_expand, cwt_std, cwt_mean));
         AD_PERF_TIME_MS(_perf, "invoke", _interpreter->Invoke());
 
         array<DataType, 2> losses;
@@ -358,8 +360,9 @@ template <typename DataType = float, size_t Channels = 3u> class GEDADNN : publi
     }
 
     void preProcess(size_t                           view_size,
-                    DataType                         squeeze,
-                    DataType                         expand,
+                    bool                             rescale,
+                    DataType                         rescale_squeeze,
+                    DataType                         rescale_expand,
                     const array<DataType, Channels>& cwt_std,
                     const array<DataType, Channels>& cwt_mean) {
         assert(_fir_coefficients.size() == _num_taps);
@@ -393,8 +396,10 @@ template <typename DataType = float, size_t Channels = 3u> class GEDADNN : publi
             auto& cached_view_i = this->_cached_view[i];
             assert(cached_view_i.size() == view_size);
 
-            for (auto& v : cached_view_i) {
-                v = floor(v * squeeze) * expand;
+            if (rescale) {
+                for (auto& v : cached_view_i) {
+                    v = floor(v * rescale_squeeze) * rescale_expand;
+                }
             }
 
             AD_PERF_TIME_MS(_perf,

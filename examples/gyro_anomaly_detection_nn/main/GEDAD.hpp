@@ -23,12 +23,26 @@
 #include <new>
 #include <ostream>
 #include <random>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
 #include "dsp.hpp"
 
 // #define AD_DEBUG
+#define AD_PERF
+
+#ifdef AD_PERF
+    #define AD_PERF_TIME_MS(records, name, func)                                              \
+        {                                                                                     \
+            auto start = chrono::high_resolution_clock::now();                                \
+            func;                                                                             \
+            auto end      = chrono::high_resolution_clock::now();                             \
+            records[name] = chrono::duration_cast<chrono::milliseconds>(end - start).count(); \
+        }
+#else
+    #define AD_PERF_TIME_MS(records, name, func) func;
+#endif
 
 namespace ad {
 
@@ -223,25 +237,27 @@ template <typename DataType = float, size_t Channels = 3u> class GEDADNN : publi
         return os;
     }
 
-    void predict(size_t view_size) {
+    void predict(size_t                           view_size,
+                 DataType                         squeeze  = 0.02,
+                 DataType                         expand   = 50.0,
+                 const array<DataType, Channels>& cwt_std  = {1.0, 1.0, 1.0},
+                 const array<DataType, Channels>& cwt_mean = {0.0, 0.0, 0.0}) {
         assert(view_size <= this->_buffer_size);
         assert(view_size > 0);
 
-        auto start = chrono::high_resolution_clock::now();
-        preProcess(view_size);
-        auto end = chrono::high_resolution_clock::now();
-        _perf[0] = chrono::duration_cast<chrono::milliseconds>(end - start).count();
-
-        start = chrono::high_resolution_clock::now();
-        _interpreter->Invoke();
-        end      = chrono::high_resolution_clock::now();
-        _perf[1] = chrono::duration_cast<chrono::milliseconds>(end - start).count();
+        AD_PERF_TIME_MS(_perf, "pre-process", preProcess(view_size, squeeze, expand, cwt_std, cwt_mean));
+        AD_PERF_TIME_MS(_perf, "invoke", _interpreter->Invoke());
     }
 
     void printPerf() const {
         cout << "GEDADNN Perf:" << endl;
-        cout << "  preprocess time: " << _perf[0] << "ms" << endl;
-        cout << "  predict time: " << _perf[1] << "ms" << endl;
+#ifdef AD_PERF
+        for (const auto& [k, v] : _perf) {
+            cout << "  " << k << ": " << v << "ms" << endl;
+        }
+#else
+        cout << "  perf not enabled" << endl;
+#endif
     }
 
    protected:
@@ -324,7 +340,11 @@ template <typename DataType = float, size_t Channels = 3u> class GEDADNN : publi
         }
     }
 
-    void preProcess(size_t view_size) {
+    void preProcess(size_t                           view_size,
+                    DataType                         squeeze,
+                    DataType                         expand,
+                    const array<DataType, Channels>& cwt_std,
+                    const array<DataType, Channels>& cwt_mean) {
         assert(_fir_coefficients.size() == _num_taps);
         assert(_lfilter_denominator.size() == 1);
         assert(this->_cached_view.size() == Channels);
@@ -348,18 +368,25 @@ template <typename DataType = float, size_t Channels = 3u> class GEDADNN : publi
 #endif
 
         for (size_t i = 0; i < Channels; ++i) {
-            const auto& cached_view_i = this->_cached_view[i];
+            auto& cached_view_i = this->_cached_view[i];
             assert(cached_view_i.size() == view_size);
 
-            dsp::lfilter(_lfilter_ctx, _fir_coefficients, _lfilter_denominator, cached_view_i);
+            for (auto& v : cached_view_i) {
+                v = floor(v * squeeze) * expand;
+            }
+
+            AD_PERF_TIME_MS(_perf,
+                            string("lfilter ") + to_string(i),
+                            dsp::lfilter(_lfilter_ctx, _fir_coefficients, _lfilter_denominator, cached_view_i));
 #ifdef AD_DEBUG
             cout << "lfilter coefficients size: " << _fir_coefficients.size() << endl;
             cout << "lfilter denominator size: " << _lfilter_denominator.size() << endl;
             cout << "cached view size: " << cached_view_i.size() << endl;
             cout << "lfilter result size: " << _lfilter_ctx.result.size() << endl;
 #endif
-
-            dsp::cwt<DataType, float>(_cwt_ctx, _lfilter_ctx.result, _cwt_scales, _cwt_psi, _cwt_x);
+            AD_PERF_TIME_MS(_perf,
+                            string("cwt ") + to_string(i),
+                            (dsp::cwt<DataType, float>)(_cwt_ctx, _lfilter_ctx.result, _cwt_scales, _cwt_psi, _cwt_x));
 #ifdef AD_DEBUG
             cout << "cwt psi size: " << _cwt_psi.size() << endl;
             cout << "cwt x size: " << _cwt_x.size() << endl;
@@ -371,7 +398,12 @@ template <typename DataType = float, size_t Channels = 3u> class GEDADNN : publi
             }
             cout << endl;
 #endif
-            dsp::resize<DataType, int32_t, float>(_resize_ctx, _cwt_ctx.result, _cwt_ctx.shape, _resize_input_shape);
+            AD_PERF_TIME_MS(_perf,
+                            string("resize ") + to_string(i),
+                            (dsp::resize<DataType, int32_t, float>)(_resize_ctx,
+                                                                    _cwt_ctx.result,
+                                                                    _cwt_ctx.shape,
+                                                                    _resize_input_shape));
 #ifdef AD_DEBUG
             cout << "resize input size: " << _cwt_ctx.result.size() << endl;
             cout << "resize input shape: ";
@@ -386,13 +418,14 @@ template <typename DataType = float, size_t Channels = 3u> class GEDADNN : publi
             }
             cout << endl;
 #endif
-
-            dsp::paa(_paa_ctx, _lfilter_ctx.result, _paa_segments);
+            AD_PERF_TIME_MS(
+              _perf, string("paa ") + to_string(i), (dsp::paa<DataType>)(_paa_ctx, _lfilter_ctx.result, _paa_segments));
 #ifdef AD_DEBUG
             cout << "paa segments: " << _paa_segments << endl;
             cout << "paa result size: " << _paa_ctx.result.size() << endl;
 #endif
-            dsp::mtf<DataType, float>(_mtf_ctx, _paa_ctx.result, _mtf_bins);
+            AD_PERF_TIME_MS(
+              _perf, string("mtf ") + to_string(i), (dsp::mtf<DataType, float>)(_mtf_ctx, _paa_ctx.result, _mtf_bins));
 #ifdef AD_DEBUG
             cout << "mtf bins: " << _mtf_bins << endl;
             cout << "mtf result size: " << _mtf_ctx.result.size() << endl;
@@ -407,11 +440,13 @@ template <typename DataType = float, size_t Channels = 3u> class GEDADNN : publi
             const auto& mtf_result = _mtf_ctx.result;
             assert(_resize_ctx.result.size() == input_stride_wh);
             assert(_mtf_ctx.result.size() == input_stride_wh);
+            const auto cwt_std_i  = cwt_std[i];
+            const auto cwt_mean_i = cwt_mean[i];
             for (size_t j = 0, k = 0; (j < input_stride_wh) & (j < input_stride_whc); ++j, k += Channels) {
-                const auto k_add_i = k + i;
-
-                input_batch_0[k_add_i] = round((static_cast<DataType>(cwt_result[j]) / scale) + zero_point);
-                input_batch_1[k_add_i] = round((static_cast<DataType>(mtf_result[j]) / scale) + zero_point);
+                const auto k_add_i      = k + i;
+                const auto cwt_result_j = (cwt_result[j] - cwt_mean_i) / cwt_std_i;
+                input_batch_0[k_add_i]  = round((static_cast<DataType>(cwt_result_j) / scale) + zero_point);
+                input_batch_1[k_add_i]  = round((static_cast<DataType>(mtf_result[j]) / scale) + zero_point);
             }
         }
     }
@@ -450,7 +485,9 @@ template <typename DataType = float, size_t Channels = 3u> class GEDADNN : publi
     dsp::resize_ctx_t<DataType> _resize_ctx;
     array<int32_t, 2>           _resize_input_shape;
 
-    array<int64_t, 3> _perf;
+#ifdef AD_PERF
+    unordered_map<string, int64_t> _perf;
+#endif
 };
 
 }  // namespace ad

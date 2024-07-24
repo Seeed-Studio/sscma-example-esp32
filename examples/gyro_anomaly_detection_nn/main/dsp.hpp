@@ -1,7 +1,7 @@
 #pragma once
 
 #define ENABLE_ASSERT
-// #define ENABLE_THROW
+#define ENABLE_THROW
 #define BUILD_TESTS
 
 #include <algorithm>

@@ -917,11 +917,12 @@ decltype(auto) psnr(const Container& target, const Container& preds) {
             const auto diff     = preds[i] - target_i;
             mse += diff * diff;
         }
-        mse /= static_cast<T>(n_target);
-        if (mse < static_cast<T>(EPS)) [[unlikely]] {
-            mse = EPS;
-        }
-        y = static_cast<T>(10.0) * std::log10(static_cast<T>(max * max) / mse);
+        // mse /= static_cast<T>(n_target);
+        // if (mse < static_cast<T>(EPS)) [[unlikely]] {
+        //     mse = EPS;
+        // }
+        // y = static_cast<T>(10.0) * std::log10(static_cast<T>(max * max) / mse);
+        y = static_cast<T>(20) * std::log10(static_cast<T>(1.0) / std::sqrt(mse));
     }
 
     return y;

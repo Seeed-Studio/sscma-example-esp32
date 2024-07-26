@@ -8,7 +8,7 @@ set(COMPONENTS imu driver cxx main bootloader bootloader_support app_trace esp_a
 # print COMPONENTS
 message(STATUS "COMPONENTS: ${COMPONENTS}")
 
-add_compile_options(-fdiagnostics-color=always -ffast-math -O3)
+add_compile_options(-fdiagnostics-color=always -ffast-math -O3 -Wdouble-promotion)
 
 # use c++20
 set(CMAKE_CXX_STANDARD 20)

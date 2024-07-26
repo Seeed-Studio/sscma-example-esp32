@@ -33,8 +33,22 @@ namespace dsp {
 // MARK: Constans
 namespace constants {
 
-static constexpr double DSP_EPS = 1.0e-20;
-static constexpr double DSP_PI  = 3.141592653589793238462643383279502884197169399375105820974944;
+#ifdef EPS
+    #undef EPS
+#endif
+static constexpr double EPS = 1.0e-20;
+#ifdef PI
+    #undef PI
+#endif
+static constexpr double PI = 3.14159265358979323846264338327950288419716939937510582097494459231;
+#ifdef SQRT_2
+    #undef SQRT_2
+#endif
+static constexpr double SQRT_2 = 1.41421356237309504880168872420969807856967187537694807317667973799;
+#ifdef SQRT_2PI
+    #undef SQRT_2PI
+#endif
+static constexpr double SQRT_2PI = 2.50662827463100050241576528481104525300698674060993831662992357634;
 
 }  // namespace constants
 
@@ -44,11 +58,11 @@ namespace math {
 
 // MARK: Sinc
 template <typename T, std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
-constexpr inline decltype(auto) sinc(T x, T eps = static_cast<T>(DSP_EPS)) {
+constexpr inline decltype(auto) sinc(T x, T eps = static_cast<T>(EPS)) {
     if (std::abs(x) < eps) {
         x = static_cast<T>(eps);
     }
-    x *= static_cast<T>(DSP_PI);
+    x *= static_cast<T>(PI);
     return static_cast<T>(std::sin(x) / x);
 }
 
@@ -69,17 +83,17 @@ decltype(auto) hamming_window(size_t width, T alpha = static_cast<T>(0.54), bool
 
     std::vector<T> fac(sym ? width : width + 1);
     {
-        const auto start = -DSP_PI;
-        const auto end   = DSP_PI;
-        const auto step  = std::abs(end - start);
-        const auto size  = fac.size() - 1;
+        const T start = -PI;
+        const T end   = PI;
+        const T step  = std::abs(end - start);
+        const T size  = fac.size() - 1;
         ENSURE_TRUE(size != 0);
         std::generate(fac.begin(), fac.end(), [start, step, size, n = 0]() mutable {
-            return start + (step * (static_cast<T>(n++) / static_cast<T>(size)));
+            return start + (step * (static_cast<T>(n++) / size));
         });
     }
 
-    const std::array<T, 2> a = {alpha, static_cast<T>(1.0 - alpha)};
+    const std::array<T, 2> a = {alpha, static_cast<T>(static_cast<T>(1.0) - alpha)};
     std::vector<T>         w(fac.size(), static_cast<T>(0.0));
     {
         const auto size = w.size();
@@ -213,7 +227,7 @@ decltype(auto) firwin(size_t           numtaps,
 
     std::vector<T> m(numtaps);
     {
-        const auto alpha = 0.5 * static_cast<T>(numtaps - 1);
+        const auto alpha = static_cast<T>(0.5) * static_cast<T>(numtaps - 1);
         const auto size  = m.size();
         ENSURE_TRUE(size == numtaps);
         for (size_t i = 0; i < size; ++i) {
@@ -264,22 +278,22 @@ decltype(auto) firwin(size_t           numtaps,
         const auto right = bands[1];
 
         T scale_frequency;
-        if (left == 0.0) {
+        if (left == static_cast<T>(0.0)) {
             scale_frequency = 0.0;
-        } else if (right == 1.0) {
+        } else if (right == static_cast<T>(1.0)) {
             scale_frequency = 1.0;
         } else {
-            scale_frequency = 0.5 * (left + right);
+            scale_frequency = static_cast<T>(0.5) * (left + right);
         }
 
         const auto size = h.size();
         ENSURE_TRUE(size == m.size());
         T sum = 0.0;
         for (size_t i = 0; i < size; ++i) {
-            sum += h[i] * std::cos(DSP_PI * m[i] * scale_frequency);
+            sum += h[i] * std::cos(static_cast<T>(PI) * m[i] * scale_frequency);
         }
-        if (std::abs(sum) < DSP_EPS) [[unlikely]] {
-            sum = DSP_EPS;
+        if (std::abs(sum) < static_cast<T>(EPS)) [[unlikely]] {
+            sum = EPS;
         }
         for (auto& hi : h) {
             hi /= sum;
@@ -347,7 +361,7 @@ void lfilter(lfilter_ctx_t<T>&  ctx,
             auto&      y_i    = y[i];
             T          sum    = 0.0;
             for (size_t j = 0; j < nn_end; ++j) {
-                sum += numerators[j] * x[i - j];
+                sum += static_cast<T>(numerators[j] * x[i - j]);
             }
             y_i += sum;
             for (size_t j = 1; j < nd_end; ++j) {
@@ -401,17 +415,17 @@ void paa(paa_ctx_t<T>& ctx, const Container& x, size_t segments) {
 
     {
         for (size_t i = 0; i < segments; ++i) {
-            const size_t start = (n * i) / segments;
-            const size_t end   = (n * (i + 1)) / segments;
+            const size_t start = std::min((n * i) / segments, n);
+            const size_t end   = std::min((n * (i + 1)) / segments, n);
             T            sum   = 0.0;
-            for (size_t j = start; (j < end) & (j < n); ++j) {
-                sum += x[j];
+            for (size_t j = start; j < end; ++j) {
+                sum += static_cast<T>(x[j]);
             }
-            auto dist = end - start;
+            const auto dist = end - start;
             if (dist != 0) [[likely]] {
                 y[i] = sum / static_cast<T>(dist);
             } else [[unlikely]] {
-                y[i] = sum / DSP_EPS;
+                y[i] = sum / static_cast<T>(EPS);
             }
         }
     }
@@ -444,8 +458,8 @@ void minmax_scale(Container& v, T lower, T upper) {
 
     const auto min_v = *min;
     auto       diff  = *max - min_v;
-    if (std::abs(diff) < DSP_EPS) [[unlikely]] {
-        diff = DSP_EPS;
+    if (std::abs(diff) < static_cast<T>(EPS)) [[unlikely]] {
+        diff = EPS;
     }
     const auto scale = upper - lower;
     for (auto& vi : v) {
@@ -475,17 +489,75 @@ constexpr void minmax_scale(minmax_scale_ctx_t<T>& ctx, const Container& v, T lo
     minmax_scale(y, lower, upper);
 }
 
+// MARK: Norm CDF, PDF, PPF
+template <typename T = double, std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
+constexpr inline decltype(auto) norm_cdf(T x, T std = 1.0, T mean = 0.0) {
+    return std::erfc((mean - x) / (std * static_cast<T>(SQRT_2))) / static_cast<T>(2.0);
+}
+
+template <typename T = double, std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
+constexpr inline decltype(auto) norm_pdf(T x, T std = 1.0, T mean = 0.0) {
+    return (static_cast<T>(1.0) / (std * static_cast<T>(SQRT_2PI))) *
+           static_cast<T>(std::exp(-static_cast<T>(0.5) * static_cast<T>(std::pow((x - mean) / std, 2))));
+}
+
+template <typename T = double, std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
+constexpr inline decltype(auto) norm_ppf(T q, T tol, size_t max_iter, T std = 1.0, T mean = 0.0) {
+    if (q < static_cast<T>(0.0) || q > static_cast<T>(1.0)) [[unlikely]] {
+#ifdef ENABLE_THROW
+        throw std::invalid_argument("The q must be in the range [0, 1].");
+#else
+        return std::numeric_limits<T>::quiet_NaN();
+#endif
+    }
+
+    // Newton raphson method
+    T x = mean;
+    for (size_t i = 0; i < max_iter; ++i) {
+        const T f_x = norm_cdf<T>(x, std, mean) - q;
+        if (std::abs(f_x) < tol) [[unlikely]] {
+            return x;
+        }
+        const T f_prime_x = norm_pdf<T>(x, std, mean);
+        if (std::abs(f_prime_x) < static_cast<T>(EPS)) {
+#ifdef ENABLE_THROW
+            throw std::runtime_error("The probability density of x is too small.");
+#else
+            return std::numeric_limits<T>::quiet_NaN();
+#endif
+        }
+        x -= f_x / f_prime_x;
+    }
+#ifdef ENABLE_THROW
+    throw std::runtime_error("Failed to converge in limited iterations.");
+#else
+    return std::numeric_limits<T>::quiet_NaN();
+#endif
+}
+template <typename T = double, std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
+constexpr inline decltype(auto) norm_ppf(T q, T std = 1.0, T mean = 0.0) {
+    if constexpr (std::is_same_v<T, float>) {
+        return norm_ppf(q, static_cast<T>(1.0e-6), static_cast<size_t>(32), std, mean);
+    } else if constexpr (std::is_same_v<T, double>) {
+        return norm_ppf(q, static_cast<T>(1.0e-16), static_cast<size_t>(64), std, mean);
+    }
+#ifdef ENABLE_THROW
+    throw std::invalid_argument("PPF presets are not defined for the type T.");
+#else
+    return std::numeric_limits<T>::quiet_NaN();
+#endif
+}
+
+// MARK: Markov Transition Field
 template <typename T = double> struct mtf_ctx_t {
-    minmax_scale_ctx_t<T> minmax_ctx;
-    std::vector<T>        bins;
-    std::vector<size_t>   digitize;
-    std::vector<T>        transition_matrix;
+    std::vector<T>      bins;
+    std::vector<size_t> digitize;
+    std::vector<T>      transition_matrix;
 
     std::vector<T>      result;
     std::vector<size_t> shape;
 };
 
-// MARK: Markov Transition Field
 template <typename T = double,
           typename P = double,
           typename Container,
@@ -494,48 +566,43 @@ template <typename T = double,
                              has_contained_type_nothrow_convertible_to_v<Container, T>,
                            bool> = true>
 void mtf(mtf_ctx_t<T>& ctx, const Container& x, size_t n_bins = 16) {
-    auto& ctx_minmax_ctx = ctx.minmax_ctx;
-    minmax_scale<T>(ctx_minmax_ctx, x, static_cast<T>(0.0), static_cast<T>(1.0));
-    const auto& norm = ctx_minmax_ctx.result;
-
-    auto& bins = ctx.bins;
-    if (bins.size() != n_bins) [[unlikely]] {
-        bins.resize(n_bins);
-        auto space = static_cast<P>(n_bins) - 1.0;
-        if (std::abs(space) < DSP_EPS) [[unlikely]] {
-            space = DSP_EPS;
+    ENSURE_TRUE(n_bins > 1);
+    const auto bins_size = n_bins - 1;
+    auto&      bins      = ctx.bins;
+    if (bins.size() != bins_size) [[unlikely]] {
+        bins.resize(bins_size);
+        const auto space = static_cast<P>(n_bins);
+        for (size_t i = 1; i < n_bins; ++i) {
+            const auto v = static_cast<T>(static_cast<P>(i) * static_cast<P>(1.0) / space);
+            bins[i - 1]  = norm_ppf<T>(v);
         }
-        std::generate(bins.begin(), bins.end(), [space, n = 0]() mutable {
-            return static_cast<T>(n++) * static_cast<T>(1.0) / static_cast<T>(space);
-        });
     }
 
     auto&      digitize = ctx.digitize;
-    const auto ns       = norm.size();
-    if (digitize.size() != ns) [[unlikely]] {
-        digitize.resize(ns);
+    const auto n_x      = x.size();
+    if (digitize.size() != n_x) [[unlikely]] {
+        digitize.resize(n_x);
     }
-
     {
-        ENSURE_TRUE(digitize.size() == ns);
-        ENSURE_TRUE(bins.size() == n_bins);
-        for (size_t i = 0; i < ns; ++i) {
-            const auto ni  = norm[i];
-            auto       idx = n_bins - 1;
-            for (size_t j = 0; j < n_bins; ++j) {
-                if (ni < bins[j]) {
+        ENSURE_TRUE(digitize.size() == n_x);
+        ENSURE_TRUE(bins.size() == bins_size);
+        for (size_t i = 0; i < n_x; ++i) {
+            const auto x_i = x[i];
+            auto       idx = bins_size;
+            for (size_t j = 0; j < bins_size; ++j) {
+                if (static_cast<T>(x_i) <= static_cast<T>(bins[j])) {
                     idx = j;
                     break;
                 }
             }
-            digitize[i] = idx >= 1 ? idx - 1 : idx;
+            digitize[i] = idx != 0 ? idx - 1 : bins_size;
         }
     }
 
-    const auto ntm               = n_bins * n_bins;
+    const auto n_tm              = n_bins * n_bins;
     auto&      transition_matrix = ctx.transition_matrix;
-    if (transition_matrix.size() != ntm) [[unlikely]] {
-        transition_matrix.resize(ntm);
+    if (transition_matrix.size() != n_tm) [[unlikely]] {
+        transition_matrix.resize(n_tm);
         std::fill(transition_matrix.begin(), transition_matrix.end(), static_cast<T>(0.0));
     }
     {
@@ -550,14 +617,14 @@ void mtf(mtf_ctx_t<T>& ctx, const Container& x, size_t n_bins = 16) {
     {
         const auto stride = n_bins;
         const auto size   = transition_matrix.size();
-        ENSURE_TRUE(size == ntm);
+        ENSURE_TRUE(size == n_tm);
         for (size_t i = 0; i < size; i += stride) {
             T sum = 0.0;
             for (size_t j = 0; j < stride; ++j) {
                 sum += transition_matrix[i + j];
             }
-            if (std::abs(sum) < DSP_EPS) [[unlikely]] {
-                sum = DSP_EPS;
+            if (std::abs(sum) < static_cast<T>(EPS)) [[unlikely]] {
+                sum = EPS;
             }
             for (size_t j = 0; j < stride; ++j) {
                 transition_matrix[i + j] /= sum;
@@ -565,17 +632,18 @@ void mtf(mtf_ctx_t<T>& ctx, const Container& x, size_t n_bins = 16) {
         }
     }
 
-    auto&      y     = ctx.result;
-    auto&      shape = ctx.shape;
-    const auto cols  = ns;
-    const auto rows  = ns;
-    const auto ny    = cols * rows;
-    if (y.size() != ny) [[unlikely]] {
-        y.resize(ny);
-        shape = {cols, rows};
-    }
     {
-        ENSURE_TRUE(y.size() == ny);
+        auto&      y     = ctx.result;
+        auto&      shape = ctx.shape;
+        const auto cols  = n_x;
+        const auto rows  = n_x;
+        const auto n_y   = cols * rows;
+        if (y.size() != n_y) [[unlikely]] {
+            y.resize(n_y);
+            shape = {cols, rows};
+        }
+
+        ENSURE_TRUE(y.size() == n_y);
         for (size_t i = 0; i < cols; ++i) {
             const auto i_mul_cols = i * cols;
             const auto digitize_i = digitize[i];
@@ -585,6 +653,12 @@ void mtf(mtf_ctx_t<T>& ctx, const Container& x, size_t n_bins = 16) {
                 y[idx]         = transition_matrix[(digitize_i * n_bins) + digitize[j]];
             }
         }
+
+        // size_t i = 0;
+        // for (const auto& v : ctx.result) {
+        //     std::cout << v << "\t";
+        //     if (++i % 20 == 0) std::cout << "\n";
+        // }
     }
 }
 
@@ -844,8 +918,8 @@ decltype(auto) psnr(const Container& target, const Container& preds) {
             mse += diff * diff;
         }
         mse /= static_cast<T>(n_target);
-        if (mse < DSP_EPS) [[unlikely]] {
-            mse = DSP_EPS;
+        if (mse < static_cast<T>(EPS)) [[unlikely]] {
+            mse = EPS;
         }
         y = static_cast<T>(10.0) * std::log10(static_cast<T>(max * max) / mse);
     }
@@ -988,14 +1062,14 @@ void cwt(cwt_ctx_t<T>&         ctx,
     const auto x_range  = x_n - x_0;
     const auto n_scales = ascending_scales.size();
 
-    if (std::abs(x_step) <= DSP_EPS) [[unlikely]] {
+    if (std::abs(x_step) <= static_cast<T>(EPS)) [[unlikely]] {
 #ifdef ENABLE_THROW
         throw std::invalid_argument("The step of wavelet_x must be greater than 0.");
 #else
         return;
 #endif
     }
-    if (std::abs(x_range) <= DSP_EPS) [[unlikely]] {
+    if (std::abs(x_range) <= static_cast<T>(EPS)) [[unlikely]] {
 #ifdef ENABLE_THROW
         throw std::invalid_argument("The range of wavelet_x must be greater than 0.");
 #else
@@ -1011,7 +1085,7 @@ void cwt(cwt_ctx_t<T>&         ctx,
     }
 
     const auto max_scale         = ascending_scales[n_scales - 1];
-    const auto n_psi_indices_max = static_cast<size_t>(std::ceil((max_scale * x_range) + 1.0));
+    const auto n_psi_indices_max = static_cast<size_t>(std::ceil((max_scale * x_range) + static_cast<T>(1.0)));
     auto&      psi_arange        = ctx.psi_arange;
     if (psi_arange.size() != n_psi_indices_max) [[unlikely]] {
         psi_arange.resize(n_psi_indices_max);
@@ -1052,9 +1126,9 @@ void cwt(cwt_ctx_t<T>&         ctx,
             size_t     len_psi_indices = 0;
 
             {
-                const auto psi_arange_end = static_cast<size_t>(std::ceil(scale * x_range)) + 1;
+                const auto psi_arange_end = static_cast<size_t>(std::ceil(scale * static_cast<P>(x_range))) + 1;
                 ENSURE_TRUE(psi_arange.size() >= psi_arange_end);
-                const auto scale_mul_step = std::max(scale * x_step, static_cast<P>(DSP_EPS));
+                const auto scale_mul_step = std::max(scale * static_cast<P>(x_step), static_cast<P>(EPS));
                 for (size_t j = 0; j < psi_arange_end; ++j) {
                     const auto idx = static_cast<size_t>(std::floor(static_cast<P>(psi_arange[j]) / scale_mul_step));
                     if (idx >= n_psi) [[unlikely]] {
@@ -1087,7 +1161,7 @@ void cwt(cwt_ctx_t<T>&         ctx,
                     const auto  psi_indices_rk = len_psi_idx_s_1 - k;
                     const auto  psi_index_rk   = psi_indices[psi_indices_rk];
                     const auto& psi_rk         = wavelet_psi[psi_index_rk];
-                    coefficients[j + k] += signal_j * psi_rk;
+                    coefficients[j + k] += static_cast<T>(signal_j) * static_cast<T>(psi_rk);
                 }
             }
 
@@ -1095,7 +1169,7 @@ void cwt(cwt_ctx_t<T>&         ctx,
             ENSURE_TRUE(len_diff > 1);
             ENSURE_TRUE(coefficients.size() >= len_diff);
             {
-                const auto negtive_sqrt_scale = -std::sqrt(scale);
+                const T negtive_sqrt_scale = -std::sqrt(scale);
                 for (size_t j = 1; j < len_conv; ++j) {
                     auto&       coefficient_prev    = coefficients[j - 1];
                     const auto& coefficient_current = coefficients[j];
@@ -1106,7 +1180,7 @@ void cwt(cwt_ctx_t<T>&         ctx,
 
             ENSURE_TRUE(len_diff >= n_signal);
             const auto d = static_cast<P>(len_diff - n_signal) / static_cast<P>(2.0);
-            if (d < DSP_EPS) [[unlikely]] {
+            if (d < static_cast<P>(EPS)) [[unlikely]] {
 #ifdef ENABLE_THROW
                 throw std::runtime_error("Selected scale is too small.");
 #else
@@ -1155,126 +1229,172 @@ namespace tests {
 #ifdef BUILD_TESTS
 
 void test_eps() {
-    assert(double(DSP_EPS) > 0.0);
-    assert(-double(DSP_EPS) < -0.0);
-    assert(float(DSP_EPS) > 0.0);
-    assert(-float(DSP_EPS) < -0.0);
+    assert(static_cast<double>(EPS) > 0.0);
+    assert(static_cast<double>(-EPS) < -0.0);
+    assert(static_cast<float>(EPS) > 0.0f);
+    assert(static_cast<float>(-EPS) < -0.0f);
 
-    double a    = 1.0;
-    double b    = 2.0;
-    double c    = 3.0;
-    double diff = std::abs((a + b) - c);
-    assert(diff < DSP_EPS);
+    {
+        double a    = 1.0;
+        double b    = 2.0;
+        double c    = 3.0;
+        double diff = std::abs((a + b) - c);
+        assert(diff < EPS);
+    }
+
+    {
+        float  a    = 1.0;
+        float  b    = 2.0;
+        float  c    = 3.0;
+        double diff = std::abs((a + b) - c);
+        assert(diff < EPS);
+    }
 }
 
 void test_pi() {
-    double math_pi = 2.0 * std::acos(0.0);
-    double diff    = std::abs(math_pi - DSP_PI);
-    assert(diff < DSP_EPS);
+    {
+        double math_pi = 2.0 * std::acos(0.0);
+        double diff    = std::abs(math_pi - PI);
+        assert(diff < EPS);
+    }
+
+    {
+        float  math_pi = 2.0f * std::acos(0.0f);
+        double diff    = std::abs(math_pi - static_cast<float>(PI));
+        assert(diff < EPS);
+    }
+}
+
+void test_sqrt_2() {
+    {
+        double math_sqrt_2 = std::sqrt(2.0);
+        double diff        = std::abs(math_sqrt_2 - SQRT_2);
+        assert(diff < EPS);
+    }
+
+    {
+        float  math_sqrt_2 = std::sqrt(2.0f);
+        double diff        = std::abs(math_sqrt_2 - static_cast<float>(SQRT_2));
+        assert(diff < EPS);
+    }
+}
+
+void test_sqrt_2pi() {
+    {
+        double math_sqrt_2pi = std::sqrt(2.0 * PI);
+        double diff          = std::abs(math_sqrt_2pi - SQRT_2PI);
+        assert(diff < 1e-15);
+    }
+
+    {
+        float  math_sqrt_2pi = std::sqrt(2.0f * static_cast<float>(PI));
+        double diff          = std::abs(math_sqrt_2pi - static_cast<float>(SQRT_2PI));
+        assert(diff < EPS);
+    }
 }
 
 void test_sinc() {
     std::unordered_map<double, double> sinc_values = {
-      {               -10.0, -3.898171832519376e-17},
-      {  -9.797979797979798,  -0.019261976377391934},
-      {  -9.595959595959595,   -0.03167529216345295},
-      {  -9.393939393939394,    -0.0320209754858246},
-      {  -9.191919191919192,   -0.01963689594706574},
-      {   -8.98989898989899,  0.0011234069383833456},
-      {  -8.787878787878787,   0.022390627055390324},
-      {  -8.585858585858587,    0.03573323328381772},
-      {  -8.383838383838384,    0.03546686916735175},
-      {  -8.181818181818182,   0.021033383197518078},
-      {  -7.979797979797979, -0.0025299463342708375},
-      {  -7.777777777777778,   -0.02630644082738656},
-      {  -7.575757575757576,   -0.04083251432108083},
-      {  -7.373737373737374,   -0.03981623910599781},
-      {  -7.171717171717171,  -0.022799085369922152},
-      {   -6.96969696969697,  0.0043412616727512955},
-      {  -6.767676767676768,   0.031360712390831075},
-      {  -6.565656565656566,   0.047453364661312565},
-      {  -6.363636363636363,    0.04549990608592487},
-      {  -6.161616161616162,   0.025116986139960693},
-      {  -5.959595959595959,  -0.006761470032864263},
-      {  -5.757575757575758,   -0.03815129506783636},
-      {  -5.555555555555555,  -0.056425327879361546},
-      {  -5.353535353535354,   -0.05327389425526406},
-      {  -5.151515151515151,  -0.028313617972092437},
-      {   -4.94949494949495,   0.010161320878666369},
-      {  -4.747474747474747,    0.04778489884461753},
-      {  -4.545454545454546,    0.06931538911162695},
-      {  -4.343434343434343,    0.06459757362729442},
-      {  -4.141414141414142,    0.03303411947658101},
-      { -3.9393939393939394,   -0.01529182990563534},
-      {  -3.737373737373738,   -0.06256473652502492},
-      { -3.5353535353535355,    -0.0894814635493308},
-      {  -3.333333333333333,   -0.08269933431326874},
-      { -3.1313131313131315,   -0.04075611340708284},
-      {  -2.929292929292929,    0.02393991393455532},
-      { -2.7272727272727275,    0.08820627236525579},
-      {  -2.525252525252525,    0.12565425718891227},
-      { -2.3232323232323235,     0.1164222803677198},
-      {  -2.121212121212121,    0.05577180743829834},
-      { -1.9191919191919187,  -0.041654451759341626},
-      {  -1.717171717171718,   -0.14387325987267854},
-      { -1.5151515151515156,   -0.20984657037171237},
-      { -1.3131313131313131,     -0.201819279624739},
-      { -1.1111111111111107,    -0.0979815536051013},
-      { -0.9090909090909101,    0.09864608391270921},
-      { -0.7070707070707076,     0.3582369603998354},
-      { -0.5050505050505052,     0.6301742431604164},
-      {-0.30303030303030276,     0.8556490093311446},
-      {-0.10101010101010033,     0.9833009727996326},
-      { 0.10101010101010033,     0.9833009727996326},
-      { 0.30303030303030276,     0.8556490093311446},
-      {  0.5050505050505052,     0.6301742431604164},
-      {  0.7070707070707076,     0.3582369603998354},
-      {  0.9090909090909083,    0.09864608391271118},
-      {  1.1111111111111107,    -0.0979815536051013},
-      {  1.3131313131313131,     -0.201819279624739},
-      {  1.5151515151515156,   -0.20984657037171237},
-      {  1.7171717171717162,   -0.14387325987267932},
-      {  1.9191919191919187,  -0.041654451759341626},
-      {   2.121212121212121,    0.05577180743829834},
-      {  2.3232323232323235,     0.1164222803677198},
-      {   2.525252525252524,    0.12565425718891232},
-      {  2.7272727272727266,    0.08820627236525595},
-      {   2.929292929292929,    0.02393991393455532},
-      {  3.1313131313131315,   -0.04075611340708284},
-      {   3.333333333333334,   -0.08269933431326888},
-      {  3.5353535353535346,   -0.08948146354933081},
-      {   3.737373737373737,   -0.06256473652502502},
-      {  3.9393939393939394,   -0.01529182990563534},
-      {   4.141414141414142,    0.03303411947658101},
-      {  4.3434343434343425,    0.06459757362729436},
-      {   4.545454545454545,    0.06931538911162698},
-      {   4.747474747474747,    0.04778489884461753},
-      {    4.94949494949495,   0.010161320878666369},
-      {  5.1515151515151505,  -0.028313617972092246},
-      {   5.353535353535353,   -0.05327389425526398},
-      {   5.555555555555555,  -0.056425327879361546},
-      {   5.757575757575758,   -0.03815129506783636},
-      {  5.9595959595959584,  -0.006761470032864453},
-      {   6.161616161616163,   0.025116986139960693},
-      {   6.363636363636363,    0.04549990608592487},
-      {   6.565656565656564,   0.047453364661312655},
-      {   6.767676767676768,   0.031360712390831075},
-      {   6.969696969696969,   0.004341261672751458},
-      {   7.171717171717173,  -0.022799085369922416},
-      {   7.373737373737374,   -0.03981623910599781},
-      {   7.575757575757574,   -0.04083251432108087},
-      {   7.777777777777779,   -0.02630644082738656},
-      {   7.979797979797979, -0.0025299463342708375},
-      {    8.18181818181818,   0.021033383197517852},
-      {   8.383838383838384,    0.03546686916735175},
-      {   8.585858585858585,   0.035733233283817806},
-      {   8.787878787878789,   0.022390627055390116},
-      {    8.98989898989899,  0.0011234069383833456},
-      {    9.19191919191919,   -0.01963689594706564},
-      {   9.393939393939394,    -0.0320209754858246},
-      {   9.595959595959595,   -0.03167529216345295},
-      {     9.7979797979798,  -0.019261976377391746},
-      {                10.0, -3.898171832519376e-17},
+      {-1.000000000000000000e+01, -3.898171832519376111e-17},
+      {-9.797979797979797567e+00, -1.926197637739193377e-02},
+      {-9.595959595959595134e+00, -3.167529216345295329e-02},
+      {-9.393939393939394478e+00, -3.202097548582460290e-02},
+      {-9.191919191919192045e+00, -1.963689594706573976e-02},
+      {-8.989898989898989612e+00,  1.123406938383345608e-03},
+      {-8.787878787878787179e+00,  2.239062705539032402e-02},
+      {-8.585858585858586522e+00,  3.573323328381772246e-02},
+      {-8.383838383838384090e+00,  3.546686916735174860e-02},
+      {-8.181818181818181657e+00,  2.103338319751807753e-02},
+      {-7.979797979797979224e+00, -2.529946334270837503e-03},
+      {-7.777777777777777679e+00, -2.630644082738655895e-02},
+      {-7.575757575757576134e+00, -4.083251432108082890e-02},
+      {-7.373737373737373701e+00, -3.981623910599781102e-02},
+      {-7.171717171717171269e+00, -2.279908536992215212e-02},
+      {-6.969696969696969724e+00,  4.341261672751295549e-03},
+      {-6.767676767676768179e+00,  3.136071239083107476e-02},
+      {-6.565656565656565746e+00,  4.745336466131256509e-02},
+      {-6.363636363636363313e+00,  4.549990608592487107e-02},
+      {-6.161616161616161769e+00,  2.511698613996069321e-02},
+      {-5.959595959595959336e+00, -6.761470032864262854e-03},
+      {-5.757575757575757791e+00, -3.815129506783636326e-02},
+      {-5.555555555555555358e+00, -5.642532787936154620e-02},
+      {-5.353535353535353813e+00, -5.327389425526406208e-02},
+      {-5.151515151515151381e+00, -2.831361797209243705e-02},
+      {-4.949494949494949836e+00,  1.016132087866636856e-02},
+      {-4.747474747474747403e+00,  4.778489884461752796e-02},
+      {-4.545454545454545858e+00,  6.931538911162694883e-02},
+      {-4.343434343434343425e+00,  6.459757362729441621e-02},
+      {-4.141414141414141881e+00,  3.303411947658101144e-02},
+      {-3.939393939393939448e+00, -1.529182990563534086e-02},
+      {-3.737373737373737903e+00, -6.256473652502492211e-02},
+      {-3.535353535353535470e+00, -8.948146354933080027e-02},
+      {-3.333333333333333037e+00, -8.269933431326874362e-02},
+      {-3.131313131313131493e+00, -4.075611340708284319e-02},
+      {-2.929292929292929060e+00,  2.393991393455531871e-02},
+      {-2.727272727272727515e+00,  8.820627236525578618e-02},
+      {-2.525252525252525082e+00,  1.256542571889122661e-01},
+      {-2.323232323232323537e+00,  1.164222803677198020e-01},
+      {-2.121212121212121104e+00,  5.577180743829834170e-02},
+      {-1.919191919191918672e+00, -4.165445175934162636e-02},
+      {-1.717171717171718015e+00, -1.438732598726785439e-01},
+      {-1.515151515151515582e+00, -2.098465703717123654e-01},
+      {-1.313131313131313149e+00, -2.018192796247390008e-01},
+      {-1.111111111111110716e+00, -9.798155360510130141e-02},
+      {-9.090909090909100598e-01,  9.864608391270920928e-02},
+      {-7.070707070707076269e-01,  3.582369603998353802e-01},
+      {-5.050505050505051940e-01,  6.301742431604163697e-01},
+      {-3.030303030303027612e-01,  8.556490093311446277e-01},
+      {-1.010101010101003283e-01,  9.833009727996325777e-01},
+      { 1.010101010101003283e-01,  9.833009727996325777e-01},
+      { 3.030303030303027612e-01,  8.556490093311446277e-01},
+      { 5.050505050505051940e-01,  6.301742431604163697e-01},
+      { 7.070707070707076269e-01,  3.582369603998353802e-01},
+      { 9.090909090909082835e-01,  9.864608391271117993e-02},
+      { 1.111111111111110716e+00, -9.798155360510130141e-02},
+      { 1.313131313131313149e+00, -2.018192796247390008e-01},
+      { 1.515151515151515582e+00, -2.098465703717123654e-01},
+      { 1.717171717171716239e+00, -1.438732598726793210e-01},
+      { 1.919191919191918672e+00, -4.165445175934162636e-02},
+      { 2.121212121212121104e+00,  5.577180743829834170e-02},
+      { 2.323232323232323537e+00,  1.164222803677198020e-01},
+      { 2.525252525252524194e+00,  1.256542571889123217e-01},
+      { 2.727272727272726627e+00,  8.820627236525595272e-02},
+      { 2.929292929292929060e+00,  2.393991393455531871e-02},
+      { 3.131313131313131493e+00, -4.075611340708284319e-02},
+      { 3.333333333333333925e+00, -8.269933431326888240e-02},
+      { 3.535353535353534582e+00, -8.948146354933081414e-02},
+      { 3.737373737373737015e+00, -6.256473652502501925e-02},
+      { 3.939393939393939448e+00, -1.529182990563534086e-02},
+      { 4.141414141414141881e+00,  3.303411947658101144e-02},
+      { 4.343434343434342537e+00,  6.459757362729436070e-02},
+      { 4.545454545454544970e+00,  6.931538911162697658e-02},
+      { 4.747474747474747403e+00,  4.778489884461752796e-02},
+      { 4.949494949494949836e+00,  1.016132087866636856e-02},
+      { 5.151515151515150492e+00, -2.831361797209224623e-02},
+      { 5.353535353535352925e+00, -5.327389425526397881e-02},
+      { 5.555555555555555358e+00, -5.642532787936154620e-02},
+      { 5.757575757575757791e+00, -3.815129506783636326e-02},
+      { 5.959595959595958448e+00, -6.761470032864452806e-03},
+      { 6.161616161616162657e+00,  2.511698613996069321e-02},
+      { 6.363636363636363313e+00,  4.549990608592487107e-02},
+      { 6.565656565656563970e+00,  4.745336466131265529e-02},
+      { 6.767676767676768179e+00,  3.136071239083107476e-02},
+      { 6.969696969696968836e+00,  4.341261672751457745e-03},
+      { 7.171717171717173045e+00, -2.279908536992241580e-02},
+      { 7.373737373737373701e+00, -3.981623910599781102e-02},
+      { 7.575757575757574358e+00, -4.083251432108087053e-02},
+      { 7.777777777777778567e+00, -2.630644082738655895e-02},
+      { 7.979797979797979224e+00, -2.529946334270837503e-03},
+      { 8.181818181818179880e+00,  2.103338319751785201e-02},
+      { 8.383838383838384090e+00,  3.546686916735174860e-02},
+      { 8.585858585858584746e+00,  3.573323328381780573e-02},
+      { 8.787878787878788955e+00,  2.239062705539011586e-02},
+      { 8.989898989898989612e+00,  1.123406938383345608e-03},
+      { 9.191919191919190268e+00, -1.963689594706563915e-02},
+      { 9.393939393939394478e+00, -3.202097548582460290e-02},
+      { 9.595959595959595134e+00, -3.167529216345295329e-02},
+      { 9.797979797979799343e+00, -1.926197637739174642e-02},
+      { 1.000000000000000000e+01, -3.898171832519376111e-17},
     };
 
     for (const auto& [x, expected] : sinc_values) {
@@ -1292,18 +1412,31 @@ void test_sinc() {
 
 void test_hamming_window() {
     std::vector<double> expected = {
-      0.08,       0.08092613, 0.08370079, 0.0883128,  0.0947436,  0.10296729, 0.11295075, 0.12465379, 0.13802929,
-      0.15302337, 0.16957568, 0.18761956, 0.20708234, 0.22788567, 0.24994577, 0.27317382, 0.29747628, 0.32275531,
-      0.34890909, 0.37583234, 0.40341663, 0.43155089, 0.46012184, 0.48901443, 0.51811232, 0.54729834, 0.57645498,
-      0.60546483, 0.63421107, 0.66257795, 0.69045126, 0.71771876, 0.74427064, 0.77,       0.79480323, 0.81858046,
-      0.84123594, 0.86267845, 0.88282165, 0.90158442, 0.91889123, 0.93467237, 0.94886431, 0.96140989, 0.97225861,
-      0.98136677, 0.9886977,  0.99422189, 0.99791708, 0.99976841, 0.99976841, 0.99791708, 0.99422189, 0.9886977,
-      0.98136677, 0.97225861, 0.96140989, 0.94886431, 0.93467237, 0.91889123, 0.90158442, 0.88282165, 0.86267845,
-      0.84123594, 0.81858046, 0.79480323, 0.77,       0.74427064, 0.71771876, 0.69045126, 0.66257795, 0.63421107,
-      0.60546483, 0.57645498, 0.54729834, 0.51811232, 0.48901443, 0.46012184, 0.43155089, 0.40341663, 0.37583234,
-      0.34890909, 0.32275531, 0.29747628, 0.27317382, 0.24994577, 0.22788567, 0.20708234, 0.18761956, 0.16957568,
-      0.15302337, 0.13802929, 0.12465379, 0.11295075, 0.10296729, 0.0947436,  0.0883128,  0.08370079, 0.08092613,
-      0.08,
+      8.000000000000007105e-02, 8.092612882293326315e-02, 8.370078609783421220e-02, 8.831279925915502815e-02,
+      9.474359735767617918e-02, 1.029672858391652013e-01, 1.129507508126066928e-01, 1.246537923881543830e-01,
+      1.380292865478989772e-01, 1.530233748976567720e-01, 1.695756815357131186e-01, 1.876195561652702071e-01,
+      2.070823424716677907e-01, 2.278856706837192880e-01, 2.499457731411198758e-01, 2.731738215972489559e-01,
+      2.974762848991688857e-01, 3.227553056045660562e-01, 3.489090940191323376e-01, 3.758323380677390246e-01,
+      4.034166273489936394e-01, 4.315508896656635729e-01, 4.601218382732120693e-01, 4.890144280455349657e-01,
+      5.181123187210786574e-01, 5.472983433640117301e-01, 5.764549801541227758e-01, 6.054648256057112432e-01,
+      6.342110673099877749e-01, 6.625779542974161718e-01, 6.904512631260140143e-01, 7.177187578188393147e-01,
+      7.442706417986562073e-01, 7.700000000000002398e-01, 7.948032293784108582e-01, 8.185804560833267463e-01,
+      8.412359376148311751e-01, 8.626784483449079222e-01, 8.828216468508471859e-01, 9.015844235816823371e-01,
+      9.188912274577231143e-01, 9.346723700880894548e-01, 9.488643063812647327e-01, 9.614098904187520223e-01,
+      9.722586055615178857e-01, 9.813667678626688540e-01, 9.886977019672872347e-01, 9.942218887911413727e-01,
+      9.979170843836189242e-01, 9.997684094962651091e-01, 9.997684094962651091e-01, 9.979170843836189242e-01,
+      9.942218887911413727e-01, 9.886977019672872347e-01, 9.813667678626687429e-01, 9.722586055615178857e-01,
+      9.614098904187520223e-01, 9.488643063812647327e-01, 9.346723700880894548e-01, 9.188912274577231143e-01,
+      9.015844235816822261e-01, 8.828216468508471859e-01, 8.626784483449077001e-01, 8.412359376148311751e-01,
+      8.185804560833266352e-01, 7.948032293784108582e-01, 7.699999999999997957e-01, 7.442706417986559853e-01,
+      7.177187578188392036e-01, 6.904512631260140143e-01, 6.625779542974159497e-01, 6.342110673099876639e-01,
+      6.054648256057111322e-01, 5.764549801541227758e-01, 5.472983433640115081e-01, 5.181123187210784353e-01,
+      4.890144280455349657e-01, 4.601218382732121803e-01, 4.315508896656633508e-01, 4.034166273489935284e-01,
+      3.758323380677390246e-01, 3.489090940191320600e-01, 3.227553056045658897e-01, 2.974762848991688857e-01,
+      2.731738215972489559e-01, 2.499457731411195427e-01, 2.278856706837191770e-01, 2.070823424716677907e-01,
+      1.876195561652702071e-01, 1.695756815357130076e-01, 1.530233748976566610e-01, 1.380292865478989772e-01,
+      1.246537923881543830e-01, 1.129507508126065818e-01, 1.029672858391651458e-01, 9.474359735767617918e-02,
+      8.831279925915491713e-02, 8.370078609783421220e-02, 8.092612882293320764e-02, 8.000000000000007105e-02,
     };
 
     {
@@ -1311,7 +1444,7 @@ void test_hamming_window() {
         assert(w.size() == expected.size());
         for (size_t i = 0; i < w.size(); ++i) {
             double diff = std::abs(w[i] - expected[i]);
-            assert(diff < 1e-8);
+            assert(diff < 1e-14);
         }
     }
 
@@ -1319,7 +1452,7 @@ void test_hamming_window() {
         auto w = hamming_window<float>(expected.size());
         assert(w.size() == expected.size());
         for (size_t i = 0; i < w.size(); ++i) {
-            double diff = std::abs(w[i] - expected[i]);
+            double diff = std::abs(static_cast<double>(w[i]) - expected[i]);
             assert(diff < 1e-6);
         }
     }
@@ -1327,23 +1460,31 @@ void test_hamming_window() {
 
 void test_firwin() {
     std::vector<double> expected = {
-      3.63503901e-04,  3.75293735e-04,  -3.96332982e-04, -4.27164335e-04, 4.68341628e-04,  5.20431460e-04,
-      -5.84015203e-04, -6.59691447e-04, 7.48078949e-04,  8.49820181e-04,  -9.65585561e-04, -1.09607851e-03,
-      1.24204145e-03,  1.40426296e-03,  -1.58358628e-03, -1.78091942e-03, 1.99724724e-03,  2.23364585e-03,
-      -2.49129997e-03, -2.77152368e-03, 3.07578565e-03,  3.40573964e-03,  -3.76326187e-03, -4.15049683e-03,
-      4.56991398e-03,  5.02437836e-03,  -5.51723930e-03, -6.05244271e-03, 6.63467485e-03,  7.26954799e-03,
-      -7.96384327e-03, -8.72583217e-03, 9.56570816e-03,  1.04961751e-02,  -1.15332634e-02, -1.26974835e-02,
-      1.40154916e-02,  1.55225556e-02,  -1.72663055e-02, -1.93126286e-02, 2.17552855e-02,  2.47323148e-02,
-      -2.84555598e-02, -3.32674503e-02, 3.97597270e-02,  4.90504641e-02,  -6.35359851e-02, -8.94473748e-02,
-      1.49633035e-01,  4.49731899e-01,  4.49731899e-01,  1.49633035e-01,  -8.94473748e-02, -6.35359851e-02,
-      4.90504641e-02,  3.97597270e-02,  -3.32674503e-02, -2.84555598e-02, 2.47323148e-02,  2.17552855e-02,
-      -1.93126286e-02, -1.72663055e-02, 1.55225556e-02,  1.40154916e-02,  -1.26974835e-02, -1.15332634e-02,
-      1.04961751e-02,  9.56570816e-03,  -8.72583217e-03, -7.96384327e-03, 7.26954799e-03,  6.63467485e-03,
-      -6.05244271e-03, -5.51723930e-03, 5.02437836e-03,  4.56991398e-03,  -4.15049683e-03, -3.76326187e-03,
-      3.40573964e-03,  3.07578565e-03,  -2.77152368e-03, -2.49129997e-03, 2.23364585e-03,  1.99724724e-03,
-      -1.78091942e-03, -1.58358628e-03, 1.40426296e-03,  1.24204145e-03,  -1.09607851e-03, -9.65585561e-04,
-      8.49820181e-04,  7.48078949e-04,  -6.59691447e-04, -5.84015203e-04, 5.20431460e-04,  4.68341628e-04,
-      -4.27164335e-04, -3.96332982e-04, 3.75293735e-04,  3.63503901e-04,
+      3.635039006488662429e-04,  3.752937352658930513e-04,  -3.963329817315765658e-04, -4.271643351860715033e-04,
+      4.683416281457542093e-04,  5.204314598503628850e-04,  -5.840152028244973348e-04, -6.596914465607415200e-04,
+      7.480789491461126194e-04,  8.498201810045427802e-04,  -9.655855613368285063e-04, -1.096078508101363180e-03,
+      1.242041447525274803e-03,  1.404262960506157338e-03,  -1.583586282616530330e-03, -1.780919424070652891e-03,
+      1.997247239034851980e-03,  2.233645854172165972e-03,  -2.491299969867830349e-03, -2.771523681738332582e-03,
+      3.075785645162931042e-03,  3.405739636068801004e-03,  -3.763261867185891188e-03, -4.150496828949181913e-03,
+      4.569913978947260161e-03,  5.024378362376675025e-03,  -5.517239295110206408e-03, -6.052442709867453773e-03,
+      6.634674849821037453e-03,  7.269547992754454499e-03,  -7.963843271817355046e-03, -8.725832174177281311e-03,
+      9.565708164925903687e-03,  1.049617513123603935e-02,  -1.153326344298771788e-02, -1.269748348678473131e-02,
+      1.401549163157910470e-02,  1.552255555846477134e-02,  -1.726630549377525942e-02, -1.931262858266904678e-02,
+      2.175528552620915532e-02,  2.473231484060181562e-02,  -2.845555981587593458e-02, -3.326745027276156730e-02,
+      3.975972700061706361e-02,  4.905046411172205717e-02,  -6.353598509203629841e-02, -8.944737483480084961e-02,
+      1.496330354877559443e-01,  4.497318992892901934e-01,  4.497318992892901934e-01,  1.496330354877559443e-01,
+      -8.944737483480084961e-02, -6.353598509203629841e-02, 4.905046411172205023e-02,  3.975972700061706361e-02,
+      -3.326745027276156730e-02, -2.845555981587593458e-02, 2.473231484060181562e-02,  2.175528552620915532e-02,
+      -1.931262858266904331e-02, -1.726630549377525942e-02, 1.552255555846476787e-02,  1.401549163157910470e-02,
+      -1.269748348678472957e-02, -1.153326344298771788e-02, 1.049617513123603241e-02,  9.565708164925901952e-03,
+      -8.725832174177279577e-03, -7.963843271817355046e-03, 7.269547992754451897e-03,  6.634674849821035718e-03,
+      -6.052442709867452905e-03, -5.517239295110206408e-03, 5.024378362376673290e-03,  4.569913978947257559e-03,
+      -4.150496828949181913e-03, -3.763261867185892055e-03, 3.405739636068799269e-03,  3.075785645162930175e-03,
+      -2.771523681738332582e-03, -2.491299969867828180e-03, 2.233645854172164671e-03,  1.997247239034851980e-03,
+      -1.780919424070652891e-03, -1.583586282616528161e-03, 1.404262960506156687e-03,  1.242041447525274803e-03,
+      -1.096078508101363180e-03, -9.655855613368278557e-04, 8.498201810045421297e-04,  7.480789491461126194e-04,
+      -6.596914465607415200e-04, -5.840152028244967927e-04, 5.204314598503625598e-04,  4.683416281457542093e-04,
+      -4.271643351860709612e-04, -3.963329817315765658e-04, 3.752937352658928345e-04,  3.635039006488662429e-04,
     };
 
     {
@@ -1351,7 +1492,7 @@ void test_firwin() {
         assert(h.size() == expected.size());
         for (size_t i = 0; i < h.size(); ++i) {
             double diff = std::abs(h[i] - expected[i]);
-            assert(diff < 1e-9);
+            assert(diff < 1e-17);
         }
     }
 
@@ -1359,7 +1500,7 @@ void test_firwin() {
         auto h = firwin<float>(100, 0.5);
         assert(h.size() == expected.size());
         for (size_t i = 0; i < h.size(); ++i) {
-            double diff = std::abs(h[i] - expected[i]);
+            double diff = std::abs(static_cast<double>(h[i]) - expected[i]);
             assert(diff < 1e-7);
         }
     }
@@ -1367,37 +1508,58 @@ void test_firwin() {
 
 void test_lfilter() {
     std::vector<double> data = {
-      0.,         0.01010101, 0.02020202, 0.03030303, 0.04040404, 0.05050505, 0.06060606, 0.07070707, 0.08080808,
-      0.09090909, 0.1010101,  0.11111111, 0.12121212, 0.13131313, 0.14141414, 0.15151515, 0.16161616, 0.17171717,
-      0.18181818, 0.19191919, 0.2020202,  0.21212121, 0.22222222, 0.23232323, 0.24242424, 0.25252525, 0.26262626,
-      0.27272727, 0.28282828, 0.29292929, 0.3030303,  0.31313131, 0.32323232, 0.33333333, 0.34343434, 0.35353535,
-      0.36363636, 0.37373737, 0.38383838, 0.39393939, 0.4040404,  0.41414141, 0.42424242, 0.43434343, 0.44444444,
-      0.45454545, 0.46464646, 0.47474747, 0.48484848, 0.49494949, 0.50505051, 0.51515152, 0.52525253, 0.53535354,
-      0.54545455, 0.55555556, 0.56565657, 0.57575758, 0.58585859, 0.5959596,  0.60606061, 0.61616162, 0.62626263,
-      0.63636364, 0.64646465, 0.65656566, 0.66666667, 0.67676768, 0.68686869, 0.6969697,  0.70707071, 0.71717172,
-      0.72727273, 0.73737374, 0.74747475, 0.75757576, 0.76767677, 0.77777778, 0.78787879, 0.7979798,  0.80808081,
-      0.81818182, 0.82828283, 0.83838384, 0.84848485, 0.85858586, 0.86868687, 0.87878788, 0.88888889, 0.8989899,
-      0.90909091, 0.91919192, 0.92929293, 0.93939394, 0.94949495, 0.95959596, 0.96969697, 0.97979798, 0.98989899,
-      1.,
+      7.758785505079287548e-01,  -8.048745963192359687e-01, -2.335946529031862062e-01, 1.021825377695771309e+00,
+      -6.610059209943869307e-01, -1.078421670202891924e+00, 7.944201917993521933e-01,  6.157182595413788206e-01,
+      -1.037705309816154386e+00, -3.024026208955163941e-01, 1.075148747530737303e+00,  2.379412765486228487e-01,
+      -9.065305269066586957e-01, -1.496834947691895457e-01, 1.038664422166346135e+00,  1.696657258595887507e-01,
+      -9.328259686601119149e-01, -5.374681078670161538e-01, 5.675279328044953164e-01,  6.655218535994834594e-01,
+      -5.515813659490748089e-01, -1.018675994086865488e+00, -1.419007143243637969e-01, 9.915514191362425622e-01,
+      9.394113959115492074e-01,  -5.228622132001865541e-01, -1.086928378399568240e+00, -4.556530553455786503e-01,
+      5.771261747907608930e-01,  1.027341634303461815e+00,  4.644749777194165929e-01,  -5.288080428613484152e-01,
+      -8.180536406834181262e-01, -8.474601479869406928e-01, -2.979935968395131529e-01, 5.168690725219144966e-01,
+      1.158698454281837709e+00,  1.165296126487883388e+00,  3.160129313530735673e-01,  -3.883183951711627335e-01,
+      -7.299825753799842332e-01, -8.121674216296503879e-01, -9.765482115887189618e-01, -5.903073602700101841e-01,
+      -4.752230755038068521e-02, 5.037787991931201859e-01,  8.199919223166741711e-01,  6.572089015871844797e-01,
+      7.732331519882515991e-01,  1.249562038138374742e+00,  1.038148043083451766e+00,  5.516300967867800997e-01,
+      3.132112735916603441e-01,  3.277964589600254053e-01,  2.143963066905003600e-01,  -5.783684550196797891e-02,
+      -3.037957039029700046e-01, -3.858355194962742596e-01, -7.025360225383064927e-02, -3.000913802111795370e-01,
+      -2.015813027336103291e-01, 6.465865746238344883e-03,  3.758566491616285865e-01,  6.110701807703095012e-01,
+      5.168260694248962839e-01,  6.488783614146091949e-01,  1.039570884151026275e+00,  1.097944029873278771e+00,
+      8.308540862647779690e-01,  7.698553268151763218e-01,  7.737022832153850338e-01,  2.136674697686018476e-01,
+      -3.264744815314880033e-01, -8.366832026203162576e-01, -9.748706521661794078e-01, -8.662982843253909104e-01,
+      -3.884121445821469565e-01, -1.435079277596562619e-01, 6.929932296814802495e-01,  1.172601769525126292e+00,
+      1.018338753431271115e+00,  4.604765987083092593e-03,  -7.145389817245433317e-01, -1.060789028336126316e+00,
+      -6.604795925880470042e-01, 7.342572958148116391e-02,  5.867688607707188808e-01,  7.295166528452791121e-01,
+      1.794588155507974847e-01,  -7.029921181247038575e-01, -9.163029186026743211e-01, 3.179603251693904342e-01,
+      1.148936957733460051e+00,  6.569545384507228247e-01,  -6.119726933900101473e-01, -1.079737179574907557e+00,
+      1.288137278087668480e-01,  1.099925476993814932e+00,  2.169884909874185419e-01,  -1.182512654213021763e+00,
     };
     std::vector<double> expected = {
-      0.00000000e+00,  3.67175657e-06,  1.11343590e-05,  1.45935979e-05,  1.37380456e-05, 1.76132167e-05,
-      2.67452714e-05,  2.99781825e-05,  2.65475437e-05,  3.06732579e-05,  4.33830143e-05, 4.63393813e-05,
-      3.82242481e-05,  4.26549882e-05,  6.12702026e-05,  6.38895960e-05,  4.85199042e-05, 5.33244271e-05,
-      8.06910292e-05,  8.28929852e-05,  5.70997525e-05,  6.23750616e-05,  1.02051781e-04, 1.03715755e-04,
-      6.34555178e-05,  6.93560282e-05,  1.26007835e-04,  1.26929952e-04,  6.67162844e-05, 7.35195342e-05,
-      1.53752562e-04,  1.53542728e-04,  6.51931752e-05,  7.34669373e-05,  1.87762670e-04, 1.85560793e-04,
-      5.51015065e-05,  6.62128426e-05,  2.34117669e-04,  2.27615370e-04,  2.60360137e-05, 4.42070166e-05,
-      3.12199382e-04,  2.92761849e-04,  -6.27105342e-05, -1.65695136e-05, 5.25030740e-04, 4.24853367e-04,
-      -5.78832843e-04, -7.10742495e-05, 4.97943080e-03,  1.45726823e-02,  2.56773786e-02, 3.58785661e-02,
-      4.54379759e-02,  5.54928450e-02,  6.59493275e-02,  7.60697751e-02,  8.59027929e-02, 9.59856320e-02,
-      1.06288221e-01,  1.16395734e-01,  1.26328839e-01,  1.36418738e-01,  1.46650207e-01, 1.56753419e-01,
-      1.66740134e-01,  1.76832870e-01,  1.87022230e-01,  1.97123450e-01,  2.07144227e-01, 2.17238433e-01,
-      2.27399657e-01,  2.37499745e-01,  2.47544104e-01,  2.57639213e-01,  2.67780483e-01, 2.77879830e-01,
-      2.87941163e-01,  2.98036898e-01,  3.08163701e-01,  3.18262509e-01,  3.28336153e-01, 3.38432358e-01,
-      3.48548738e-01,  3.58647129e-01,  3.68729524e-01,  3.78826103e-01,  3.88935228e-01, 3.99033282e-01,
-      4.09121582e-01,  4.19218467e-01,  4.29322907e-01,  4.39420685e-01,  4.49512563e-01, 4.59609698e-01,
-      4.69711563e-01,  4.79809114e-01,  4.89902662e-01,  5.00000000e-01,
+      2.820348795394204792e-04,  -1.392695962416402866e-06, -6.944832205586810988e-04, 2.713416042145869764e-04,
+      9.429776428862596434e-04,  -9.184463311125031469e-04, -1.271867999126356612e-03, 1.546941053230812147e-03,
+      1.469697239933995475e-03,  -2.317237950872780457e-03, -1.659564602992697098e-03, 3.313438447082675715e-03,
+      1.990057735412806977e-03,  -4.522790764026658403e-03, -2.327939097065839097e-03, 6.165667799789844271e-03,
+      2.776515056467869676e-03,  -8.364158895814797351e-03, -3.540750512936368354e-03, 1.103212584443297520e-02,
+      4.414478185840504769e-03,  -1.447995156878884547e-02, -5.745737452976558066e-03, 1.844176992164072923e-02,
+      7.492622684678495321e-03,  -2.282615839019682194e-02, -9.350952275557744206e-03, 2.777222518067025067e-02,
+      1.099262024729930065e-02,  -3.374604805574553390e-02, -1.244683238581148661e-02, 4.144001643924181966e-02,
+      1.441869964742972104e-02,  -5.111845598380481553e-02, -1.789425287837770676e-02, 6.192800698905434609e-02,
+      2.245132795274849824e-02,  -7.382805038426670796e-02, -2.721764624756081372e-02, 8.901518812375450174e-02,
+      3.421483030764929656e-02,  -1.080116658681754549e-01, -4.591718511952332105e-02, 1.302291412302520046e-01,
+      6.409409006545999099e-02,  -1.585124541608891602e-01, -1.003303145886922654e-01, 1.913455963684796424e-01,
+      2.134270373855348679e-01,  -5.065821006348153466e-02, -8.463983440833372507e-02, 1.400767164351787164e-01,
+      6.854889502463334949e-02,  -3.159414121086323579e-01, -3.451478231784534945e-01, 6.788188381335083510e-02,
+      1.760351565262222306e-01,  -1.958964856357286455e-01, -2.518571240662725863e-01, 2.430039812228102503e-01,
+      3.934053827030695172e-01,  -1.494939853012700326e-01, -3.811832060275330836e-01, 2.313968170978885630e-01,
+      5.837542887823288229e-01,  -1.481260914326865130e-01, -8.292007174873333719e-01, -2.128682565127707482e-01,
+      7.389350466928579220e-01,  3.305561838697984034e-01,  -9.071590330556715820e-01, -9.205770629671589100e-01,
+      5.036894064882490030e-01,  1.292180029091859916e+00,  2.873587470269327038e-01,  -1.065951880990499756e+00,
+      -9.867548798116466680e-01, 2.183899761700220932e-01,  9.889743255196111749e-01,  6.965899154470766019e-01,
+      -5.547091108322001890e-02, -6.428916394912139731e-01, -8.988647918569082629e-01, -6.886368220618857006e-01,
+      7.669361246634008589e-02,  9.730626254694006994e-01,  1.263712915611414411e+00,  7.364120556044463362e-01,
+      -6.592387271546586158e-02, -5.772049955059450621e-01, -7.903954890286879476e-01, -9.155423733956311594e-01,
+      -8.438637515310060122e-01, -3.596092600072034462e-01, 3.161498940610707464e-01,  6.876810840799311153e-01,
+      6.872268810975514786e-01,  7.410957607016566140e-01,  1.027577464245421401e+00,  1.157497500960512848e+00,
     };
 
     auto w = firwin<double>(100, 0.5);
@@ -1407,7 +1569,7 @@ void test_lfilter() {
         assert(r.size() == expected.size());
         for (size_t i = 0; i < r.size(); ++i) {
             double diff = std::abs(r[i] - expected[i]);
-            assert(diff < 1e-8);
+            assert(diff < 1e-15);
         }
     }
 
@@ -1415,7 +1577,7 @@ void test_lfilter() {
         auto r = lfilter<float>(w, 1.0, data);
         assert(r.size() == expected.size());
         for (size_t i = 0; i < r.size(); ++i) {
-            double diff = std::abs(r[i] - expected[i]);
+            double diff = std::abs(static_cast<double>(r[i]) - expected[i]);
             assert(diff < 1e-6);
         }
     }
@@ -1423,40 +1585,77 @@ void test_lfilter() {
 
 void test_paa() {
     std::vector<double> data = {
-      0.,          0.84147098,  0.90929743,  0.14112001,  -0.7568025,  -0.95892427, -0.2794155,  0.6569866,
-      0.98935825,  0.41211849,  -0.54402111, -0.99999021, -0.53657292, 0.42016704,  0.99060736,  0.65028784,
-      -0.28790332, -0.96139749, -0.75098725, 0.14987721,  0.91294525,  0.83665564,  -0.00885131, -0.8462204,
-      -0.90557836, -0.13235175, 0.76255845,  0.95637593,  0.27090579,  -0.66363388, -0.98803162, -0.40403765,
-      0.55142668,  0.99991186,  0.52908269,  -0.42818267, -0.99177885, -0.64353813, 0.29636858,  0.96379539,
-      0.74511316,  -0.15862267, -0.91652155, -0.83177474, 0.01770193,  0.85090352,  0.90178835,  0.12357312,
-      -0.76825466, -0.95375265, -0.26237485, 0.67022918,  0.98662759,  0.39592515,  -0.55878905, -0.99975517,
-      -0.521551,   0.43616476,  0.99287265,  0.63673801,  -0.30481062, -0.96611777, -0.7391807,  0.1673557,
-      0.92002604,  0.82682868,  -0.02655115, -0.85551998, -0.89792768, -0.11478481, 0.77389068,  0.95105465,
-      0.25382336,  -0.67677196, -0.98514626, -0.38778164, 0.56610764,  0.99952016,  0.51397846,  -0.44411267,
-      -0.99388865, -0.62988799, 0.31322878,  0.96836446,  0.73319032,  -0.17607562, -0.92345845, -0.82181784,
-      0.0353983,   0.86006941,  0.89399666,  0.10598751,  -0.77946607, -0.94828214, -0.24525199, 0.68326171,
-      0.98358775,  0.37960774,  -0.57338187, -0.99920683,
+      -2.707123230673205150e-01, 1.048480526097400611e-01,  2.505278157235719672e-01,  -9.251999652780766858e-01,
+      5.671436602859060150e-01,  -1.040180216082938092e+00, -1.536759514579374430e-01, 7.898518103468190610e-01,
+      -1.226215846441854218e+00, -9.480069877134584821e-01, -5.696539419300646889e-01, -9.771502146977724124e-01,
+      -7.706317111835507827e-01, -3.371129145348601697e-02, -1.032859245166130036e+00, 1.142427376683152973e+00,
+      -6.097780076874727007e-01, 1.469416386876670311e+00,  1.492678836738333237e+00,  7.071252278892183885e-01,
+      -1.858490256651611272e+00, -1.370623771128104851e+00, -3.301063879206029283e-01, -1.515289945872204669e+00,
+      1.200060185821550496e+00,  -1.822619143420840748e+00, 2.693845413635515551e-01,  -4.464243756471875657e-01,
+      1.114313600092154521e+00,  -1.380802598177499840e+00, 1.015424517555432615e+00,  2.240812832877029648e-01,
+      -6.445511142707021079e-01, 6.615316603676937302e-01,  1.292964845138367957e+00,  -8.953120453084657537e-01,
+      -5.683106531193177213e-01, -2.111618357922506295e+00, -8.183077187246110551e-01, -9.623836123304461143e-01,
+      1.245016729991359483e-01,  1.085086947130721735e-01,  -4.393012630155798681e-01, -7.135603732210121786e-01,
+      9.341809592297067866e-01,  5.865553231659231120e-02,  1.609714279427906014e+00,  8.599067438306581268e-01,
+      -9.852030368738226018e-01, -9.583683207781137359e-01, 4.491086508702783475e-01,  -9.424625600410473369e-01,
+      1.589094473370271654e-01,  3.880756169024742186e-01,  4.373377634040143680e-01,  4.182295511742706307e-01,
+      -7.321849929469287366e-01, -1.428282966236801954e+00, -2.009217354005291334e+00, -2.334395828525029637e-01,
+      1.803952369039028447e+00,  -1.948670660022757906e+00, 1.367851011658045124e+00,  -1.858739421184189000e+00,
+      -1.233950727694971494e+00, -5.075697635372413696e-01, 1.407171498157143708e+00,  -9.410970527102838767e-01,
+      8.735047328229837982e-01,  1.135100193751177322e+00,  1.165984400987112757e+00,  4.921449233362669429e-02,
+      5.109467426852568606e-01,  6.312993903486825431e-01,  8.877020658357981375e-01,  5.765163666799102971e-02,
+      -3.295444380146471675e-01, -2.832078687004639939e+00, -1.182553661837196568e+00, -5.484602008780896376e-02,
+      1.248351830009002628e+00,  2.510342915668025476e+00,  -1.713364592110025175e-01, -4.580551375004912051e-01,
+      -1.338781518930379333e+00, 1.320062921969912040e+00,  -1.409329277109643064e+00, -1.098297219607405228e+00,
+      -4.867510608120249049e-01, -1.000970560034476264e+00, 1.773876785213478025e+00,  5.557830507037224699e-01,
+      -5.487119717073534186e-01, 1.080015754404080930e+00,  -7.524335847542489297e-01, 1.158794968036509943e+00,
+      7.508713298353077992e-01,  -1.262712693042902012e+00, -7.907005345100035498e-01, -1.707888483145026948e-01,
+      -1.619385357673486459e+00, 6.428946640852444272e-01,  -6.341265693929329927e-01, -5.614828715356590116e-01,
+      -1.025565474672023747e+00, -2.545527105477953245e-01, 3.961760954826345493e-01,  5.166931011354936043e-01,
+      7.514899428189479869e-01,  1.148879007428065036e+00,  2.386198739520692946e-01,  -7.511773050888372882e-01,
+      3.106640084718299000e-01,  -1.081209224458365981e+00, 3.649759963418085923e-02,  -2.944488687648951775e-01,
+      -2.708711787807264182e-01, -1.288584452929955604e-01, -1.018221443280190819e+00, -1.917968747414895869e+00,
+      -3.829450293378013348e-01, 1.636355548159416973e+00,  -1.503574276141866228e+00, -1.140920221757884406e-02,
+      7.602182672823447618e-01,  4.946180419291597019e-01,  8.958526633919711157e-02,  -3.346244790761944143e-01,
+      2.360550950966867401e+00,  6.102602242727093174e-01,  1.107425007192212263e+00,  9.291534659481502922e-01,
+      -8.982336798590710991e-01, 2.969164067788503392e-01,  1.297420113403151776e+00,  2.830474471869959263e-01,
+      -1.918192600599175346e-01, -7.884036595078141030e-01, 4.317659077567626569e-01,  5.909669056964579614e-02,
+      1.470858121465076218e+00,  -1.554218047610205877e+00, 2.726268613063043134e-01,  -5.656834045454091076e-01,
+      7.047222019298797768e-01,  4.595684015346917506e-01,  8.754836314218116256e-01,  1.045569650441375842e+00,
+      -2.492584485086628623e-02, -1.172228053410863557e+00, 4.150201978628382804e-01,  -1.455578925160157244e-01,
+      6.211956446548982935e-01,  -6.724937073875727478e-01, 6.701335325890445116e-01,  -4.955442592943617441e-01,
+      6.697002010538350980e-01,  -9.398253727980400429e-02, -3.796215232648539328e-02, 1.285564718411116858e-02,
+      -9.231839799987423545e-01, -6.717594481874026302e-01, 5.426823179995654556e-01,  3.287650821213281560e-01,
+      -2.476366890995689574e-01, -3.775027569377259473e-01, 2.602190943667161971e-01,  -1.483839193663842426e+00,
+      -1.103835015051469082e+00, 1.072433966880660394e+00,  2.365344901971001335e+00,  7.509059237278949972e-01,
+      -8.686455053166215745e-02, 1.215015555255819502e+00,  -7.631423070165320732e-01, 3.302367979421337862e-01,
+      1.482018289804353017e+00,  1.267784022433528779e-01,  6.100638491175328637e-01,  4.607221842540662471e-01,
+      -1.234605091663139476e+00, 1.470796653331652992e+00,  -3.080968100231850082e-01, 3.983002259174399651e-01,
+      7.318976031388524373e-01,  -9.664301947397304637e-01, 6.412625703265225630e-01,  6.305591313252802144e-02,
+      -7.499448654601594821e-01, 3.503062755001197237e-01,  -1.205790850772226364e+00, -1.190786371240603270e+00,
+      -2.457277721395691727e-01, -1.933938717923781914e+00, 2.964322341547116935e+00,  9.248504038482635581e-01,
+      9.731281131769021764e-01,  -7.287713877833996712e-01, 2.970185596152891683e-01,  5.519811945237956818e-01,
     };
     std::vector<double> expected_7 = {
-      0.02105659,
-      0.0975727,
-      0.00562705,
-      -0.12440166,
-      0.0606417,
-      0.08440562,
-      -0.10166878,
+      -2.824237745879321637e-01,
+      -7.920420096839880797e-02,
+      -1.028246489595118357e-01,
+      -9.666806068015047770e-02,
+      9.172045505502028628e-02,
+      7.931677237130800584e-02,
+      1.699504116244705820e-01,
     };
     std::vector<double> expected_10 = {
-      0.19552095,
-      -0.18699328,
-      0.11828053,
-      -0.01149837,
-      -0.09898462,
-      0.17760873,
-      -0.19906823,
-      0.15645624,
-      -0.06348773,
-      -0.04991475,
+      -1.016878267503324995e-01,
+      -4.473539673433823971e-01,
+      -1.447445768882981987e-01,
+      -4.993359489034446957e-02,
+      4.546153451528033018e-02,
+      -2.757976951947169186e-01,
+      3.122701875792610604e-01,
+      1.227569096111141150e-01,
+      1.943711212598739357e-01,
+      4.014138961563442493e-02,
     };
 
     {
@@ -1464,7 +1663,7 @@ void test_paa() {
         assert(r.size() == expected_7.size());
         for (size_t i = 0; i < r.size(); ++i) {
             double diff = std::abs(r[i] - expected_7[i]);
-            assert(diff < 1e-8);
+            assert(diff < 1e-16);
         }
     }
 
@@ -1472,7 +1671,7 @@ void test_paa() {
         auto r = paa<float>(data, 10);
         assert(r.size() == expected_10.size());
         for (size_t i = 0; i < r.size(); ++i) {
-            double diff = std::abs(r[i] - expected_10[i]);
+            double diff = std::abs(static_cast<double>(r[i]) - expected_10[i]);
             assert(diff < 1e-7);
         }
     }
@@ -1480,36 +1679,18 @@ void test_paa() {
 
 void test_minmax_scale() {
     std::vector<double> data = {
-      1.,          0.54030231,  -0.41614684, -0.9899925,  -0.65364362, 0.28366219,  0.96017029,  0.75390225,
-      -0.14550003, -0.91113026, -0.83907153, 0.0044257,   0.84385396,  0.90744678,  0.13673722,  -0.75968791,
-      -0.95765948, -0.27516334, 0.66031671,  0.98870462,  0.40808206,  -0.54772926, -0.99996083, -0.53283302,
-      0.42417901,  0.99120281,  0.64691932,  -0.29213881, -0.96260587, -0.74805753, 0.15425145,  0.91474236,
-      0.83422336,  -0.01327675, -0.84857027, -0.90369221, -0.12796369, 0.76541405,  0.95507364,  0.26664293,
-      -0.66693806, -0.98733928, -0.39998531, 0.5551133,   0.99984331,  0.52532199,  -0.43217794, -0.99233547,
-      -0.64014434, 0.30059254,  0.96496603,  0.7421542,   -0.16299078, -0.91828279, -0.82930983, 0.02212676,
-      0.85322011,  0.89986683,  0.11918014,  -0.77108022, -0.95241298, -0.25810164, 0.67350716,  0.98589658,
-      0.39185723,  -0.56245385, -0.99964746, -0.5177698,  0.44014302,  0.99339038,  0.6333192,   -0.30902273,
-      -0.96725059, -0.73619272, 0.17171734,  0.92175127,  0.82433133,  -0.03097503, -0.85780309, -0.89597095,
-      -0.11038724, 0.77668598,  0.9496777,   0.24954012,  -0.6800235,  -0.98437664, -0.38369844, 0.56975033,
-      0.99937328,  0.51017704,  -0.44807362, -0.99436746, -0.62644445, 0.3174287,   0.96945937,  0.73017356,
-      -0.18043045, -0.92514754, -0.81928825, 0.03982088,
+      7.796343665038752221e-17,  9.286723986772055239e-02,  -1.803945870164925802e-01, 2.215397745670692753e-01,
+      -1.644843685505689435e-01, -9.954496206758275956e-02, 1.779830276444839487e+00,  1.205446246857638792e+00,
+      -4.050471169471980826e-01, 9.818729853215622805e-02,  7.140894438702208302e-02,  -1.446596846239995016e-01,
+      1.418172055126633302e-01,  -8.899151382224200491e-02, 1.731216731610123530e-02,  4.428425307130670618e-02,
+      -7.639302571278244747e-02, 7.328530097545010724e-02,  -4.245359536810088680e-02, -7.796343665038752221e-17,
     };
     std::vector<double> expected = {
-      1.00000000e+00, 7.70146651e-01, 2.91912713e-01, 4.98426252e-03, 1.73161994e-01, 6.41824077e-01, 9.80084753e-01,
-      8.76948717e-01, 4.27238765e-01, 4.44161522e-02, 8.04462243e-02, 5.02203099e-01, 9.21925450e-01, 9.53722484e-01,
-      5.68360155e-01, 1.20138810e-01, 2.11510873e-02, 3.62405843e-01, 8.30155027e-01, 9.94352198e-01, 7.04035234e-01,
-      2.26120212e-01, 0.00000000e+00, 2.33568478e-01, 7.12083864e-01, 9.95601320e-01, 8.23456203e-01, 3.53917941e-01,
-      1.86778459e-02, 1.25954115e-01, 5.77117442e-01, 9.57370344e-01, 9.17110057e-01, 4.93351703e-01, 7.56967585e-02,
-      4.81352535e-02, 4.36007108e-01, 8.82704729e-01, 9.77536382e-01, 6.33314284e-01, 1.66514644e-01, 6.31089805e-03,
-      2.99993632e-01, 7.77552294e-01, 9.99921653e-01, 7.62656346e-01, 2.83897001e-01, 3.81275330e-03, 1.79911767e-01,
-      6.50289422e-01, 9.82482671e-01, 8.71074573e-01, 4.18493220e-01, 4.08398200e-02, 8.53271681e-02, 5.11053801e-01,
-      9.26608616e-01, 9.49932433e-01, 5.59581441e-01, 1.14442543e-01, 2.37743887e-02, 3.70936861e-01, 8.36750384e-01,
-      9.92948153e-01, 6.95922659e-01, 2.18757772e-01, 1.56688283e-04, 2.41100236e-01, 7.20066028e-01, 9.96695125e-01,
-      8.16656010e-01, 3.45475816e-01, 1.63554394e-02, 1.31886637e-01, 5.85850559e-01, 9.60874869e-01, 9.12163945e-01,
-      4.84502387e-01, 7.10802588e-02, 5.19959582e-02, 4.44795503e-01, 8.88340804e-01, 9.74838356e-01, 6.24762709e-01,
-      1.59971799e-01, 7.79224413e-03, 3.08137226e-01, 7.84870953e-01, 9.99686636e-01, 7.55083725e-01, 2.75949010e-01,
-      2.79673751e-03, 1.86761847e-01, 6.58707666e-01, 9.84729384e-01, 8.65084138e-01, 4.09773215e-01, 3.74073776e-02,
-      9.03380600e-02, 5.19901037e-01,
+      1.853866574720514082e-01, 2.278912118001747977e-01, 1.028215727848833111e-01, 2.867835483168631461e-01,
+      1.101035459125483396e-01, 1.398257658775630685e-01, 1.000000000000000000e+00, 7.371092623666789523e-01,
+      0.000000000000000000e+00, 2.303261578893813222e-01, 2.180699305028364898e-01, 1.191771369463186653e-01,
+      2.502951992243604429e-01, 1.446559903456539342e-01, 1.933102907928319070e-01, 2.056551875073020508e-01,
+      1.504222123531507860e-01, 2.189287231262133926e-01, 1.659560040649092072e-01, 1.853866574720513527e-01,
     };
 
     {
@@ -1518,56 +1699,278 @@ void test_minmax_scale() {
         assert(copy.size() == expected.size());
         for (size_t i = 0; i < copy.size(); ++i) {
             double diff = std::abs(copy[i] - expected[i]);
-            assert(diff < 1e-8);
+            assert(diff < EPS);
         }
     }
 
     {
         minmax_scale_ctx_t<float> ctx;
-        minmax_scale(ctx, data, 0.0f, 1.0f);
+        minmax_scale<float>(ctx, data, 0.0f, 1.0f);
         auto r = ctx.result;
         assert(r.size() == expected.size());
         for (size_t i = 0; i < r.size(); ++i) {
-            double diff = std::abs(r[i] - expected[i]);
+            double diff = std::abs(static_cast<double>(r[i]) - expected[i]);
             assert(diff < 1e-7);
+        }
+    }
+}
+
+void test_norm_cdf() {
+    std::vector<double> data = {
+      0.000000000000000000e+00, 3.225806451612903136e-02, 6.451612903225806273e-02, 9.677419354838709409e-02,
+      1.290322580645161255e-01, 1.612903225806451568e-01, 1.935483870967741882e-01, 2.258064516129032195e-01,
+      2.580645161290322509e-01, 2.903225806451612545e-01, 3.225806451612903136e-01, 3.548387096774193727e-01,
+      3.870967741935483764e-01, 4.193548387096773800e-01, 4.516129032258064391e-01, 4.838709677419354982e-01,
+      5.161290322580645018e-01, 5.483870967741935054e-01, 5.806451612903225090e-01, 6.129032258064516236e-01,
+      6.451612903225806273e-01, 6.774193548387096309e-01, 7.096774193548387455e-01, 7.419354838709677491e-01,
+      7.741935483870967527e-01, 8.064516129032257563e-01, 8.387096774193547599e-01, 8.709677419354838745e-01,
+      9.032258064516128782e-01, 9.354838709677418818e-01, 9.677419354838709964e-01, 1.000000000000000000e+00,
+    };
+    std::vector<double> expected = {
+      5.000000000000000000e-01, 5.128668742728588192e-01, 5.257203676221837707e-01, 5.385471408564991291e-01,
+      5.513339380315980254e-01, 5.640676275336392598e-01, 5.767352425179979036e-01, 5.893240204964120821e-01,
+      6.018214418711302915e-01, 6.142152672223537557e-01, 6.264935731642267136e-01, 6.386447865948615688e-01,
+      6.506577171772994772e-01, 6.625215879008157227e-01, 6.742260635854371298e-01, 6.857612772068568674e-01,
+      6.971178539339611957e-01, 7.082869327867966636e-01, 7.192601858388718572e-01, 7.300298349040595935e-01,
+      7.405886656649046662e-01, 7.509300392157201021e-01, 7.610479010103134989e-01, 7.709367872204114791e-01,
+      7.805918285267099410e-01, 7.900087513798303984e-01, 7.991838767832303292e-01, 8.081141166641422346e-01,
+      8.167969679118535220e-01, 8.252305041749536940e-01, 8.334133655205246960e-01, 8.413447460685429258e-01,
+    };
+
+    {
+        assert(data.size() == expected.size());
+        for (size_t i = 0; i < data.size(); ++i) {
+            auto   r    = norm_cdf<double>(data[i]);
+            double diff = std::abs(r - expected[i]);
+            assert(diff < 1e-15);
+        }
+    }
+
+    {
+        assert(data.size() == expected.size());
+        for (size_t i = 0; i < data.size(); ++i) {
+            auto   r    = norm_cdf<float>(data[i]);
+            double diff = std::abs(static_cast<double>(r) - expected[i]);
+            assert(diff < 1e-7);
+        }
+    }
+}
+
+void test_norm_pdf() {
+    std::vector<double> data = {
+      0.000000000000000000e+00, 3.225806451612903136e-02, 6.451612903225806273e-02, 9.677419354838709409e-02,
+      1.290322580645161255e-01, 1.612903225806451568e-01, 1.935483870967741882e-01, 2.258064516129032195e-01,
+      2.580645161290322509e-01, 2.903225806451612545e-01, 3.225806451612903136e-01, 3.548387096774193727e-01,
+      3.870967741935483764e-01, 4.193548387096773800e-01, 4.516129032258064391e-01, 4.838709677419354982e-01,
+      5.161290322580645018e-01, 5.483870967741935054e-01, 5.806451612903225090e-01, 6.129032258064516236e-01,
+      6.451612903225806273e-01, 6.774193548387096309e-01, 7.096774193548387455e-01, 7.419354838709677491e-01,
+      7.741935483870967527e-01, 8.064516129032257563e-01, 8.387096774193547599e-01, 8.709677419354838745e-01,
+      9.032258064516128782e-01, 9.354838709677418818e-01, 9.677419354838709964e-01, 1.000000000000000000e+00,
+    };
+    std::vector<double> expected = {
+      3.989422804014327029e-01, 3.987347681666320587e-01, 3.981128788701271959e-01, 3.970785513704122027e-01,
+      3.956350059054691282e-01, 3.937867273889578690e-01, 3.915394421949670023e-01, 3.889000885995027579e-01,
+      3.858767810922429375e-01, 3.824787688154548393e-01, 3.787163884279626802e-01, 3.746010117303019693e-01,
+      3.701449884223635967e-01, 3.653615843966153687e-01, 3.602649159981285987e-01, 3.548698807069033401e-01,
+      3.491920847182030108e-01, 3.432477679126343939e-01, 3.370537267194528286e-01, 3.306272353839858624e-01,
+      3.239859661531530044e-01, 3.171479088918513489e-01, 3.101312906375712219e-01, 3.029544955911239179e-01,
+      2.956359860279734186e-01, 2.881942245975774863e-01, 2.806475984575829696e-01, 2.730143456659755441e-01,
+      2.653124842276272655e-01, 2.575597441624530304e-01, 2.497735029309033628e-01, 2.419707245191433653e-01,
+    };
+
+    {
+        assert(data.size() == expected.size());
+        for (size_t i = 0; i < data.size(); ++i) {
+            auto   r    = norm_pdf<double>(data[i]);
+            double diff = std::abs(r - expected[i]);
+            assert(diff < 1e-15);
+        }
+    }
+
+    {
+        assert(data.size() == expected.size());
+        for (size_t i = 0; i < data.size(); ++i) {
+            auto   r    = norm_pdf<float>(data[i]);
+            double diff = std::abs(static_cast<double>(r) - expected[i]);
+            assert(diff < 1e-7);
+        }
+    }
+}
+
+void test_norm_ppf() {
+    std::vector<double> data = {
+      1.562500000000000000e-02, 3.125000000000000000e-02, 4.687500000000000000e-02, 6.250000000000000000e-02,
+      7.812500000000000000e-02, 9.375000000000000000e-02, 1.093750000000000000e-01, 1.250000000000000000e-01,
+      1.406250000000000000e-01, 1.562500000000000000e-01, 1.718750000000000000e-01, 1.875000000000000000e-01,
+      2.031250000000000000e-01, 2.187500000000000000e-01, 2.343750000000000000e-01, 2.500000000000000000e-01,
+      2.656250000000000000e-01, 2.812500000000000000e-01, 2.968750000000000000e-01, 3.125000000000000000e-01,
+      3.281250000000000000e-01, 3.437500000000000000e-01, 3.593750000000000000e-01, 3.750000000000000000e-01,
+      3.906250000000000000e-01, 4.062500000000000000e-01, 4.218750000000000000e-01, 4.375000000000000000e-01,
+      4.531250000000000000e-01, 4.687500000000000000e-01, 4.843750000000000000e-01, 5.000000000000000000e-01,
+      5.156250000000000000e-01, 5.312500000000000000e-01, 5.468750000000000000e-01, 5.625000000000000000e-01,
+      5.781250000000000000e-01, 5.937500000000000000e-01, 6.093750000000000000e-01, 6.250000000000000000e-01,
+      6.406250000000000000e-01, 6.562500000000000000e-01, 6.718750000000000000e-01, 6.875000000000000000e-01,
+      7.031250000000000000e-01, 7.187500000000000000e-01, 7.343750000000000000e-01, 7.500000000000000000e-01,
+      7.656250000000000000e-01, 7.812500000000000000e-01, 7.968750000000000000e-01, 8.125000000000000000e-01,
+      8.281250000000000000e-01, 8.437500000000000000e-01, 8.593750000000000000e-01, 8.750000000000000000e-01,
+      8.906250000000000000e-01, 9.062500000000000000e-01, 9.218750000000000000e-01, 9.375000000000000000e-01,
+      9.531250000000000000e-01, 9.687500000000000000e-01, 9.843750000000000000e-01,
+    };
+    std::vector<double> expected = {
+      -2.153874694061456374e+00, -1.862731867421651533e+00, -1.675939722773443830e+00, -1.534120544352546300e+00,
+      -1.417797137996267054e+00, -1.318010897303536932e+00, -1.229858759216589048e+00, -1.150349380376007868e+00,
+      -1.077515567040280287e+00, -1.009990169249582070e+00, -9.467817563010456627e-01, -8.871465590188759576e-01,
+      -8.305108782053992611e-01, -7.764217611479277137e-01, -7.245143834923654103e-01, -6.744897501960817054e-01,
+      -6.260990123464211798e-01, -5.791321622555559712e-01, -5.334097062412805901e-01, -4.887764111146695178e-01,
+      -4.450965249855163841e-01, -4.022500653217253586e-01, -3.601298917895694451e-01, -3.186393639643751441e-01,
+      -2.776904398215767622e-01, -2.372021093287876858e-01, -1.970990842943123045e-01, -1.573106846101706979e-01,
+      -1.177698745790952961e-01, -7.841241273311219673e-02, -3.917608550309762544e-02, 0.000000000000000000e+00,
+      3.917608550309762544e-02,  7.841241273311219673e-02,  1.177698745790952961e-01,  1.573106846101706979e-01,
+      1.970990842943123045e-01,  2.372021093287876858e-01,  2.776904398215767622e-01,  3.186393639643751441e-01,
+      3.601298917895694451e-01,  4.022500653217253586e-01,  4.450965249855163841e-01,  4.887764111146695178e-01,
+      5.334097062412805901e-01,  5.791321622555559712e-01,  6.260990123464211798e-01,  6.744897501960817054e-01,
+      7.245143834923654103e-01,  7.764217611479277137e-01,  8.305108782053992611e-01,  8.871465590188759576e-01,
+      9.467817563010456627e-01,  1.009990169249582070e+00,  1.077515567040280287e+00,  1.150349380376007868e+00,
+      1.229858759216589048e+00,  1.318010897303536932e+00,  1.417797137996267054e+00,  1.534120544352546300e+00,
+      1.675939722773443830e+00,  1.862731867421651533e+00,  2.153874694061456374e+00,
+    };
+
+    {
+        assert(data.size() == expected.size());
+        for (size_t i = 0; i < data.size(); ++i) {
+            auto   r    = norm_ppf<double>(data[i]);
+            double diff = std::abs(r - expected[i]);
+            assert(diff < 1e-14);
+        }
+    }
+
+    {
+        assert(data.size() == expected.size());
+        for (size_t i = 0; i < data.size(); ++i) {
+            auto   r    = norm_ppf<float>(data[i]);
+            double diff = std::abs(static_cast<double>(r) - expected[i]);
+            assert(diff < 1e-5);
         }
     }
 }
 
 void test_mtf() {
     std::vector<double> data = {
-      0.,
-      0.09983342,
-      0.19866933,
-      0.29552021,
-      0.38941834,
-      0.47942554,
-      0.56464247,
-      0.64421769,
-      0.71735609,
-      0.78332691,
+      0.000000000000000000e+00,  6.142127126896678169e-01,  9.694002659393303745e-01,  9.157733266550575069e-01,
+      4.759473930370736738e-01,  -1.645945902807337824e-01, -7.357239106731312539e-01, -9.965844930066698470e-01,
+      -8.371664782625287682e-01, -3.246994692046837327e-01, 3.246994692046832887e-01,  8.371664782625285461e-01,
+      9.965844930066699581e-01,  7.357239106731322531e-01,  1.645945902807346983e-01,  -4.759473930370728967e-01,
+      -9.157733266550571738e-01, -9.694002659393305965e-01, -6.142127126896682610e-01, -4.898587196589412829e-16,
     };
     std::vector<double> expected = {
-      0.66666667, 0.66666667, 0.66666667, 0.33333333, 0.33333333, 0.33333333, 0.,         0.,         0.,
-      0.,         0.66666667, 0.66666667, 0.66666667, 0.33333333, 0.33333333, 0.33333333, 0.,         0.,
-      0.,         0.,         0.66666667, 0.66666667, 0.66666667, 0.33333333, 0.33333333, 0.33333333, 0.,
-      0.,         0.,         0.,         0.,         0.,         0.,         0.66666667, 0.66666667, 0.66666667,
-      0.33333333, 0.33333333, 0.33333333, 0.33333333, 0.,         0.,         0.,         0.66666667, 0.66666667,
-      0.66666667, 0.33333333, 0.33333333, 0.33333333, 0.33333333, 0.,         0.,         0.,         0.66666667,
-      0.66666667, 0.66666667, 0.33333333, 0.33333333, 0.33333333, 0.33333333, 0.,         0.,         0.,
-      0.,         0.,         0.,         1.,         1.,         1.,         1.,         0.,         0.,
-      0.,         0.,         0.,         0.,         1.,         1.,         1.,         1.,         0.,
-      0.,         0.,         0.,         0.,         0.,         1.,         1.,         1.,         1.,
-      0.,         0.,         0.,         0.,         0.,         0.,         1.,         1.,         1.,
-      1.,
+      2.000000000000000111e-01, 4.000000000000000222e-01, 0.000000000000000000e+00, 0.000000000000000000e+00,
+      4.000000000000000222e-01, 2.000000000000000111e-01, 4.000000000000000222e-01, 4.000000000000000222e-01,
+      4.000000000000000222e-01, 2.000000000000000111e-01, 4.000000000000000222e-01, 0.000000000000000000e+00,
+      0.000000000000000000e+00, 0.000000000000000000e+00, 4.000000000000000222e-01, 2.000000000000000111e-01,
+      4.000000000000000222e-01, 4.000000000000000222e-01, 2.000000000000000111e-01, 2.000000000000000111e-01,
+      5.000000000000000000e-01, 0.000000000000000000e+00, 5.000000000000000000e-01, 5.000000000000000000e-01,
+      0.000000000000000000e+00, 5.000000000000000000e-01, 0.000000000000000000e+00, 0.000000000000000000e+00,
+      0.000000000000000000e+00, 5.000000000000000000e-01, 0.000000000000000000e+00, 5.000000000000000000e-01,
+      5.000000000000000000e-01, 5.000000000000000000e-01, 0.000000000000000000e+00, 5.000000000000000000e-01,
+      0.000000000000000000e+00, 0.000000000000000000e+00, 5.000000000000000000e-01, 5.000000000000000000e-01,
+      0.000000000000000000e+00, 4.000000000000000222e-01, 5.999999999999999778e-01, 5.999999999999999778e-01,
+      4.000000000000000222e-01, 0.000000000000000000e+00, 0.000000000000000000e+00, 0.000000000000000000e+00,
+      0.000000000000000000e+00, 0.000000000000000000e+00, 4.000000000000000222e-01, 5.999999999999999778e-01,
+      5.999999999999999778e-01, 5.999999999999999778e-01, 4.000000000000000222e-01, 0.000000000000000000e+00,
+      0.000000000000000000e+00, 0.000000000000000000e+00, 0.000000000000000000e+00, 0.000000000000000000e+00,
+      0.000000000000000000e+00, 4.000000000000000222e-01, 5.999999999999999778e-01, 5.999999999999999778e-01,
+      4.000000000000000222e-01, 0.000000000000000000e+00, 0.000000000000000000e+00, 0.000000000000000000e+00,
+      0.000000000000000000e+00, 0.000000000000000000e+00, 4.000000000000000222e-01, 5.999999999999999778e-01,
+      5.999999999999999778e-01, 5.999999999999999778e-01, 4.000000000000000222e-01, 0.000000000000000000e+00,
+      0.000000000000000000e+00, 0.000000000000000000e+00, 0.000000000000000000e+00, 0.000000000000000000e+00,
+      5.000000000000000000e-01, 0.000000000000000000e+00, 5.000000000000000000e-01, 5.000000000000000000e-01,
+      0.000000000000000000e+00, 5.000000000000000000e-01, 0.000000000000000000e+00, 0.000000000000000000e+00,
+      0.000000000000000000e+00, 5.000000000000000000e-01, 0.000000000000000000e+00, 5.000000000000000000e-01,
+      5.000000000000000000e-01, 5.000000000000000000e-01, 0.000000000000000000e+00, 5.000000000000000000e-01,
+      0.000000000000000000e+00, 0.000000000000000000e+00, 5.000000000000000000e-01, 5.000000000000000000e-01,
+      2.000000000000000111e-01, 4.000000000000000222e-01, 0.000000000000000000e+00, 0.000000000000000000e+00,
+      4.000000000000000222e-01, 2.000000000000000111e-01, 4.000000000000000222e-01, 4.000000000000000222e-01,
+      4.000000000000000222e-01, 2.000000000000000111e-01, 4.000000000000000222e-01, 0.000000000000000000e+00,
+      0.000000000000000000e+00, 0.000000000000000000e+00, 4.000000000000000222e-01, 2.000000000000000111e-01,
+      4.000000000000000222e-01, 4.000000000000000222e-01, 2.000000000000000111e-01, 2.000000000000000111e-01,
+      4.000000000000000222e-01, 0.000000000000000000e+00, 0.000000000000000000e+00, 0.000000000000000000e+00,
+      0.000000000000000000e+00, 4.000000000000000222e-01, 5.999999999999999778e-01, 5.999999999999999778e-01,
+      5.999999999999999778e-01, 4.000000000000000222e-01, 0.000000000000000000e+00, 0.000000000000000000e+00,
+      0.000000000000000000e+00, 0.000000000000000000e+00, 0.000000000000000000e+00, 4.000000000000000222e-01,
+      5.999999999999999778e-01, 5.999999999999999778e-01, 4.000000000000000222e-01, 4.000000000000000222e-01,
+      4.000000000000000222e-01, 0.000000000000000000e+00, 0.000000000000000000e+00, 0.000000000000000000e+00,
+      0.000000000000000000e+00, 4.000000000000000222e-01, 5.999999999999999778e-01, 5.999999999999999778e-01,
+      5.999999999999999778e-01, 4.000000000000000222e-01, 0.000000000000000000e+00, 0.000000000000000000e+00,
+      0.000000000000000000e+00, 0.000000000000000000e+00, 0.000000000000000000e+00, 4.000000000000000222e-01,
+      5.999999999999999778e-01, 5.999999999999999778e-01, 4.000000000000000222e-01, 4.000000000000000222e-01,
+      4.000000000000000222e-01, 0.000000000000000000e+00, 0.000000000000000000e+00, 0.000000000000000000e+00,
+      0.000000000000000000e+00, 4.000000000000000222e-01, 5.999999999999999778e-01, 5.999999999999999778e-01,
+      5.999999999999999778e-01, 4.000000000000000222e-01, 0.000000000000000000e+00, 0.000000000000000000e+00,
+      0.000000000000000000e+00, 0.000000000000000000e+00, 0.000000000000000000e+00, 4.000000000000000222e-01,
+      5.999999999999999778e-01, 5.999999999999999778e-01, 4.000000000000000222e-01, 4.000000000000000222e-01,
+      2.000000000000000111e-01, 4.000000000000000222e-01, 0.000000000000000000e+00, 0.000000000000000000e+00,
+      4.000000000000000222e-01, 2.000000000000000111e-01, 4.000000000000000222e-01, 4.000000000000000222e-01,
+      4.000000000000000222e-01, 2.000000000000000111e-01, 4.000000000000000222e-01, 0.000000000000000000e+00,
+      0.000000000000000000e+00, 0.000000000000000000e+00, 4.000000000000000222e-01, 2.000000000000000111e-01,
+      4.000000000000000222e-01, 4.000000000000000222e-01, 2.000000000000000111e-01, 2.000000000000000111e-01,
+      5.000000000000000000e-01, 0.000000000000000000e+00, 5.000000000000000000e-01, 5.000000000000000000e-01,
+      0.000000000000000000e+00, 5.000000000000000000e-01, 0.000000000000000000e+00, 0.000000000000000000e+00,
+      0.000000000000000000e+00, 5.000000000000000000e-01, 0.000000000000000000e+00, 5.000000000000000000e-01,
+      5.000000000000000000e-01, 5.000000000000000000e-01, 0.000000000000000000e+00, 5.000000000000000000e-01,
+      0.000000000000000000e+00, 0.000000000000000000e+00, 5.000000000000000000e-01, 5.000000000000000000e-01,
+      0.000000000000000000e+00, 4.000000000000000222e-01, 5.999999999999999778e-01, 5.999999999999999778e-01,
+      4.000000000000000222e-01, 0.000000000000000000e+00, 0.000000000000000000e+00, 0.000000000000000000e+00,
+      0.000000000000000000e+00, 0.000000000000000000e+00, 4.000000000000000222e-01, 5.999999999999999778e-01,
+      5.999999999999999778e-01, 5.999999999999999778e-01, 4.000000000000000222e-01, 0.000000000000000000e+00,
+      0.000000000000000000e+00, 0.000000000000000000e+00, 0.000000000000000000e+00, 0.000000000000000000e+00,
+      0.000000000000000000e+00, 4.000000000000000222e-01, 5.999999999999999778e-01, 5.999999999999999778e-01,
+      4.000000000000000222e-01, 0.000000000000000000e+00, 0.000000000000000000e+00, 0.000000000000000000e+00,
+      0.000000000000000000e+00, 0.000000000000000000e+00, 4.000000000000000222e-01, 5.999999999999999778e-01,
+      5.999999999999999778e-01, 5.999999999999999778e-01, 4.000000000000000222e-01, 0.000000000000000000e+00,
+      0.000000000000000000e+00, 0.000000000000000000e+00, 0.000000000000000000e+00, 0.000000000000000000e+00,
+      0.000000000000000000e+00, 4.000000000000000222e-01, 5.999999999999999778e-01, 5.999999999999999778e-01,
+      4.000000000000000222e-01, 0.000000000000000000e+00, 0.000000000000000000e+00, 0.000000000000000000e+00,
+      0.000000000000000000e+00, 0.000000000000000000e+00, 4.000000000000000222e-01, 5.999999999999999778e-01,
+      5.999999999999999778e-01, 5.999999999999999778e-01, 4.000000000000000222e-01, 0.000000000000000000e+00,
+      0.000000000000000000e+00, 0.000000000000000000e+00, 0.000000000000000000e+00, 0.000000000000000000e+00,
+      5.000000000000000000e-01, 0.000000000000000000e+00, 5.000000000000000000e-01, 5.000000000000000000e-01,
+      0.000000000000000000e+00, 5.000000000000000000e-01, 0.000000000000000000e+00, 0.000000000000000000e+00,
+      0.000000000000000000e+00, 5.000000000000000000e-01, 0.000000000000000000e+00, 5.000000000000000000e-01,
+      5.000000000000000000e-01, 5.000000000000000000e-01, 0.000000000000000000e+00, 5.000000000000000000e-01,
+      0.000000000000000000e+00, 0.000000000000000000e+00, 5.000000000000000000e-01, 5.000000000000000000e-01,
+      2.000000000000000111e-01, 4.000000000000000222e-01, 0.000000000000000000e+00, 0.000000000000000000e+00,
+      4.000000000000000222e-01, 2.000000000000000111e-01, 4.000000000000000222e-01, 4.000000000000000222e-01,
+      4.000000000000000222e-01, 2.000000000000000111e-01, 4.000000000000000222e-01, 0.000000000000000000e+00,
+      0.000000000000000000e+00, 0.000000000000000000e+00, 4.000000000000000222e-01, 2.000000000000000111e-01,
+      4.000000000000000222e-01, 4.000000000000000222e-01, 2.000000000000000111e-01, 2.000000000000000111e-01,
+      4.000000000000000222e-01, 0.000000000000000000e+00, 0.000000000000000000e+00, 0.000000000000000000e+00,
+      0.000000000000000000e+00, 4.000000000000000222e-01, 5.999999999999999778e-01, 5.999999999999999778e-01,
+      5.999999999999999778e-01, 4.000000000000000222e-01, 0.000000000000000000e+00, 0.000000000000000000e+00,
+      0.000000000000000000e+00, 0.000000000000000000e+00, 0.000000000000000000e+00, 4.000000000000000222e-01,
+      5.999999999999999778e-01, 5.999999999999999778e-01, 4.000000000000000222e-01, 4.000000000000000222e-01,
+      4.000000000000000222e-01, 0.000000000000000000e+00, 0.000000000000000000e+00, 0.000000000000000000e+00,
+      0.000000000000000000e+00, 4.000000000000000222e-01, 5.999999999999999778e-01, 5.999999999999999778e-01,
+      5.999999999999999778e-01, 4.000000000000000222e-01, 0.000000000000000000e+00, 0.000000000000000000e+00,
+      0.000000000000000000e+00, 0.000000000000000000e+00, 0.000000000000000000e+00, 4.000000000000000222e-01,
+      5.999999999999999778e-01, 5.999999999999999778e-01, 4.000000000000000222e-01, 4.000000000000000222e-01,
+      2.000000000000000111e-01, 4.000000000000000222e-01, 0.000000000000000000e+00, 0.000000000000000000e+00,
+      4.000000000000000222e-01, 2.000000000000000111e-01, 4.000000000000000222e-01, 4.000000000000000222e-01,
+      4.000000000000000222e-01, 2.000000000000000111e-01, 4.000000000000000222e-01, 0.000000000000000000e+00,
+      0.000000000000000000e+00, 0.000000000000000000e+00, 4.000000000000000222e-01, 2.000000000000000111e-01,
+      4.000000000000000222e-01, 4.000000000000000222e-01, 2.000000000000000111e-01, 2.000000000000000111e-01,
+      2.000000000000000111e-01, 4.000000000000000222e-01, 0.000000000000000000e+00, 0.000000000000000000e+00,
+      4.000000000000000222e-01, 2.000000000000000111e-01, 4.000000000000000222e-01, 4.000000000000000222e-01,
+      4.000000000000000222e-01, 2.000000000000000111e-01, 4.000000000000000222e-01, 0.000000000000000000e+00,
+      0.000000000000000000e+00, 0.000000000000000000e+00, 4.000000000000000222e-01, 2.000000000000000111e-01,
+      4.000000000000000222e-01, 4.000000000000000222e-01, 2.000000000000000111e-01, 2.000000000000000111e-01,
     };
 
     {
         auto r = mtf<double>(data, 4);
         assert(r.size() == expected.size());
         for (size_t i = 0; i < r.size(); ++i) {
-            auto diff = std::abs(r[i] - expected[i]);
-            assert(diff < 1e-8);
+            double diff = std::abs(r[i] - expected[i]);
+            assert(diff < EPS);
         }
     }
 
@@ -1575,7 +1978,7 @@ void test_mtf() {
         auto r = mtf<float>(data, 4);
         assert(r.size() == expected.size());
         for (size_t i = 0; i < r.size(); ++i) {
-            auto diff = std::abs(r[i] - expected[i]);
+            double diff = std::abs(static_cast<double>(r[i]) - expected[i]);
             assert(diff < 1e-7);
         }
     }
@@ -1583,32 +1986,49 @@ void test_mtf() {
 
 void test_resize() {
     std::vector<double> data = {
-      0.,         0.1010101,  0.2020202,  0.3030303,  0.4040404,  0.50505051, 0.60606061, 0.70707071, 0.80808081,
-      0.90909091, 1.01010101, 1.11111111, 1.21212121, 1.31313131, 1.41414141, 1.51515152, 1.61616162, 1.71717172,
-      1.81818182, 1.91919192, 2.02020202, 2.12121212, 2.22222222, 2.32323232, 2.42424242, 2.52525253, 2.62626263,
-      2.72727273, 2.82828283, 2.92929293, 3.03030303, 3.13131313, 3.23232323, 3.33333333, 3.43434343, 3.53535354,
-      3.63636364, 3.73737374, 3.83838384, 3.93939394, 4.04040404, 4.14141414, 4.24242424, 4.34343434, 4.44444444,
-      4.54545455, 4.64646465, 4.74747475, 4.84848485, 4.94949495, 5.05050505, 5.15151515, 5.25252525, 5.35353535,
-      5.45454545, 5.55555556, 5.65656566, 5.75757576, 5.85858586, 5.95959596, 6.06060606, 6.16161616, 6.26262626,
-      6.36363636, 6.46464646, 6.56565657, 6.66666667, 6.76767677, 6.86868687, 6.96969697, 7.07070707, 7.17171717,
-      7.27272727, 7.37373737, 7.47474747, 7.57575758, 7.67676768, 7.77777778, 7.87878788, 7.97979798, 8.08080808,
-      8.18181818, 8.28282828, 8.38383838, 8.48484848, 8.58585859, 8.68686869, 8.78787879, 8.88888889, 8.98989899,
-      9.09090909, 9.19191919, 9.29292929, 9.39393939, 9.49494949, 9.5959596,  9.6969697,  9.7979798,  9.8989899,
-      10.,
+
+      -1.000000000000000000e+01, -9.797979797979797567e+00, -9.595959595959595134e+00, -9.393939393939394478e+00,
+      -9.191919191919192045e+00, -8.989898989898989612e+00, -8.787878787878787179e+00, -8.585858585858586522e+00,
+      -8.383838383838384090e+00, -8.181818181818181657e+00, -7.979797979797979224e+00, -7.777777777777777679e+00,
+      -7.575757575757576134e+00, -7.373737373737373701e+00, -7.171717171717171269e+00, -6.969696969696969724e+00,
+      -6.767676767676768179e+00, -6.565656565656565746e+00, -6.363636363636363313e+00, -6.161616161616161769e+00,
+      -5.959595959595959336e+00, -5.757575757575757791e+00, -5.555555555555555358e+00, -5.353535353535353813e+00,
+      -5.151515151515151381e+00, -4.949494949494949836e+00, -4.747474747474747403e+00, -4.545454545454545858e+00,
+      -4.343434343434343425e+00, -4.141414141414141881e+00, -3.939393939393939448e+00, -3.737373737373737903e+00,
+      -3.535353535353535470e+00, -3.333333333333333037e+00, -3.131313131313131493e+00, -2.929292929292929060e+00,
+      -2.727272727272727515e+00, -2.525252525252525082e+00, -2.323232323232323537e+00, -2.121212121212121104e+00,
+      -1.919191919191918672e+00, -1.717171717171718015e+00, -1.515151515151515582e+00, -1.313131313131313149e+00,
+      -1.111111111111110716e+00, -9.090909090909100598e-01, -7.070707070707076269e-01, -5.050505050505051940e-01,
+      -3.030303030303027612e-01, -1.010101010101003283e-01, 1.010101010101003283e-01,  3.030303030303027612e-01,
+      5.050505050505051940e-01,  7.070707070707076269e-01,  9.090909090909082835e-01,  1.111111111111110716e+00,
+      1.313131313131313149e+00,  1.515151515151515582e+00,  1.717171717171716239e+00,  1.919191919191918672e+00,
+      2.121212121212121104e+00,  2.323232323232323537e+00,  2.525252525252524194e+00,  2.727272727272726627e+00,
+      2.929292929292929060e+00,  3.131313131313131493e+00,  3.333333333333333925e+00,  3.535353535353534582e+00,
+      3.737373737373737015e+00,  3.939393939393939448e+00,  4.141414141414141881e+00,  4.343434343434342537e+00,
+      4.545454545454544970e+00,  4.747474747474747403e+00,  4.949494949494949836e+00,  5.151515151515150492e+00,
+      5.353535353535352925e+00,  5.555555555555555358e+00,  5.757575757575757791e+00,  5.959595959595958448e+00,
+      6.161616161616162657e+00,  6.363636363636363313e+00,  6.565656565656563970e+00,  6.767676767676768179e+00,
+      6.969696969696968836e+00,  7.171717171717173045e+00,  7.373737373737373701e+00,  7.575757575757574358e+00,
+      7.777777777777778567e+00,  7.979797979797979224e+00,  8.181818181818179880e+00,  8.383838383838384090e+00,
+      8.585858585858584746e+00,  8.787878787878788955e+00,  8.989898989898989612e+00,  9.191919191919190268e+00,
+      9.393939393939394478e+00,  9.595959595959595134e+00,  9.797979797979799343e+00,  1.000000000000000000e+01,
     };
     std::vector<int16_t> data_shape = {10, 10};
     std::vector<double>  expected   = {
-         1.2962963,
-         1.63299663,
-         1.96969697,
-         4.66329966,
-         5.,
-         5.33670034,
-         8.03030303,
-         8.36700337,
-         8.7037037,
+         -7.491582491582491343e+00,
+         -6.986531986531986149e+00,
+         -6.481481481481480955e+00,
+         -5.976430976430976649e+00,
+         -7.575757575757580131e-01,
+         -2.525252525252523750e-01,
+         2.525252525252521529e-01,
+         7.575757575757573470e-01,
+         5.976430976430977537e+00,
+         6.481481481481482732e+00,
+         6.986531986531987926e+00,
+         7.491582491582493120e+00,
     };
-    std::vector<int16_t> expected_shape = {3, 3};
+    std::vector<int16_t> expected_shape = {3, 4};
 
     {
         auto r = resize<double>(data, data_shape, expected_shape);
@@ -1623,7 +2043,7 @@ void test_resize() {
         auto r = resize<float>(data, data_shape, expected_shape);
         assert(r.size() == expected.size());
         for (size_t i = 0; i < r.size(); ++i) {
-            double diff = std::abs(r[i] - expected[i]);
+            double diff = std::abs(static_cast<double>(r[i]) - expected[i]);
             assert(diff < 1e-6);
         }
     }
@@ -1646,97 +2066,150 @@ void test_psnr() {
     double expected = 9.059609569978468;
 
     {
-        auto r    = psnr<double>(original, compressed);
-        auto diff = std::abs(r - expected);
-        assert(diff < DSP_EPS);
+        auto   r    = psnr<double>(original, compressed);
+        double diff = std::abs(r - expected);
+        assert(diff < EPS);
     }
 
     {
-        auto r    = psnr<float>(original, compressed);
-        auto diff = std::abs(r - expected);
+        auto   r    = psnr<float>(original, compressed);
+        double diff = std::abs(static_cast<double>(r) - expected);
         assert(diff < 1e-6);
     }
 }
 
 void test_integrate_wavelet() {
     std::vector<double> expected_psi = {
-      -5.29958527e-16, -1.05981018e-15, -1.28025089e-15, -5.42880983e-16, 2.33023500e-15,  9.25101796e-15,
-      2.29968009e-14,  4.70885454e-14,  8.50975089e-14,  1.38883521e-13,  2.05080119e-13,  2.69022645e-13,
-      2.95416632e-13,  2.15616472e-13,  -8.72069396e-14, -7.91028836e-13, -2.13762447e-12, -4.40999208e-12,
-      -7.86139656e-12, -1.25642984e-11, -1.81416986e-11, -2.33464123e-11, -2.54746561e-11, -1.96516306e-11,
-      1.87684328e-12,  5.01578120e-11,  1.39142574e-10,  2.83720241e-10,  4.95126440e-10,  7.72504563e-10,
-      1.08948355e-09,  1.37522707e-09,  1.49081050e-09,  1.20431888e-09,  1.71975835e-10,  -2.06208357e-09,
-      -6.02855901e-09, -1.22334779e-08, -2.09682507e-08, -3.20036556e-08, -4.41552101e-08, -5.47362737e-08,
-      -5.89646759e-08, -4.94611531e-08, -1.60707770e-08, 5.36590965e-08,  1.72921770e-07,  3.52553588e-07,
-      5.95996746e-07,  8.92148397e-07,  1.20637002e-06,  1.47064530e-06,  1.57485470e-06,  1.36230654e-06,
-      6.33848519e-07,  -8.34226792e-07, -3.25311011e-06, -6.76097354e-06, -1.13377068e-05, -1.66987576e-05,
-      -2.21795497e-05, -2.66315880e-05, -2.83619075e-05, -2.51569667e-05, -1.44375009e-05, 6.41139045e-06,
-      3.95043693e-05,  8.57120677e-05,  1.43751842e-04,  2.09214799e-04,  2.73699068e-04,  3.24285867e-04,
-      3.43644275e-04,  3.11063471e-04,  2.04667153e-04,  4.94665423e-06,  -3.00452147e-04, -7.11032565e-04,
-      -1.20751961e-03, -1.74672136e-03, -2.25848283e-03, -2.64617967e-03, -2.79211776e-03, -2.56882682e-03,
-      -1.85652457e-03, -5.65997147e-04, 1.33512174e-03,  3.79602394e-03,  6.66087630e-03,  9.65670511e-03,
-      1.23962908e-02,  1.44004162e-02,  1.51418152e-02,  1.41101578e-02,  1.08936420e-02,  5.26871848e-03,
-      -2.71419945e-03, -1.26637324e-02, -2.38146009e-02, -3.50423518e-02, -4.49348469e-02, -5.19225721e-02,
-      -5.44608897e-02, -5.12476618e-02, -4.14507287e-02, -2.49131982e-02, -2.30195463e-03, 2.48326340e-02,
-      5.41096816e-02,  8.24940131e-02,  1.06589217e-01,  1.23022555e-01,  1.28879542e-01,  1.22133101e-01,
-      1.02006195e-01,  6.92095655e-02,  2.60081888e-02,  -2.39096743e-02, -7.57607791e-02, -1.24164054e-01,
-      -1.63751668e-01, -1.89818936e-01, -1.98927685e-01, -1.89379531e-01, -1.61489711e-01, -1.17617235e-01,
-      -6.19395671e-02, 4.67066711e-06,  6.19489084e-02,  1.17626576e-01,  1.61499053e-01,  1.89388872e-01,
-      1.98937027e-01,  1.89828277e-01,  1.63761009e-01,  1.24173395e-01,  7.57701205e-02,  2.39190156e-02,
-      -2.59988474e-02, -6.92002242e-02, -1.01996854e-01, -1.22123760e-01, -1.28870201e-01, -1.23013214e-01,
-      -1.06579876e-01, -8.24846718e-02, -5.41003403e-02, -2.48232927e-02, 2.31129596e-03,  2.49225396e-02,
-      4.14600700e-02,  5.12570032e-02,  5.44702310e-02,  5.19319134e-02,  4.49441882e-02,  3.50516931e-02,
-      2.38239422e-02,  1.26730738e-02,  2.72354079e-03,  -5.25937714e-03, -1.08843006e-02, -1.41008165e-02,
-      -1.51324739e-02, -1.43910748e-02, -1.23869494e-02, -9.64736377e-03, -6.65153497e-03, -3.78668261e-03,
-      -1.32578041e-03, 5.75338481e-04,  1.86586591e-03,  2.57816815e-03,  2.80145910e-03,  2.65552101e-03,
-      2.26782416e-03,  1.75606269e-03,  1.21686095e-03,  7.20373899e-04,  3.09793481e-04,  4.39467998e-06,
-      -1.95325819e-04, -3.01722137e-04, -3.34302941e-04, -3.14944532e-04, -2.64357734e-04, -1.99873464e-04,
-      -1.34410507e-04, -7.63707334e-05, -3.01630351e-05, 2.92994376e-06,  2.37788351e-05,  3.44983009e-05,
-      3.77032417e-05,  3.59729222e-05,  3.15208840e-05,  2.60400918e-05,  2.06790410e-05,  1.61023078e-05,
-      1.25944443e-05,  1.01755610e-05,  8.70748569e-06,  7.97902768e-06,  7.76647952e-06,  7.87068891e-06,
-      8.13496419e-06,  8.44918582e-06,  8.74533747e-06,  8.98878063e-06,  9.16841244e-06,  9.28767512e-06,
-      9.35740499e-06,  9.39079537e-06,  9.40029889e-06,  9.39607049e-06,  9.38548942e-06,  9.37333787e-06,
-      9.36230246e-06,  9.35356769e-06,  9.34736277e-06,  9.34339630e-06,  9.34116224e-06,  9.34012989e-06,
-      9.33984340e-06,  9.33995899e-06,  9.34024473e-06,  9.34056171e-06,  9.34083909e-06,  9.34105049e-06,
-      9.34119507e-06,  9.34128406e-06,  9.34133234e-06,  9.34135386e-06,  9.34135969e-06,  9.34135756e-06,
-      9.34135236e-06,  9.34134678e-06,  9.34134207e-06,  9.34133862e-06,  9.34133635e-06,  9.34133500e-06,
-      9.34133430e-06,  9.34133400e-06,  9.34133392e-06,  9.34133394e-06,  9.34133401e-06,  9.34133407e-06,
-      9.34133413e-06,  9.34133417e-06,  9.34133419e-06,  9.34133420e-06,  9.34133421e-06,  9.34133421e-06,
-      9.34133421e-06,  9.34133421e-06,  9.34133421e-06,  9.34133421e-06,
+      -5.299585269807807314e-16, -1.059810177808842127e-15, -1.280250887992044579e-15, -5.428809827700196712e-16,
+      2.330234996573825912e-15,  9.251017955057641048e-15,  2.299680093286884090e-14,  4.708854538158249716e-14,
+      8.509750893481118414e-14,  1.388835213815836833e-13,  2.050801191432388192e-13,  2.690226453346947958e-13,
+      2.954166316385676802e-13,  2.156164722626999692e-13,  -8.720693956802289556e-14, -7.910288358917377850e-13,
+      -2.137624468399588327e-12, -4.409992075990127377e-12, -7.861396559256033958e-12, -1.256429843066230856e-11,
+      -1.814169863811438856e-11, -2.334641231165085407e-11, -2.547465607375205323e-11, -1.965163056678819988e-11,
+      1.876843276857092147e-12,  5.015781204009137781e-11,  1.391425741067994828e-10,  2.837202409613411524e-10,
+      4.951264395760269101e-10,  7.725045634664899011e-10,  1.089483552502495088e-09,  1.375227069152863441e-09,
+      1.490810504505079042e-09,  1.204318883228841214e-09,  1.719758352402246139e-10,  -2.062083568782882267e-09,
+      -6.028559014201671830e-09, -1.223347786688213298e-08, -2.096825074298846566e-08, -3.200365555958080799e-08,
+      -4.415521012761031919e-08, -5.473627373389202903e-08, -5.896467589444757976e-08, -4.946115308212549665e-08,
+      -1.607077704966431159e-08, 5.365909645951067063e-08,  1.729217703418355556e-07,  3.525535878919496807e-07,
+      5.959967458183003601e-07,  8.921483966798099125e-07,  1.206370023060411025e-06,  1.470645303361859528e-06,
+      1.574854695581840942e-06,  1.362306537286575134e-06,  6.338485188646725130e-07,  -8.342267918619145542e-07,
+      -3.253110110218763907e-06, -6.760973543504742273e-06, -1.133770678626189384e-05, -1.669875760577256218e-05,
+      -2.217954974995390557e-05, -2.663158803536885491e-05, -2.836190748703862813e-05, -2.515696671828773418e-05,
+      -1.443750087145424908e-05, 6.411390450471171412e-06,  3.950436930670965708e-05,  8.571206765031058735e-05,
+      1.437518415749337235e-04,  2.092147985528628525e-04,  2.736990677335376064e-04,  3.242858666784447798e-04,
+      3.436442752362048043e-04,  3.110634713267177126e-04,  2.046671532933091824e-04,  4.946654231401560635e-06,
+      -3.004521470401397645e-04, -7.110325647720922709e-04, -1.207519612108992179e-03, -1.746721360205802159e-03,
+      -2.258482825273337539e-03, -2.646179674937754363e-03, -2.792117763057256480e-03, -2.568826817115647896e-03,
+      -1.856524570860210903e-03, -5.659971470577141459e-04, 1.335121739765615396e-03,  3.796023943595913577e-03,
+      6.660876304238467355e-03,  9.656705108845186139e-03,  1.239629076633310192e-02,  1.440041616393652329e-02,
+      1.514181523925779878e-02,  1.411015784388946863e-02,  1.089364197830548081e-02,  5.268718478344164985e-03,
+      -2.714199451694800092e-03, -1.266373241647520374e-02, -2.381460089751299969e-02, -3.504235180668296284e-02,
+      -4.493484690186115571e-02, -5.192257209513118782e-02, -5.446088968672301717e-02, -5.124766183243524564e-02,
+      -4.145072871527503977e-02, -2.491319824529852900e-02, -2.301954629701886273e-03, 2.483263401292950048e-02,
+      5.410968164463076518e-02,  8.249401314315282785e-02,  1.065892172919034042e-01,  1.230225552188961569e-01,
+      1.288795422153519998e-01,  1.221331013084644007e-01,  1.020061949871194917e-01,  6.920956548964937727e-02,
+      2.600818878163070960e-02,  -2.390967425377755681e-02, -7.576077914545065184e-02, -1.241640536380923948e-01,
+      -1.637516680270434954e-01, -1.898189359281931832e-01, -1.989276853273680146e-01, -1.893795306706036741e-01,
+      -1.614897112431692427e-01, -1.176172345820605952e-01, -6.193956709501882013e-02, 4.670667106284658046e-06,
+      6.194890842923139046e-02,  1.176265759162731656e-01,  1.614990525773820074e-01,  1.893888720048166885e-01,
+      1.989370266615813065e-01,  1.898282772624064751e-01,  1.637610093612567874e-01,  1.241733949723056868e-01,
+      7.577012047966394381e-02,  2.391901558799084532e-02,  -2.599884744741748355e-02, -6.920022415543627958e-02,
+      -1.019968536529062275e-01, -1.221237599742511365e-01, -1.288702008811387356e-01, -1.230132138846828926e-01,
+      -1.065798759576901400e-01, -8.248467180893956363e-02, -5.410034031041754260e-02, -2.482329267871627443e-02,
+      2.311295963915159166e-03,  2.492253957951180363e-02,  4.146007004948831787e-02,  5.125700316664852374e-02,
+      5.447023102093628832e-02,  5.193191342934446592e-02,  4.494418823607448932e-02,  3.505169314089633115e-02,
+      2.382394223172636799e-02,  1.267307375068857378e-02,  2.723540785908169694e-03,  -5.259377144130795816e-03,
+      -1.088430064409211077e-02, -1.410081650967609859e-02, -1.513247390504445129e-02, -1.439107482972319316e-02,
+      -1.238694943211978219e-02, -9.647363774631864675e-03, -6.651534970025145890e-03, -3.786682609382592112e-03,
+      -1.325780405552293498e-03, 5.753384812710359356e-04,  1.865865905073542125e-03,  2.578168151328987575e-03,
+      2.801459097270591388e-03,  2.655521009151089271e-03,  2.267824159486672448e-03,  1.756062694419137284e-03,
+      1.216860946322327088e-03,  7.203738989854271794e-04,  3.097934812534734262e-04,  4.394679981930761889e-06,
+      -1.953258190799780144e-04, -3.017221371133865988e-04, -3.343029410228736905e-04, -3.149445324651136660e-04,
+      -2.643577335202064926e-04, -1.998734643395317116e-04, -1.344105073616025012e-04, -7.637073343697918894e-05,
+      -3.016303509337845518e-05, 2.929943762860032181e-06,  2.377883508478545268e-05,  3.449830093161893946e-05,
+      3.770324170036983003e-05,  3.597292224870005681e-05,  3.152088396328512780e-05,  2.604009181910378441e-05,
+      2.067904099959311099e-05,  1.610230775683595857e-05,  1.259444432354998190e-05,  1.017556100519313149e-05,
+      8.707485694466544950e-06,  7.979027676044640529e-06,  7.766479517749365192e-06,  7.870688909969341312e-06,
+      8.134964190270792145e-06,  8.449185816651392622e-06,  8.745337467512903445e-06,  8.988780625439254918e-06,
+      9.168412442989369414e-06,  9.287675116871694285e-06,  9.357404990380870135e-06,  9.390795366413330340e-06,
+      9.400298889225653932e-06,  9.396070487065097773e-06,  9.385489423458814488e-06,  9.373337868890784996e-06,
+      9.362302464074192214e-06,  9.353567691198086609e-06,  9.347362772345404493e-06,  9.343396296899986368e-06,
+      9.341162237495965475e-06,  9.340129894447976209e-06,  9.339843402826700371e-06,  9.339958986262052114e-06,
+      9.340244729778704387e-06,  9.340561708767740914e-06,  9.340839086891631888e-06,  9.341050493090246389e-06,
+      9.341195070757099791e-06,  9.341284055519166933e-06,  9.341332336487930172e-06,  9.341353864961773274e-06,
+      9.341359687987281301e-06,  9.341357559743519522e-06,  9.341352355029845317e-06,  9.341346777629638124e-06,
+      9.341342074727765395e-06,  9.341338623323282680e-06,  9.341336350955675691e-06,  9.341335004360043381e-06,
+      9.341334300538146445e-06,  9.341333997714735093e-06,  9.341333917914576980e-06,  9.341333944308562379e-06,
+      9.341334008251088038e-06,  9.341334074447685260e-06,  9.341334128233698040e-06,  9.341334166242661692e-06,
+      9.341334190334406459e-06,  9.341334204080189264e-06,  9.341334211000971909e-06,  9.341334213874087338e-06,
+      9.341334214611456623e-06,  9.341334214391016299e-06,  9.341334213861165003e-06,  9.341334213331206981e-06,
     };
     std::vector<double> expected_x = {
-      -8.,         -7.9372549,  -7.8745098,  -7.81176471, -7.74901961, -7.68627451, -7.62352941, -7.56078431,
-      -7.49803922, -7.43529412, -7.37254902, -7.30980392, -7.24705882, -7.18431373, -7.12156863, -7.05882353,
-      -6.99607843, -6.93333333, -6.87058824, -6.80784314, -6.74509804, -6.68235294, -6.61960784, -6.55686275,
-      -6.49411765, -6.43137255, -6.36862745, -6.30588235, -6.24313725, -6.18039216, -6.11764706, -6.05490196,
-      -5.99215686, -5.92941176, -5.86666667, -5.80392157, -5.74117647, -5.67843137, -5.61568627, -5.55294118,
-      -5.49019608, -5.42745098, -5.36470588, -5.30196078, -5.23921569, -5.17647059, -5.11372549, -5.05098039,
-      -4.98823529, -4.9254902,  -4.8627451,  -4.8,        -4.7372549,  -4.6745098,  -4.61176471, -4.54901961,
-      -4.48627451, -4.42352941, -4.36078431, -4.29803922, -4.23529412, -4.17254902, -4.10980392, -4.04705882,
-      -3.98431373, -3.92156863, -3.85882353, -3.79607843, -3.73333333, -3.67058824, -3.60784314, -3.54509804,
-      -3.48235294, -3.41960784, -3.35686275, -3.29411765, -3.23137255, -3.16862745, -3.10588235, -3.04313725,
-      -2.98039216, -2.91764706, -2.85490196, -2.79215686, -2.72941176, -2.66666667, -2.60392157, -2.54117647,
-      -2.47843137, -2.41568627, -2.35294118, -2.29019608, -2.22745098, -2.16470588, -2.10196078, -2.03921569,
-      -1.97647059, -1.91372549, -1.85098039, -1.78823529, -1.7254902,  -1.6627451,  -1.6,        -1.5372549,
-      -1.4745098,  -1.41176471, -1.34901961, -1.28627451, -1.22352941, -1.16078431, -1.09803922, -1.03529412,
-      -0.97254902, -0.90980392, -0.84705882, -0.78431373, -0.72156863, -0.65882353, -0.59607843, -0.53333333,
-      -0.47058824, -0.40784314, -0.34509804, -0.28235294, -0.21960784, -0.15686275, -0.09411765, -0.03137255,
-      0.03137255,  0.09411765,  0.15686275,  0.21960784,  0.28235294,  0.34509804,  0.40784314,  0.47058824,
-      0.53333333,  0.59607843,  0.65882353,  0.72156863,  0.78431373,  0.84705882,  0.90980392,  0.97254902,
-      1.03529412,  1.09803922,  1.16078431,  1.22352941,  1.28627451,  1.34901961,  1.41176471,  1.4745098,
-      1.5372549,   1.6,         1.6627451,   1.7254902,   1.78823529,  1.85098039,  1.91372549,  1.97647059,
-      2.03921569,  2.10196078,  2.16470588,  2.22745098,  2.29019608,  2.35294118,  2.41568627,  2.47843137,
-      2.54117647,  2.60392157,  2.66666667,  2.72941176,  2.79215686,  2.85490196,  2.91764706,  2.98039216,
-      3.04313725,  3.10588235,  3.16862745,  3.23137255,  3.29411765,  3.35686275,  3.41960784,  3.48235294,
-      3.54509804,  3.60784314,  3.67058824,  3.73333333,  3.79607843,  3.85882353,  3.92156863,  3.98431373,
-      4.04705882,  4.10980392,  4.17254902,  4.23529412,  4.29803922,  4.36078431,  4.42352941,  4.48627451,
-      4.54901961,  4.61176471,  4.6745098,   4.7372549,   4.8,         4.8627451,   4.9254902,   4.98823529,
-      5.05098039,  5.11372549,  5.17647059,  5.23921569,  5.30196078,  5.36470588,  5.42745098,  5.49019608,
-      5.55294118,  5.61568627,  5.67843137,  5.74117647,  5.80392157,  5.86666667,  5.92941176,  5.99215686,
-      6.05490196,  6.11764706,  6.18039216,  6.24313725,  6.30588235,  6.36862745,  6.43137255,  6.49411765,
-      6.55686275,  6.61960784,  6.68235294,  6.74509804,  6.80784314,  6.87058824,  6.93333333,  6.99607843,
-      7.05882353,  7.12156863,  7.18431373,  7.24705882,  7.30980392,  7.37254902,  7.43529412,  7.49803922,
-      7.56078431,  7.62352941,  7.68627451,  7.74901961,  7.81176471,  7.8745098,   7.9372549,   8.,
+      -8.000000000000000000e+00, -7.937254901960784537e+00, -7.874509803921569073e+00, -7.811764705882352722e+00,
+      -7.749019607843137258e+00, -7.686274509803921795e+00, -7.623529411764705443e+00, -7.560784313725489980e+00,
+      -7.498039215686274517e+00, -7.435294117647059053e+00, -7.372549019607843590e+00, -7.309803921568627239e+00,
+      -7.247058823529411775e+00, -7.184313725490196312e+00, -7.121568627450979960e+00, -7.058823529411764497e+00,
+      -6.996078431372549034e+00, -6.933333333333333570e+00, -6.870588235294118107e+00, -6.807843137254901755e+00,
+      -6.745098039215686292e+00, -6.682352941176470829e+00, -6.619607843137254477e+00, -6.556862745098039014e+00,
+      -6.494117647058823550e+00, -6.431372549019608087e+00, -6.368627450980392624e+00, -6.305882352941176272e+00,
+      -6.243137254901960809e+00, -6.180392156862745345e+00, -6.117647058823528994e+00, -6.054901960784313530e+00,
+      -5.992156862745098067e+00, -5.929411764705882604e+00, -5.866666666666667140e+00, -5.803921568627450789e+00,
+      -5.741176470588235325e+00, -5.678431372549019862e+00, -5.615686274509803511e+00, -5.552941176470588047e+00,
+      -5.490196078431372584e+00, -5.427450980392157120e+00, -5.364705882352941657e+00, -5.301960784313725306e+00,
+      -5.239215686274509842e+00, -5.176470588235294379e+00, -5.113725490196078027e+00, -5.050980392156862564e+00,
+      -4.988235294117647101e+00, -4.925490196078431637e+00, -4.862745098039216174e+00, -4.799999999999999822e+00,
+      -4.737254901960784359e+00, -4.674509803921568896e+00, -4.611764705882352544e+00, -4.549019607843137081e+00,
+      -4.486274509803921617e+00, -4.423529411764706154e+00, -4.360784313725490691e+00, -4.298039215686274339e+00,
+      -4.235294117647058876e+00, -4.172549019607843412e+00, -4.109803921568627061e+00, -4.047058823529411598e+00,
+      -3.984313725490196134e+00, -3.921568627450980671e+00, -3.858823529411765207e+00, -3.796078431372548856e+00,
+      -3.733333333333333393e+00, -3.670588235294117929e+00, -3.607843137254901578e+00, -3.545098039215686114e+00,
+      -3.482352941176470651e+00, -3.419607843137255188e+00, -3.356862745098039724e+00, -3.294117647058823373e+00,
+      -3.231372549019607909e+00, -3.168627450980392446e+00, -3.105882352941176094e+00, -3.043137254901960631e+00,
+      -2.980392156862745168e+00, -2.917647058823529704e+00, -2.854901960784314241e+00, -2.792156862745097889e+00,
+      -2.729411764705882426e+00, -2.666666666666666963e+00, -2.603921568627450611e+00, -2.541176470588235148e+00,
+      -2.478431372549019684e+00, -2.415686274509804221e+00, -2.352941176470588758e+00, -2.290196078431372406e+00,
+      -2.227450980392156943e+00, -2.164705882352941479e+00, -2.101960784313725128e+00, -2.039215686274509665e+00,
+      -1.976470588235294201e+00, -1.913725490196078738e+00, -1.850980392156863275e+00, -1.788235294117646923e+00,
+      -1.725490196078431460e+00, -1.662745098039215996e+00, -1.599999999999999645e+00, -1.537254901960784181e+00,
+      -1.474509803921568718e+00, -1.411764705882353255e+00, -1.349019607843137791e+00, -1.286274509803921440e+00,
+      -1.223529411764705976e+00, -1.160784313725490513e+00, -1.098039215686274161e+00, -1.035294117647058698e+00,
+      -9.725490196078432348e-01, -9.098039215686277714e-01, -8.470588235294123081e-01, -7.843137254901959565e-01,
+      -7.215686274509804932e-01, -6.588235294117650298e-01, -5.960784313725486783e-01, -5.333333333333332149e-01,
+      -4.705882352941177516e-01, -4.078431372549022882e-01, -3.450980392156868248e-01, -2.823529411764704733e-01,
+      -2.196078431372550099e-01, -1.568627450980395466e-01, -9.411764705882319504e-02, -3.137254901960773168e-02,
+      3.137254901960773168e-02,  9.411764705882319504e-02,  1.568627450980386584e-01,  2.196078431372541218e-01,
+      2.823529411764695851e-01,  3.450980392156868248e-01,  4.078431372549022882e-01,  4.705882352941177516e-01,
+      5.333333333333332149e-01,  5.960784313725486783e-01,  6.588235294117641416e-01,  7.215686274509796050e-01,
+      7.843137254901968447e-01,  8.470588235294123081e-01,  9.098039215686277714e-01,  9.725490196078432348e-01,
+      1.035294117647058698e+00,  1.098039215686274161e+00,  1.160784313725489625e+00,  1.223529411764705088e+00,
+      1.286274509803920552e+00,  1.349019607843137791e+00,  1.411764705882353255e+00,  1.474509803921568718e+00,
+      1.537254901960784181e+00,  1.599999999999999645e+00,  1.662745098039215108e+00,  1.725490196078430571e+00,
+      1.788235294117647811e+00,  1.850980392156863275e+00,  1.913725490196078738e+00,  1.976470588235294201e+00,
+      2.039215686274509665e+00,  2.101960784313725128e+00,  2.164705882352940591e+00,  2.227450980392156055e+00,
+      2.290196078431371518e+00,  2.352941176470588758e+00,  2.415686274509804221e+00,  2.478431372549019684e+00,
+      2.541176470588235148e+00,  2.603921568627450611e+00,  2.666666666666666075e+00,  2.729411764705881538e+00,
+      2.792156862745098778e+00,  2.854901960784314241e+00,  2.917647058823529704e+00,  2.980392156862745168e+00,
+      3.043137254901960631e+00,  3.105882352941176094e+00,  3.168627450980391558e+00,  3.231372549019607021e+00,
+      3.294117647058822484e+00,  3.356862745098039724e+00,  3.419607843137255188e+00,  3.482352941176470651e+00,
+      3.545098039215686114e+00,  3.607843137254901578e+00,  3.670588235294117041e+00,  3.733333333333332504e+00,
+      3.796078431372549744e+00,  3.858823529411765207e+00,  3.921568627450980671e+00,  3.984313725490196134e+00,
+      4.047058823529411598e+00,  4.109803921568627061e+00,  4.172549019607842524e+00,  4.235294117647057988e+00,
+      4.298039215686273451e+00,  4.360784313725490691e+00,  4.423529411764706154e+00,  4.486274509803921617e+00,
+      4.549019607843137081e+00,  4.611764705882352544e+00,  4.674509803921568007e+00,  4.737254901960783471e+00,
+      4.800000000000000711e+00,  4.862745098039216174e+00,  4.925490196078431637e+00,  4.988235294117647101e+00,
+      5.050980392156862564e+00,  5.113725490196078027e+00,  5.176470588235293491e+00,  5.239215686274508954e+00,
+      5.301960784313724417e+00,  5.364705882352941657e+00,  5.427450980392157120e+00,  5.490196078431372584e+00,
+      5.552941176470588047e+00,  5.615686274509803511e+00,  5.678431372549018974e+00,  5.741176470588234437e+00,
+      5.803921568627451677e+00,  5.866666666666667140e+00,  5.929411764705882604e+00,  5.992156862745098067e+00,
+      6.054901960784313530e+00,  6.117647058823528994e+00,  6.180392156862744457e+00,  6.243137254901959921e+00,
+      6.305882352941175384e+00,  6.368627450980392624e+00,  6.431372549019608087e+00,  6.494117647058823550e+00,
+      6.556862745098039014e+00,  6.619607843137254477e+00,  6.682352941176469940e+00,  6.745098039215685404e+00,
+      6.807843137254902643e+00,  6.870588235294118107e+00,  6.933333333333333570e+00,  6.996078431372549034e+00,
+      7.058823529411764497e+00,  7.121568627450979960e+00,  7.184313725490195424e+00,  7.247058823529410887e+00,
+      7.309803921568626350e+00,  7.372549019607843590e+00,  7.435294117647059053e+00,  7.498039215686274517e+00,
+      7.560784313725489980e+00,  7.623529411764705443e+00,  7.686274509803920907e+00,  7.749019607843136370e+00,
+      7.811764705882353610e+00,  7.874509803921569073e+00,  7.937254901960784537e+00,  8.000000000000000000e+00,
     };
 
     {
@@ -1744,12 +2217,12 @@ void test_integrate_wavelet() {
         assert(psi.size() == expected_psi.size());
         assert(x.size() == expected_x.size());
         for (size_t i = 0; i < psi.size(); ++i) {
-            auto diff = std::abs(psi[i] - expected_psi[i]);
-            assert(diff < 1e-9);
+            double diff = std::abs(psi[i] - expected_psi[i]);
+            assert(diff < 1e-15);
         }
         for (size_t i = 0; i < x.size(); ++i) {
-            auto diff = std::abs(x[i] - expected_x[i]);
-            assert(diff < 1e-8);
+            double diff = std::abs(static_cast<double>(x[i]) - expected_x[i]);
+            assert(diff < 1e-14);
         }
     }
 
@@ -1758,11 +2231,11 @@ void test_integrate_wavelet() {
         assert(psi.size() == expected_psi.size());
         assert(x.size() == expected_x.size());
         for (size_t i = 0; i < psi.size(); ++i) {
-            auto diff = std::abs(psi[i] - expected_psi[i]);
+            double diff = std::abs(static_cast<double>(psi[i]) - expected_psi[i]);
             assert(diff < 1e-6);
         }
         for (size_t i = 0; i < x.size(); ++i) {
-            auto diff = std::abs(x[i] - expected_x[i]);
+            double diff = std::abs(static_cast<double>(x[i]) - expected_x[i]);
             assert(diff < 1e-6);
         }
     }
@@ -1770,518 +2243,507 @@ void test_integrate_wavelet() {
 
 void test_cwt() {
     std::vector<double> data = {
-      0.00000000e+00,  1.95090322e-01,  3.82683432e-01,  5.55570233e-01,  7.07106781e-01,  8.31469612e-01,
-      9.23879533e-01,  9.80785280e-01,  1.00000000e+00,  9.80785280e-01,  9.23879533e-01,  8.31469612e-01,
-      7.07106781e-01,  5.55570233e-01,  3.82683432e-01,  1.95090322e-01,  1.22464680e-16,  -1.95090322e-01,
-      -3.82683432e-01, -5.55570233e-01, -7.07106781e-01, -8.31469612e-01, -9.23879533e-01, -9.80785280e-01,
-      -1.00000000e+00, -9.80785280e-01, -9.23879533e-01, -8.31469612e-01, -7.07106781e-01, -5.55570233e-01,
-      -3.82683432e-01, -1.95090322e-01, -2.44929360e-16, 1.95090322e-01,  3.82683432e-01,  5.55570233e-01,
-      7.07106781e-01,  8.31469612e-01,  9.23879533e-01,  9.80785280e-01,  1.00000000e+00,  9.80785280e-01,
-      9.23879533e-01,  8.31469612e-01,  7.07106781e-01,  5.55570233e-01,  3.82683432e-01,  1.95090322e-01,
-      3.67394040e-16,  -1.95090322e-01, -3.82683432e-01, -5.55570233e-01, -7.07106781e-01, -8.31469612e-01,
-      -9.23879533e-01, -9.80785280e-01, -1.00000000e+00, -9.80785280e-01, -9.23879533e-01, -8.31469612e-01,
-      -7.07106781e-01, -5.55570233e-01, -3.82683432e-01, -1.95090322e-01,
+      1.000000339986812925e+00,  1.736480053287412784e-01,  -9.396943473846959272e-01, -5.000051575124934145e-01,
+      7.660330944286311006e-01,  7.660238650690985862e-01,  -5.000311720976511332e-01, -9.397299706428607902e-01,
+      1.736216172453500517e-01,  1.000022553850015594e+00,  1.737874172170271458e-01,  -9.393394040905544973e-01,
+      -4.993231972005436892e-01, 7.671186881754112896e-01,  7.674654027119431898e-01,  -4.985355578732070247e-01,
+      -9.388821583872918319e-01, 1.726167126691110221e-01,  9.954920904148363281e-01,  1.638803316049711467e-01,
+      -9.560106073714963459e-01, -5.226739374561988338e-01, 7.398790480092543032e-01,  7.429440496676487093e-01,
+      -5.094744318355105550e-01, -9.219826906908977771e-01, 2.323228245864276120e-01,  1.109100545120023540e+00,
+      3.327164837018257160e-01,  -7.462045914338762964e-01, -3.054190863942370382e-01, 9.124645601016637686e-01,
+      8.067836687551558361e-01,  -6.175787686637238538e-01, -1.247066359488790077e+00, -3.186419911897016011e-01,
+      3.730515595260813777e-01,  -4.938615196479253511e-01, -1.523915148254922247e+00, -8.723248929904801052e-01,
+      7.085076210492048387e-01,  1.072474145584599192e+00,  1.486337036468881045e-01,  -4.213585328184499268e-02,
+      1.172782059771360741e+00,  1.930900213486871131e+00,  8.816184377428425423e-01,  -5.606835383877424306e-01,
+      -4.865626418918085894e-01, 4.498068920611914545e-01,  2.142867755166433241e-01,  -1.161327805832036653e+00,
+      -1.583515307981602671e+00, -3.510973404470357218e-01, 6.538743316410082773e-01,  1.966015613031465992e-02,
+      -9.268411268743367293e-01, -3.700517051526182599e-01, 9.553466753987214233e-01,  9.629882632107671370e-01,
+      -3.322505090073503142e-01, -8.201442597445423033e-01, 2.418852009040726170e-01,  1.024863385846330743e+00,
     };
     std::vector<int> scales = {
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
     };
     std::vector<double> expected = {
-      2.454313169117099472e-02,  2.359403512589557453e-02,  -2.282946232514224127e-03, -4.932723973796439287e-03,
-      -6.155080483483177378e-03, -7.491559109661465737e-03, -8.544802459484891755e-03, -9.269594806516439495e-03,
-      -9.638161545434767788e-03, -9.636339141534932054e-03, -9.264197628547209129e-03, -8.536038196116320365e-03,
-      -7.479843602874045733e-03, -6.136202814717869880e-03, -4.556751193614309858e-03, -2.802186179595780868e-03,
-      -9.399347221793891149e-04, 9.584378994889619641e-04,  2.819978290178062896e-03,  4.573148496637528815e-03,
-      6.150575171022583387e-03,  7.491638690867576805e-03,  8.544802737181788482e-03,  9.269594806286666697e-03,
-      9.638161545434755645e-03,  9.636339141534958075e-03,  9.264197628547183108e-03,  8.536038196116306487e-03,
-      7.479843602874080427e-03,  6.136202814717814369e-03,  4.556751193614344553e-03,  2.802186179595843318e-03,
-      9.399347221793474816e-04,  -9.584378994889203307e-04, -2.819978290178111469e-03, -4.573148496637577387e-03,
-      -6.150575171022520937e-03, -7.491638690867576805e-03, -8.544802737181802360e-03, -9.269594806286664962e-03,
-      -9.638161545434729624e-03, -9.636339141534973687e-03, -9.264197628547209129e-03, -8.536038196116209342e-03,
-      -7.479843602874163694e-03, -6.136202814717904575e-03, -4.556751193614365369e-03, -2.802186179595711479e-03,
-      -9.399347221791531926e-04, 9.584378994887121639e-04,  2.819978290177986568e-03,  4.573148496637605143e-03,
-      6.150575171022611143e-03,  7.491638690867656603e-03,  8.544802737181680929e-03,  9.269594806286692718e-03,
-      9.638161545434771257e-03,  9.638161545434719216e-03,  9.267772402616603761e-03,  8.541227685645001039e-03,
-      7.486369342435770374e-03,  6.148475162715355546e-03,  4.924956938259436590e-03,  2.274315965027896846e-03,
-      -1.265071200573787691e-02, -1.264379477823907201e-02, 2.229987443386890686e-02,  -1.203536355112844528e-02,
-      2.002424401495061200e-03,  7.769007428945010887e-04,  -3.698576744507650594e-04, 1.395738039335024650e-04,
-      5.054296281022933499e-05,  5.676248459041967445e-05,  5.467920871797625465e-05,  5.002424285227640929e-05,
-      4.356873494114386571e-05,  3.542881756900748271e-05,  2.592778763435012361e-05,  1.543036369357815251e-05,
-      4.339959188153085672e-06,  -6.917227498647396637e-06, -1.790858901193043520e-05, -2.821173349251066809e-05,
-      -3.743071687647421775e-05, -4.521125880236994728e-05, -5.125435740702745683e-05, -5.532777980035112343e-05,
-      -5.727498664432768816e-05, -5.702114787160099949e-05, -5.457601836383291585e-05, -5.003356307713504886e-05,
-      -4.356834602077051512e-05, -3.542882185950974879e-05, -2.592778794351669873e-05, -1.543036367734306862e-05,
-      -4.339959187936967757e-06, 6.917227498451134868e-06,  1.790858901200894160e-05,  2.821173349258917449e-05,
-      3.743071687633683578e-05,  4.521125880244845029e-05,  5.125435740698820194e-05,  5.532777980040509637e-05,
-      5.727498664426875500e-05,  5.702114787157161761e-05,  5.457601836404389481e-05,  5.003356307680140597e-05,
-      4.356834602104527906e-05,  3.542882185939199766e-05,  2.592778794351669873e-05,  1.543036367753932955e-05,
-      4.339959187426687158e-06,  -4.339959186771358095e-06, -1.285309538210851445e-05, -2.087229398737149122e-05,
-      -2.808937837202118244e-05, -3.422740072761413962e-05, -3.903999585587005411e-05, -4.247416739209043023e-05,
-      -4.380568182770860317e-05, -3.733232127481992692e-05, -1.266170011713332779e-04, 3.820627157767987961e-04,
-      -7.659164958996960391e-04, -1.993083067281832110e-03, 1.204270299032400397e-02,  -2.229481894022329602e-02,
-      -3.607096730215779423e-02, -3.629224309812160293e-02, 3.168976222036676976e-02,  2.751497678801136104e-02,
-      -1.519271630357230639e-02, -1.342614220472376774e-02, 2.622009142797590391e-03,  9.921002994632626640e-04,
-      -3.208008867951361864e-03, -2.853036639469433769e-03, -2.144113360736990201e-03, -2.040652814873087414e-03,
-      -1.849536962772492304e-03, -1.516076976681579678e-03, -1.128528546926589474e-03, -7.018628622137755655e-04,
-      -2.478733021979859447e-04, 2.157990119431144917e-04,  6.711621452649391790e-04,  1.100728812225780593e-03,
-      1.487995519997881546e-03,  1.818079451583428860e-03,  2.078295602262028412e-03,  2.258644017997822606e-03,
-      2.352194010852411577e-03,  2.355350506998539917e-03,  2.267992204056932300e-03,  2.093476232617419615e-03,
-      1.838509143593533221e-03,  1.512889179229795185e-03,  1.129129732145786689e-03,  7.019784626782024119e-04,
-      2.478505545645440060e-04,  -2.158021113645307342e-04, -6.711616231774029983e-04, -1.100728770203930401e-03,
-      -1.487995527886879594e-03, -1.818079451910086181e-03, -2.078295602187677296e-03, -2.258644017995096055e-03,
-      -2.352194010852523033e-03, -2.352194010852083714e-03, -2.261800514143732371e-03, -2.084487292177605346e-03,
-      -1.827068392097125002e-03, -1.499436271166396887e-03, -1.114181712398296933e-03, -6.861102070330996235e-04,
-      -2.316677896754199331e-04, 2.316936367316512022e-04,  6.859940844825126657e-04,  1.113580485158469687e-03,
-      1.502624076508280544e-03,  1.838096211603496444e-03,  2.031663874359721303e-03,  2.137921670821639215e-03,
-      2.849880143323007056e-03,  3.316708515876671051e-03,  -8.844214219017146631e-04, -2.519489074478189865e-03,
-      1.351956367506934945e-02,  1.527344904123047013e-02,  -2.745003529687339155e-02, -3.164310764083369532e-02,
-      -6.659870122702231388e-02, -6.656835966704990892e-02, 9.545291485342680127e-03,  6.048786825502398823e-02,
-      3.407246429047183778e-02,  -1.538208867778286318e-02, -2.657889230578264206e-02, -6.665210100306503960e-03,
-      7.788507857762231104e-03,  6.182266701256450975e-03,  4.476294135715959757e-04,  -1.259781498183456475e-03,
-      -3.367956989003539079e-04, 3.392543524743939524e-04,  3.069392138011696903e-04,  1.193883581083366070e-04,
-      1.823685013955123752e-05,  -3.715162974588588803e-05, -9.332689782372369930e-05, -1.523581947224840211e-04,
-      -2.066283680674271643e-04, -2.525292568548249874e-04, -2.885502357603530197e-04, -3.134854048254965414e-04,
-      -3.263860401349423144e-04, -3.267455741675848722e-04, -3.145480363258620210e-04, -2.902624550663587344e-04,
-      -2.548222505069472517e-04, -2.095893748864908167e-04, -1.563020976985138658e-04, -9.700821846398734183e-05,
-      -3.398636777334883979e-05, 3.398636777127909785e-05,  1.006530262615398449e-04,  1.634516453760165213e-04,
-      2.199689093363905480e-04,  2.680328920410163284e-04,  3.057965261391226101e-04,  3.318085712976736159e-04,
-      3.450692603593579193e-04,  3.450687085621907159e-04,  3.318090910177730920e-04,  3.058107707334839801e-04,
-      2.680633279302185954e-04,  2.198390096050234759e-04,  1.627377291757725348e-04,  1.004764455042965986e-04,
-      4.079643754699435743e-05,  -1.823685013690535053e-05, -1.230331659051353728e-04, -3.140887614787781640e-04,
-      -3.496338869249508187e-04, 3.235850573659662926e-04,  1.244247427111152193e-03,  -4.648899485431429168e-04,
-      -6.200590387448431592e-03, -7.807190526189783895e-03, 6.646886414114018538e-03,  2.656163177080954341e-02,
-      1.536655460670778919e-02,  -3.408567493200916065e-02, -6.049824778947718307e-02, -9.552441033023217898e-03,
-      -1.027400448781746467e-01, -1.020775794477147280e-01, -2.371482464262277684e-02, 5.970114082060457711e-02,
-      8.530184246913172230e-02,  4.451545612488789355e-02,  -1.098402395793143110e-02, -3.346113002228146699e-02,
-      -1.929856055005904625e-02, 4.840936138166859574e-03,  1.736493367496132201e-02,  1.520316040133374604e-02,
-      7.858526318966373506e-03,  2.752514291302034753e-03,  1.324268337265132461e-03,  1.288938416595580404e-03,
-      8.026536046535756499e-04,  -3.913231469583234473e-04, -1.824707250624079281e-03, -3.161297188532255758e-03,
-      -4.291513647856075482e-03, -5.221171877834666214e-03, -5.950889137149362185e-03, -6.458566109831104934e-03,
-      -6.721318404129386637e-03, -6.721899914273374819e-03, -6.463755294745293992e-03, -5.957034218292509009e-03,
-      -5.221364488318371889e-03, -4.285056248180553126e-03, -3.184083504158541616e-03, -1.960749213261625719e-03,
-      -6.620640512816549977e-04, 6.620640512786216169e-04,  1.960749213258708781e-03,  3.184083504155942566e-03,
-      4.285056248178240740e-03,  5.221364488316645840e-03,  5.957034218291040566e-03,  6.463755294744496886e-03,
-      6.721899914272868280e-03,  6.721318404129624294e-03,  6.462641128834200124e-03,  5.958882574460839555e-03,
-      5.232776550141118171e-03,  4.306283594108459636e-03,  3.178664807978706392e-03,  1.844005115389584729e-03,
-      4.118096509227534832e-04,  -7.817657463483282127e-04, -1.268451912630510310e-03, -1.304970472499049133e-03,
-      -2.735146671855913716e-03, -7.843756372715284322e-03, -1.519155572902862635e-02, -1.735694023765070940e-02,
-      -4.836861119164263118e-03, 1.929856055005886237e-02,  3.345705500327839782e-02,  1.097603052062027032e-02,
-      -4.452706079719400550e-02, -8.531661241538388007e-02, -5.971850844005084646e-02, 2.369552677785793232e-02,
-      -1.395415403584168990e-01, -1.393397775353128198e-01, -6.163890576651957082e-02, 4.076797000594761106e-02,
-      1.067971771869018205e-01,  1.032103522750511954e-01,  5.044109906914216734e-02,  -1.204885717068828431e-02,
-      -4.531118079350679451e-02, -4.352639625307638815e-02, -1.915589951770738791e-02, 4.505254354996300788e-03,
-      1.578938013809653984e-02,  1.381256957933937705e-02,  6.332696319608381932e-03,  8.204392675391875522e-07,
-      -2.562055653508936784e-03, -2.523529904023148057e-03, -1.585248894462842157e-03, -1.043317925058132294e-03,
-      -1.064280690183520492e-03, -1.414136555961411539e-03, -1.764144147435048370e-03, -1.978801389005055249e-03,
-      -2.045657915223446279e-03, -2.004870015918406526e-03, -1.886125561034268303e-03, -1.701711247639133874e-03,
-      -1.456601769642694270e-03, -1.156828347163693128e-03, -8.124786336163320865e-04, -4.365227267599352786e-04,
-      -4.360140664148709613e-05, 3.510504392809871772e-04,  7.321566654944293949e-04,  1.084936431974025881e-03,
-      1.395639604749476792e-03,  1.652589103754445671e-03,  1.847342974937961606e-03,  1.975805135910922456e-03,
-      2.035151102603862706e-03,  2.015376828537608894e-03,  1.889121814128260149e-03,  1.618512420136607264e-03,
-      1.218149221849953306e-03,  8.254694325980553669e-04,  7.708601267002939761e-04,  1.289614955727846598e-03,
-      2.216080871383358745e-03,  2.408331137191330445e-03,  -1.441734489729653223e-04, -6.460168846932139511e-03,
-      -1.391926292654433253e-02, -1.587119413968350601e-02, -4.559044944765592959e-03, 1.913219948195414924e-02,
-      4.353369755042247463e-02,  4.534920283918981304e-02,  1.211613879881512368e-02,  -5.034714345380855716e-02,
-      -1.030933333341170766e-01, -1.066615918926418632e-01, -4.061902882518294428e-02, 6.179547910773983826e-02,
-      -1.815052161852935275e-01, -1.821481758330381062e-01, -1.091741299631164008e-01, 2.366525245660373519e-03,
-      1.014616104424299198e-01,  1.411753264481249992e-01,  1.181055199122307692e-01,  5.424281324228594908e-02,
-      -1.479745551564122692e-02, -5.945496271272762007e-02, -6.858650267249814803e-02, -4.965026182220751844e-02,
-      -1.975358467618883174e-02, 4.066104104957078691e-03,  1.503867390186656820e-02,  1.464669785040796472e-02,
-      8.640173964093667003e-03,  2.620835444909080676e-03,  -4.336565489336144754e-04, -3.082151496866178397e-04,
-      1.784829829726170946e-03,  4.099607682182385138e-03,  5.789454815958590059e-03,  6.661720139325685852e-03,
-      6.891099860846695499e-03,  6.724629233720386123e-03,  6.326849556299560078e-03,  5.760067101911052305e-03,
-      5.033721823078733323e-03,  4.136113102839742220e-03,  3.080845746085694985e-03,  1.901033953848296244e-03,
-      6.425832657729487439e-04,  -6.425832657773089714e-04, -1.901033953852385638e-03, -3.080845746089403391e-03,
-      -4.136113102843052072e-03, -5.033721823081367501e-03, -5.760067101913291833e-03, -6.326849556300770915e-03,
-      -6.724629233720991542e-03, -6.891099860846162939e-03, -6.661720139324553078e-03, -5.789454815956409511e-03,
-      -4.099607682179305136e-03, -1.784829829722935253e-03, 3.082151496901932132e-04,  4.336565489375477983e-04,
-      -2.620835444904922543e-03, -8.640173964089305908e-03, -1.464669785040379792e-02, -1.503867390186293396e-02,
-      -4.066104104953994353e-03, 1.975358467619085096e-02,  4.965026182220957235e-02,  6.858650267249902233e-02,
-      5.945496271272870947e-02,  1.479745551564152009e-02,  -5.423799161477936559e-02, -1.180960619496590897e-01,
-      -1.411615956146855533e-01, -1.014441344063511663e-01, -2.345975601208108614e-03, 1.091969635046304565e-01,
-      -2.365240235413067771e-01, -2.355592940931444390e-01, -1.610585082125363665e-01, -4.087175029203778814e-02,
-      8.145402185364163106e-02,  1.650027131652464230e-01,  1.873818470793304491e-01,  1.512752522819552081e-01,
-      7.977790874706068569e-02,  4.061544569396343708e-03,  -5.006756889015692019e-02, -7.074729641431599936e-02,
-      -6.112633566471776386e-02, -3.418585706394095675e-02, -5.052389109698552337e-03, 1.531220053474436314e-02,
-      2.283076260972450797e-02,  1.944061240012041891e-02,  1.018179439739504318e-02,  1.508306878792814128e-04,
-      -7.389101572465242226e-03, -1.142219919498642378e-02, -1.254920209674521663e-02, -1.200961113742784157e-02,
-      -1.090608688039096386e-02, -9.853630348702884650e-03, -8.995830492983246038e-03, -8.202948041475350768e-03,
-      -7.279807630747780513e-03, -6.093239627818674946e-03, -4.609220467180659420e-03, -2.873576232429955139e-03,
-      -9.762155893717791404e-04, 9.762155893671571865e-04,  2.873576232425568457e-03,  4.609220467176705117e-03,
-      6.093239627814857687e-03,  7.279807630744762961e-03,  8.202948041472981136e-03,  8.995830492981663970e-03,
-      9.853630348702248007e-03,  1.090608688039142876e-02,  1.200961113742922588e-02,  1.254920209674750993e-02,
-      1.142219919498954454e-02,  7.389101572469137548e-03,  -1.508306878752482350e-04, -1.018179439739074453e-02,
-      -1.944061240011566577e-02, -2.283076260972039667e-02, -1.531220053473986674e-02, 5.052389109702236890e-03,
-      3.418585706394413476e-02,  6.112633566472081698e-02,  7.074729641431797000e-02,  5.006756889015909900e-02,
-      -4.061544569395362722e-03, -7.977790874706040813e-02, -1.512752522819557355e-01, -1.873818470793316981e-01,
-      -1.650027131652484769e-01, -8.145402185364414294e-02, 4.087175029203543586e-02,  1.610585082125340906e-01,
-      -2.988488148191981164e-01, -2.982954181119848447e-01, -2.254551792204678995e-01, -1.013816473458237777e-01,
-      3.891110419464099968e-02,  1.579222474663561637e-01,  2.199838154893226649e-01,  2.213886150937377784e-01,
-      1.714526489232104933e-01,  9.227917576780424180e-02,  1.013155932198898934e-02,  -5.311535766367238287e-02,
-      -8.559063713121095596e-02, -8.677677154039985241e-02, -6.500791030562108608e-02, -3.278943813332608342e-02,
-      -3.039716358485666098e-03, 1.683113472469140171e-02,  2.469598690162024338e-02,  2.252179601088498059e-02,
-      1.442640255151918585e-02,  4.717417626965989333e-03,  -3.444432368172545278e-03, -8.541434624942129822e-03,
-      -1.049911766083728125e-02, -1.011762355207085004e-02, -8.414324993274673384e-03, -6.430113584907640005e-03,
-      -4.652266752087600050e-03, -3.235902728383296956e-03, -2.131108862981468885e-03, -1.216762449100471793e-03,
-      -3.979287724663153891e-04, 3.979287724615900024e-04,  1.216762449096006615e-03,  2.131108862977550145e-03,
-      3.235902728379427655e-03,  4.652266752084258973e-03,  6.430113584905454253e-03,  8.414324993273221420e-03,
-      1.011762355207026023e-02,  1.068739097380968367e-02,  8.722472700082840869e-03,  3.611278013781226912e-03,
-      -4.571176195481656615e-03, -1.430638531035833758e-02, -2.243261515531968023e-02, -2.464106960191534551e-02,
-      -1.681259142187765260e-02, 3.021173055680736325e-03,  3.273452083363002224e-02,  6.491872945006334217e-02,
-      8.665675429924633855e-02,  8.544439569973327764e-02,  5.294851201806866081e-02,  -1.031259739712622747e-02,
-      -9.246744908077492164e-02, -1.716409222361822973e-01, -2.215696531688775561e-01, -2.201506611349297871e-01,
-      -1.580684888978388103e-01, -3.903112143580012017e-02, 1.012924664902601357e-01,  2.254002619207653157e-01,
-      -3.693563438822927147e-01, -3.656083216777074596e-01, -2.920821380263680656e-01, -1.587222920996241016e-01,
-      -1.750793395080426544e-03, 1.436334218636089177e-01,  2.503377182110917976e-01,  3.020633185309265500e-01,
-      2.884219252170811543e-01,  2.282059358624832501e-01,  1.388499674482791546e-01,  4.614009174563320909e-02,
-      -3.178118836058548002e-02, -7.893916575365585164e-02, -9.684140881387429123e-02, -8.724668948103825317e-02,
-      -6.326979472395267978e-02, -3.483070877070088001e-02, -1.153147039874018176e-02, 2.525868001433688795e-03,
-      6.244014551281563789e-03,  1.438853118607946301e-04,  -1.080122500803966726e-02, -2.298581477872103235e-02,
-      -3.312531715241463781e-02, -3.955960911624342019e-02, -4.133796982418819904e-02, -3.936307386041185824e-02,
-      -3.437066648418214687e-02, -2.764042067919092113e-02, -1.998012671849465696e-02, -1.202526547543411942e-02,
-      -3.986408016948979859e-03, 3.986408016944547640e-03,  1.202526547542988496e-02,  1.998012671849044505e-02,
-      2.764042067918760781e-02,  3.437066648417844150e-02,  3.936307386041000556e-02,  4.133796982418594390e-02,
-      3.955960911624303161e-02,  3.312531715241464475e-02,  2.298581477872336729e-02,  1.080122500804128055e-02,
-      -1.438853118577226517e-04, -6.244014551277888778e-03, -2.525868001429618700e-03, 1.153147039874432948e-02,
-      3.483070877070516130e-02,  6.326979472395685700e-02,  8.724668948104231936e-02,  9.684140881387853783e-02,
-      7.893916575365966803e-02,  3.178118836058890784e-02,  -4.614009174563048904e-02, -1.388499674482763513e-01,
-      -2.282059358624821954e-01, -2.884219252170801551e-01, -3.020633185309265500e-01, -2.503377182110919086e-01,
-      -1.436334218636099724e-01, 1.750793395077968875e-03,  1.587222920996226860e-01,  2.920821380263662892e-01,
-      -4.633194390917706462e-01, -4.567443101594595989e-01, -3.741686903554667376e-01, -2.317830727316253503e-01,
-      -5.973193040189563735e-02, 1.150666122387526136e-01,  2.608052696081371025e-01,  3.539750697408882152e-01,
-      3.838613977674615874e-01,  3.604266307204532227e-01,  2.884730618674923863e-01,  1.886979215311010705e-01,
-      8.374967409346133207e-02,  -7.047121429347205299e-03, -7.131359636743996033e-02, -1.094244639989458701e-01,
-      -1.189285939095734296e-01, -1.075013882749066702e-01, -8.521328247740257711e-02, -6.161184539566526286e-02,
-      -4.202356940480433956e-02, -3.129018862758727731e-02, -2.994199506708371261e-02, -3.586502754196056741e-02,
-      -4.553972658349341590e-02, -5.516821524971915469e-02, -6.222025855238102338e-02, -6.467845291579668587e-02,
-      -6.175094779793611349e-02, -5.366091580904532726e-02, -4.129284921389157759e-02, -2.604669308816242451e-02,
-      -8.892244743392422809e-03, 8.892244743388325393e-03,  2.604669308815846934e-02,  4.129284921388794161e-02,
-      5.366091580904260722e-02,  6.175094779793270650e-02,  6.467845291579447931e-02,  6.222025855237950376e-02,
-      5.516821524971880081e-02,  4.544815462549452872e-02,  3.577697464295447743e-02,  2.986084505059847030e-02,
-      3.121906004324610101e-02,  4.196519568421525764e-02,  6.156846980817347326e-02,  8.518657192251075094e-02,
-      1.074923692242585604e-01,  1.189376129602295468e-01,  1.094511745538452457e-01,  7.135697195493934109e-02,
-      7.105495149942821914e-03,  -8.367854550911388301e-02, -1.886167715146113977e-01, -2.883850089684822371e-01,
-      -3.603350587624524759e-01, -3.906064864282213778e-01, -3.604609484271053543e-01, -2.667826896392219149e-01,
-      -1.203058647150867383e-01, 5.543218701477095611e-02,  2.285880751607534123e-01,  3.722012205657210804e-01,
-      -5.641828893201417117e-01, -5.513458363914138793e-01, -4.658455945520287855e-01, -3.118909757770713109e-01,
-      -1.206289362106392482e-01, 8.153657750541468130e-02,  2.629999032742941778e-01,  4.026943810076059616e-01,
-      4.859316531527035909e-01,  4.988287777058058592e-01,  4.552427452772458416e-01,  3.675320525415303741e-01,
-      2.515692407527901908e-01,  1.290676740865793204e-01,  1.588120296726105996e-02,  -7.150174301279860201e-02,
-      -1.315738106652309392e-01, -1.640524154118231659e-01, -1.700277289840377848e-01, -1.601334045240648540e-01,
-      -1.416498469972885810e-01, -1.223038767001445593e-01, -1.061688013720447077e-01, -9.539720374931401348e-02,
-      -9.175635610089735716e-02, -9.161116659209513069e-02, -9.244975329657709184e-02, -9.174006804223656941e-02,
-      -8.681000847800021680e-02, -7.641831104991132773e-02, -5.973646923589918944e-02, -3.813552694092765122e-02,
-      -1.320337551186115572e-02, 1.298597621600632197e-02,  3.792648217809353045e-02,  5.954381247908784730e-02,
-      7.624944599024428837e-02,  8.667142450501917617e-02,  9.163709086030440154e-02,  9.238634026104490526e-02,
-      9.158975463035841369e-02,  9.177776806263412968e-02,  9.546061678484531188e-02,  1.062717785539768339e-01,
-      1.224424606731253917e-01,  1.418187120569551485e-01,  1.603260612808766750e-01,  1.702367737468703512e-01,
-      1.642698147076792625e-01,  1.317912099610854815e-01,  7.171078777563320850e-02,  -1.568854621044885045e-02,
-      -1.288988090269115039e-01, -2.514306567798085812e-01, -3.674290753595972348e-01, -4.551793322417134191e-01,
-      -4.988073657440669773e-01, -4.859530651144392532e-01, -4.027577940431353865e-01, -2.631028804562233758e-01,
-      -8.167516147839264107e-02, 1.204600711509733746e-01,  3.116983190202621823e-01,  4.656365497891971073e-01,
-      -6.830475241573693568e-01, -6.595694115391986800e-01, -5.571675093823884595e-01, -3.881338441704972886e-01,
-      -1.741827849579860865e-01, 5.707410686513980647e-02,  2.765428669765783165e-01,  4.581320237896309711e-01,
-      5.910971727718092872e-01,  6.568288789474163725e-01,  6.532726483473580981e-01,  5.876504015839176809e-01,
-      4.743813182285904761e-01,  3.320803293252004851e-01,  1.802584398423742462e-01,  3.633844374806621119e-02,
-      -8.653610579026237148e-02, -1.806325008263444665e-01, -2.436703723675167910e-01, -2.779502180621493679e-01,
-      -2.908363460343260098e-01, -2.857091635956021114e-01, -2.695088719995631377e-01, -2.481407066848297649e-01,
-      -2.255865536176020758e-01, -2.038130085511145606e-01, -1.830007494310703364e-01, -1.621197546759329811e-01,
-      -1.396365974256126019e-01, -1.141804773464206585e-01, -8.503414738702613773e-02, -5.237243351117815832e-02,
-      -1.774479540690028848e-02, 1.774479540689708618e-02,  5.237243351117535500e-02,  8.503414738702294584e-02,
-      1.141804773464198675e-01,  1.396365974256101872e-01,  1.621197546759318708e-01,  1.830007494310687266e-01,
-      2.038130085511142553e-01,  2.255865536176019648e-01,  2.481407066848311527e-01,  2.695088719995640814e-01,
-      2.857091635956034992e-01,  2.908363460343286189e-01,  2.779502180621517549e-01,  2.436703723675195943e-01,
-      1.806325008263476861e-01,  8.653610579026636829e-02,  -3.633844374806340788e-02, -1.802584398423700551e-01,
-      -3.320803293251983201e-01, -4.743813182285875896e-01, -5.876504015839149053e-01, -6.532726483473558776e-01,
-      -6.568288789474148182e-01, -5.910971727718078439e-01, -4.581320237896293612e-01, -2.765428669765775394e-01,
-      -5.707410686513980647e-02, 1.741827849579868914e-01,  3.881338441704964559e-01,  5.571675093823876823e-01,
-      -8.300172709497956047e-01, -7.939438725002304631e-01, -6.717587808734182264e-01, -4.851446312337239219e-01,
-      -2.451412661146483429e-01, 1.815296525570635894e-02,  2.790551329676959624e-01,  5.134639761767196831e-01,
-      6.939434111113134129e-01,  8.034864251464046703e-01,  8.445347898375302753e-01,  8.095970351287634648e-01,
-      7.153991769228339459e-01,  5.704981456268068962e-01,  3.958761796560363866e-01,  2.093588811816290141e-01,
-      3.017653639784790079e-02,  -1.319128974524745035e-01, -2.626679142276050483e-01, -3.623984405588678848e-01,
-      -4.255266653647805652e-01, -4.584642050434857841e-01, -4.632212378149838106e-01, -4.470952966811182483e-01,
-      -4.158147035455460605e-01, -3.755343490843560672e-01, -3.285504697692603338e-01, -2.795706968773903900e-01,
-      -2.284762405401966068e-01, -1.779929512920287726e-01, -1.267588446326404494e-01, -7.618181083016326016e-02,
-      -2.529643637305228551e-02, 2.529643637304937812e-02,  7.618181083016181687e-02,  1.267588446326377571e-01,
-      1.779929512920275236e-01,  2.284762405401953578e-01,  2.795706968773891687e-01,  3.285504697692602227e-01,
-      3.755343490843549570e-01,  4.158147035455467821e-01,  4.470952966811194695e-01,  4.632212378149838106e-01,
-      4.584642050434876714e-01,  4.255266653647820085e-01,  3.623984405588699942e-01,  2.626679142276079904e-01,
-      1.319128974524770015e-01,  -3.017653639784457706e-02, -2.093588811816265161e-01, -3.958761796560334445e-01,
-      -5.704981456268043427e-01, -7.153991769228320585e-01, -8.095970351287611333e-01, -8.445347898375288320e-01,
-      -8.034864251464018947e-01, -6.939434111113129688e-01, -5.134639761767171295e-01, -2.790551329676951298e-01,
-      -1.815296525570552974e-02, 2.451412661146487593e-01,  4.851446312337243660e-01,  6.717587808734182264e-01,
-      -9.820448284965809238e-01, -9.244718897168707761e-01, -7.848826372182543532e-01, -5.640945571093421984e-01,
-      -2.913591171512085465e-01, 1.032816658039428792e-02,  3.154492658814654904e-01,  5.939999893236086459e-01,
-      8.249023047805025266e-01,  9.907429709042732124e-01,  1.080400405794431862e+00,  1.080458309598815836e+00,
-      1.004769516693765352e+00,  8.633503058966572885e-01,  6.707797417594069112e-01,  4.440295409630686807e-01,
-      2.043083220000702915e-01,  -3.108627435839483866e-02, -2.470812154630847579e-01, -4.265091120222441190e-01,
-      -5.673168645162489643e-01, -6.660967520594300861e-01, -7.194112055755975677e-01, -7.347908049357794180e-01,
-      -7.170178838534548849e-01, -6.718849917093451252e-01, -6.072072069678444706e-01, -5.277114048894110399e-01,
-      -4.381970289309064515e-01, -3.431326230180949399e-01, -2.466140395021731435e-01, -1.483703693925004785e-01,
-      -4.954110264559263843e-02, 4.954110264559177801e-02,  1.483703693924970368e-01,  2.466140395021722831e-01,
-      3.431326230180927750e-01,  4.381970289309064515e-01,  5.277114048894108178e-01,  6.072072069678450257e-01,
-      6.718849917093432378e-01,  7.167748240515646740e-01,  7.345570857857650626e-01,  7.191958087733238969e-01,
-      6.659079551832143284e-01,  5.671619229241632310e-01,  4.263939800327817831e-01,  2.470103175340358226e-01,
-      3.106233505741029521e-02,  -2.042843826990810296e-01, -4.439586430340132783e-01, -6.706646097699402453e-01,
-      -8.631953643045704450e-01, -1.004580719817546042e+00, -1.080242912796540500e+00, -1.080166686644415286e+00,
-      -9.904999111023801150e-01, -8.246592449786086521e-01, -5.937662701735900717e-01, -3.152338690791900988e-01,
-      -1.013936970417511976e-02, 2.915140587432939467e-01,  5.642096890988053115e-01,  7.849535351473063693e-01,
-      -1.138056598727003266e+00, -1.051284612317330058e+00, -8.761123073610068701e-01, -6.241055564424700108e-01,
-      -3.140532823444575072e-01, 2.979772684560266782e-02,  3.800696389748541293e-01,  7.088759923254004391e-01,
-      9.904440314897522413e-01,  1.203449669023304747e+00,  1.332821858870616882e+00,  1.370845732241252835e+00,
-      1.317484002118036734e+00,  1.179931091805313415e+00,  9.715014560191166382e-01,  7.100218299106186848e-01,
-      4.159392149694847163e-01,  1.103690359255518061e-01,  -1.867078575068772395e-01, -4.579299779770105161e-01,
-      -6.896077217518978841e-01, -8.722920066067763045e-01, -1.000868196337813210e+00, -1.074236188031850947e+00,
-      -1.094674966104663527e+00, -1.067010535740203325e+00, -9.977100033470953644e-01, -8.940138970389812645e-01,
-      -7.631972864046598914e-01, -6.120221733405486475e-01, -4.464131738444345743e-01, -2.713592035154483995e-01,
-      -9.101823986574597569e-02, 9.101823986574419934e-02,  2.713592035154466231e-01,  4.464131738444327979e-01,
-      6.120221733405513120e-01,  7.631972864046576710e-01,  8.940138970389810424e-01,  9.977100033470958085e-01,
-      1.067010535740201993e+00,  1.094674966104664637e+00,  1.074236188031852723e+00,  1.000868196337812766e+00,
-      8.722920066067771927e-01,  6.896077217518987723e-01,  4.579299779770131806e-01,  1.867078575068799040e-01,
-      -1.103690359255491416e-01, -4.159392149694838281e-01, -7.100218299106169084e-01, -9.715014560191139736e-01,
-      -1.179931091805313415e+00, -1.317484002118035180e+00, -1.370845732241251502e+00, -1.332821858870614662e+00,
-      -1.203449669023303414e+00, -9.904440314897495767e-01, -7.088759923253995510e-01, -3.800696389748559056e-01,
-      -2.979772684559911511e-02, 3.140532823444583954e-01,  6.241055564424708990e-01,  8.761123073610082024e-01,
-      -1.300896404167874332e+00, -1.174009519918232547e+00, -9.525645605048190800e-01, -6.500521549246642827e-01,
-      -2.951735396766977382e-01, 9.686619715849838219e-02,  4.967427098963173582e-01,  8.741746735303863591e-01,
-      1.206246484725670642e+00,  1.465662408757159474e+00,  1.633473309650083971e+00,  1.698281976924917336e+00,
-      1.667109123824666250e+00,  1.533161513991615266e+00,  1.307769321661833573e+00,  1.008325922376715367e+00,
-      6.590012481693540147e-01,  2.785508390602872142e-01,  -1.085423954027796983e-01, -4.792583631681587297e-01,
-      -8.187491556854152863e-01, -1.106331260333969446e+00, -1.329357704675044216e+00, -1.481040417615539395e+00,
-      -1.558813701809124597e+00, -1.567365639104713715e+00, -1.506209691355907543e+00, -1.382896401130527364e+00,
-      -1.206025457631599185e+00, -9.837873695647965100e-01, -7.275350774437583379e-01, -4.467812709236251845e-01,
-      -1.513300586314529905e-01, 1.513300586314539065e-01,  4.467812709236233526e-01,  7.275350774437555623e-01,
-      9.837873695648001737e-01,  1.206025457631596964e+00,  1.382896401130526920e+00,  1.506209691355908209e+00,
-      1.567365639104714159e+00,  1.558813701809125263e+00,  1.481040417615540283e+00,  1.329357704675044216e+00,
-      1.106331260333972111e+00,  8.187491556854161745e-01,  4.792583631681605616e-01,  1.085423954027833621e-01,
-      -2.785508390602890461e-01, -6.590012481693521273e-01, -1.008325922376716255e+00, -1.307769321661829798e+00,
-      -1.533161513991616154e+00, -1.667109123824663808e+00, -1.698281976924917780e+00, -1.633473309650080862e+00,
-      -1.465662408757158586e+00, -1.206246484725668422e+00, -8.741746735303872473e-01, -4.967427098963136944e-01,
-      -9.686619715849838219e-02, 2.951735396766959063e-01,  6.500521549246679465e-01,  9.525645605048218556e-01,
-      -1.438458323047548282e+00, -1.261265997610114153e+00, -9.847085443110367153e-01, -6.352234475040001715e-01,
-      -2.223649867536113822e-01, 2.203825859763558215e-01,  6.704933611011649752e-01,  1.096764214587731212e+00,
-      1.470302142462053929e+00,  1.770532871086579751e+00,  1.970838039755434590e+00,  2.056094343484006437e+00,
-      2.030828746741466073e+00,  1.885848054649710503e+00,  1.639840060699229385e+00,  1.298862064315583931e+00,
-      8.897967059759588349e-01,  4.316324841711943749e-01,  -4.788987668917514540e-02, -5.229925245967469438e-01,
-      -9.704705580800382370e-01, -1.364874293650065740e+00, -1.686134790389374638e+00, -1.926806117760024639e+00,
-      -2.071244920278791035e+00, -2.121120322063130725e+00, -2.071689727914622914e+00, -1.931193098875919167e+00,
-      -1.704667555617551455e+00, -1.406052289867352645e+00, -1.047281833722746969e+00, -6.468046158103399890e-01,
-      -2.178161789492095157e-01, 2.178161789492114031e-01,  6.468046158103362142e-01,  1.047281833722748745e+00,
-      1.406052289867348870e+00,  1.704667555617557229e+00,  1.931193098875917391e+00,  2.071689727914623358e+00,
-      2.121120322063131614e+00,  2.071244920278791479e+00,  1.926806117760026416e+00,  1.686134790389375526e+00,
-      1.364874293650066628e+00,  9.704705580800363496e-01,  5.229925245967507186e-01,  4.788987668917514540e-02,
-      -4.316324841711868809e-01, -8.900629646486012403e-01, -1.299118090816750559e+00, -1.640076016074067500e+00,
-      -1.886054871265491206e+00, -2.030998476751630477e+00, -2.056220464259445269e+00, -1.970915704545477043e+00,
-      -1.770559095276904360e+00, -1.470275918271729765e+00, -1.096686549797680321e+00, -6.703672403257265877e-01,
-      -2.202128559661906959e-01, 2.225718033693930009e-01,  6.354594028788391746e-01,  9.849645708122052312e-01,
-      -1.512385899201345252e+00, -1.273560453454055885e+00, -9.461777674609649358e-01, -5.334619581073852812e-01,
-      -6.892962672482678965e-02, 4.228764503851324963e-01,  9.187097679303397602e-01,  1.384411001770297966e+00,
-      1.789832883858928358e+00,  2.111798383724375228e+00,  2.330817750775484587e+00,  2.422897463482826197e+00,
-      2.389930916167095631e+00,  2.231899993293624096e+00,  1.945276074689217038e+00,  1.554462534875628688e+00,
-      1.078941437761621769e+00,  5.375238350559616851e-01,  -3.681622866412235379e-02, -6.150797015946993795e-01,
-      -1.167911127943787042e+00, -1.668145798435166638e+00, -2.086894782061714526e+00, -2.409134138318147045e+00,
-      -2.620051226071191675e+00, -2.704424253000325518e+00, -2.664358022031214634e+00, -2.502998961247017817e+00,
-      -2.224714626271645290e+00, -1.844611362905790530e+00, -1.380828088998091507e+00, -8.535177211536448816e-01,
-      -2.883149344054549146e-01, 2.883149344054568575e-01,  8.535177211536468800e-01,  1.380828088998087733e+00,
-      1.844611362905793417e+00,  2.224714626271642626e+00,  2.502998961247020038e+00,  2.664358022031214634e+00,
-      2.704424253000326850e+00,  2.620051226071193007e+00,  2.409134138318147933e+00,  2.086894782061720299e+00,
-      1.668145798435164640e+00,  1.167911127943789040e+00,  6.150797015946954938e-01,  3.681622866412622569e-02,
-      -5.375238350559616851e-01, -1.078941437761621769e+00, -1.554462534875632684e+00, -1.945276074689211043e+00,
-      -2.231899993293622320e+00, -2.389930916167096075e+00, -2.422897463482827529e+00, -2.330817750775482811e+00,
-      -2.111798383724374784e+00, -1.789832883858925472e+00, -1.384411001770297966e+00, -9.187097679303397602e-01,
-      -4.228764503851324963e-01, 6.892962672483259057e-02,  5.334619581073822836e-01,  9.461777674609669342e-01,
-      -1.549610113096189901e+00, -1.241300686745090642e+00, -8.443824719989027061e-01, -3.764497850523230160e-01,
-      1.500238070820625602e-01,  6.960949942193490614e-01,  1.232599690365694611e+00,  1.730000238835760040e+00,
-      2.159812549727315290e+00,  2.491368327642728531e+00,  2.706570057583665978e+00,  2.790787685799128948e+00,
-      2.735834060522944977e+00,  2.541321428232243385e+00,  2.203017914785318609e+00,  1.747048838654639225e+00,
-      1.194470866350926253e+00,  5.708099217666626757e-01,  -9.328617787182014176e-02, -7.675495441188486812e-01,
-      -1.415050068917695025e+00, -2.004271925144963884e+00, -2.506199532440170685e+00, -2.896317651296802076e+00,
-      -3.149413823755089936e+00, -3.258568969231475432e+00, -3.218318219910480504e+00, -3.027935944900973286e+00,
-      -2.697916633952610166e+00, -2.239382875074837909e+00, -1.678135716844817660e+00, -1.039758340517949131e+00,
-      -3.519468854228578469e-01, 3.519468854228558485e-01,  1.039758340517949131e+00,  1.678135716844819658e+00,
-      2.239382875074840129e+00,  2.697916633952610166e+00,  3.027935944900975951e+00,  3.218318219910480060e+00,
-      3.258568969231477208e+00,  3.149413823755091268e+00,  2.896317651296804740e+00,  2.506199532440172462e+00,
-      2.004271925144967881e+00,  1.415050068917689030e+00,  7.675495441188486812e-01,  9.328617787182014176e-02,
-      -5.708099217666566805e-01, -1.194470866350926253e+00, -1.747048838654639225e+00, -2.203017914785321718e+00,
-      -2.541321428232239388e+00, -2.735834060522945421e+00, -2.790787685799130280e+00, -2.706570057583664646e+00,
-      -2.491368327642728975e+00, -2.159812549727314401e+00, -1.730000238835760040e+00, -1.232599690365694611e+00,
-      -6.960949942193470630e-01, -1.500238070820625602e-01, 3.764497850523270128e-01,  8.443824719989027061e-01,
-      -1.491362090046195021e+00, -1.106560124398065170e+00, -6.373137163284032791e-01, -1.040381180833427760e-01,
-      4.681463063440879369e-01,  1.050670694444678421e+00,  1.613030226768328745e+00,  2.124465084004373061e+00,
-      2.555709591679601989e+00,  2.880703258686545531e+00,  3.077768849214347568e+00,  3.132024464824600063e+00,
-      3.035416376486893331e+00,  2.776230213053120899e+00,  2.373754959516900520e+00,  1.844346100356397233e+00,
-      1.211230937878224001e+00,  5.033680894525252025e-01,  -2.460069135454019673e-01, -1.001068069388295401e+00,
-      -1.725224024046435156e+00, -2.382982730414933137e+00, -2.941756540682623822e+00, -3.373514112467706827e+00,
-      -3.656195823412041968e+00, -3.774823655371260855e+00, -3.722253705911304777e+00, -3.499538526034562391e+00,
-      -3.115886298296040025e+00, -2.588223466837219267e+00, -1.940385942691142063e+00, -1.201980716250171888e+00,
-      -4.069526869461274066e-01, 4.069526869461274066e-01,  1.201980716250169889e+00,  1.940385942691144061e+00,
-      2.588223466837221043e+00,  3.115886298296041801e+00,  3.499538526034566388e+00,  3.722253705911304333e+00,
-      3.774823655371261300e+00,  3.656195823412045076e+00,  3.373514112467709936e+00,  2.941756540682626042e+00,
-      2.382982730414934913e+00,  1.725224024046424942e+00,  1.001068069388301396e+00,  2.460069135454039935e-01,
-      -5.033680894525272009e-01, -1.211230937878218006e+00, -1.844346100356399232e+00, -2.373754959516902296e+00,
-      -2.776230213053120899e+00, -3.035416376486893331e+00, -3.132024464824599619e+00, -3.077768849214347568e+00,
-      -2.880703258686544643e+00, -2.555997183915612592e+00, -2.124741624232038717e+00, -1.613285087701782361e+00,
-      -1.050894081921180057e+00, -4.683296357081808137e-01, 1.039018920762839193e-01,  6.372298287674598161e-01,
-      -1.341219362881158617e+00, -8.826052419777955516e-01, -3.473451667619283922e-01, 2.414243266840857827e-01,
-      8.562013187364799771e-01,  1.466482765005763245e+00,  2.040373220738064042e+00,  2.543940200665009588e+00,
-      2.953643468399339334e+00,  3.243886743134320572e+00,  3.394250171538570005e+00,  3.390834049607778233e+00,
-      3.227267230967072908e+00,  2.905311748951458828e+00,  2.435019356021916881e+00,  1.834422765117191378e+00,
-      1.128772541037670996e+00,  3.589120567094338243e-01,  -4.513928950862666767e-01, -1.264275854007859801e+00,
-      -2.040845953957361569e+00, -2.743197886950301090e+00, -3.336393243051417379e+00, -3.790303968834916049e+00,
-      -4.081216870314683831e+00, -4.193111843652504334e+00, -4.118544903769736365e+00, -3.859088939631526216e+00,
-      -3.433802469184980222e+00, -2.851944620415314713e+00, -2.139378414617998381e+00, -1.328419646079702199e+00,
-      -4.562511081348215591e-01, 4.369141757645528812e-01,  1.309825821176145544e+00,  2.122242247444659835e+00,
-      2.836924644266589635e+00,  3.421475893320972794e+00,  3.849929467449864529e+00,  4.112904528649669267e+00,
-      4.191207322046734518e+00,  4.083121391920456311e+00,  3.795944343954987144e+00,  3.345552715233082619e+00,
-      2.755524462814314290e+00,  2.055865930106084427e+00,  1.281412021181196348e+00,  4.699867199898276060e-01,
-      -3.395751243391672003e-01, -1.118989684367739157e+00, -1.825015858142812863e+00, -2.426349900902626366e+00,
-      -2.897712907985633635e+00, -3.221031023351540679e+00, -3.386200129303894801e+00, -3.391396617504886635e+00,
-      -3.242923215852055563e+00, -2.954606995681602122e+00, -2.546793754698695178e+00, -2.045007141041944365e+00,
-      -1.472718972621298805e+00, -8.638001597023031719e-01, -2.500937818033618920e-01, 3.379382597875353889e-01,
-      -1.061487577118566561e+00, -5.371625699491856532e-01, 5.097859948621857179e-02,  6.775853941825510374e-01,
-      1.302407540139333575e+00,  1.907976040579533628e+00,  2.462824555025283857e+00,  2.936251027161979277e+00,
-      3.299464497974518906e+00,  3.533171993928367005e+00,  3.618222048200857355e+00,  3.542921835909766504e+00,
-      3.303330766901243720e+00,  2.915207089893366632e+00,  2.380068068200154041e+00,  1.717424731449994413e+00,
-      9.539988129977814424e-01,  1.333637811601277867e-01,  -7.213392009222857615e-01, -1.570159330694270050e+00,
-      -2.373164599248509976e+00, -3.091648688191982242e+00, -3.691407524726153078e+00, -4.143249670348978952e+00,
-      -4.423240008300159509e+00, -4.515400998317040226e+00, -4.418017483350750396e+00, -4.130202349815627727e+00,
-      -3.660626527068677749e+00, -3.028906793076438397e+00, -2.262639328572564335e+00, -1.399899916306618364e+00,
-      -4.737944543156984434e-01, 4.737944543157069921e-01,  1.399899916306622583e+00,  2.262639328572558117e+00,
-      3.028906793076440618e+00,  3.660626527068682190e+00,  4.130202349815627727e+00,  4.418017483350752173e+00,
-      4.515400998317042891e+00,  4.423240008300160397e+00,  4.143249670348978952e+00,  3.691407524726154854e+00,
-      3.091648688191982242e+00,  2.373164599248512197e+00,  1.570159330694274269e+00,  7.213392009222814316e-01,
-      -1.333637811601320333e-01, -9.539988129977814424e-01, -1.717424731449996633e+00, -2.380068068200154041e+00,
-      -2.915207089893368853e+00, -3.303330766901239279e+00, -3.542921835909765615e+00, -3.618222048200857355e+00,
-      -3.533171993928365673e+00, -3.299464497974520238e+00, -2.936251027161974836e+00, -2.462824555025283857e+00,
-      -1.907976040579535848e+00, -1.302407540139331577e+00, -6.775853941825532578e-01, -5.097859948621857179e-02,
-      -7.114936829708495836e-01, -1.379102829465287672e-01, 4.843713388167624756e-01,  1.115049520927855253e+00,
-      1.740692187068238139e+00,  2.330201041494530667e+00,  2.845469589312975778e+00,  3.268427875694002172e+00,
-      3.572331834603324374e+00,  3.737192458124688255e+00,  3.749435648157773748e+00,  3.599375002739075846e+00,
-      3.294706442139387903e+00,  2.834519786975144839e+00,  2.232667745518693181e+00,  1.523127112154915697e+00,
-      7.202568606638372062e-01,  -1.419502037695177799e-01, -1.015581748156518360e+00, -1.876038093914821792e+00,
-      -2.681801950488389430e+00, -3.389494380358811565e+00, -3.975093042144000055e+00, -4.406455547408394402e+00,
-      -4.661764513198615845e+00, -4.729110139503870158e+00, -4.599774444384014060e+00, -4.282043708815530536e+00,
-      -3.782579261620171884e+00, -3.121081956741387220e+00, -2.332483706122348455e+00, -1.439913158542848626e+00,
-      -4.849152329680061491e-01, 4.849152329680104789e-01,  1.439913158542844407e+00,  2.332483706122357336e+00,
-      3.121081956741385000e+00,  3.782579261620178546e+00,  4.282043708815536753e+00,  4.599774444384011396e+00,
-      4.729110139503871046e+00,  4.661764513198617621e+00,  4.406455547408393514e+00,  3.975093042144003608e+00,
-      3.389494380358804904e+00,  2.681801950488396091e+00,  1.876038093914813132e+00,  1.015581748156522801e+00,
-      1.419502037695177799e-01,  -7.202568606638415361e-01, -1.523127112154915697e+00, -2.232667745518690960e+00,
-      -2.834519786975140399e+00, -3.294706442139392344e+00, -3.599375002739074514e+00, -3.749435648157771972e+00,
-      -3.737192458124686922e+00, -3.572331834603324374e+00, -3.268427875694003060e+00, -2.845469589312976666e+00,
-      -2.330201041494530667e+00, -1.740692187068231700e+00, -1.115049520927855253e+00, -4.843713388167624756e-01,
-      -2.771034698004570807e-01, 3.278992266036562242e-01,  9.638561084178509653e-01,  1.590395283532537452e+00,
-      2.193380715117372315e+00,  2.732911448899550955e+00,  3.193977353112047446e+00,  3.544043091821261982e+00,
-      3.769111854354786573e+00,  3.850754786655909978e+00,  3.779386096908943227e+00,  3.548804487878554070e+00,
-      3.168350337046399456e+00,  2.640884708729922536e+00,  1.993952446498630238e+00,  1.237878743177773799e+00,
-      4.150018254069109958e-01,  -4.570293222655053000e-01, -1.328330705747484686e+00, -2.177051967579779479e+00,
-      -2.962989114803842305e+00, -3.645781613485978845e+00, -4.199485251882759229e+00, -4.593857235324866117e+00,
-      -4.814989130032860665e+00, -4.848576127317847373e+00, -4.690535944033923599e+00, -4.347775173684141237e+00,
-      -3.827276757348569980e+00, -3.149965675972792312e+00, -2.345719374249584099e+00, -1.444298180777963125e+00,
-      -4.903228535018744338e-01, 4.903228535018744338e-01,  1.444298180777972007e+00,  2.345719374249588540e+00,
-      3.149965675972796753e+00,  3.827276757348561098e+00,  4.347775173684151895e+00,  4.690535944033921822e+00,
-      4.848576127317849149e+00,  4.814989130032861553e+00,  4.593857235324866117e+00,  4.199485251882758341e+00,
-      3.645781613485981065e+00,  2.962989114803837865e+00,  2.177051967579775038e+00,  1.328330705747489127e+00,
-      4.570293222655053000e-01,  -4.150018254069154366e-01, -1.237878743177769358e+00, -1.993952446498632458e+00,
-      -2.640884708729924757e+00, -3.168350337046390575e+00, -3.548804487878560732e+00, -3.779386096908940118e+00,
-      -3.850754786655909978e+00, -3.769111854354785240e+00, -3.544043091821260649e+00, -3.193977353112048334e+00,
-      -2.732911448899550955e+00, -2.193380715117372315e+00, -1.590395283532535231e+00, -9.638561084178487448e-01,
-      2.024021766250654886e-01,  8.141734992970954821e-01,  1.424170872668138577e+00,  2.022008399986619409e+00,
-      2.568363900265215438e+00,  3.051104519296965023e+00,  3.435081233820335367e+00,  3.708850398177416352e+00,
-      3.849285661993011143e+00,  3.847701765775221716e+00,  3.697666851380436270e+00,  3.395772047856999709e+00,
-      2.954292035405053696e+00,  2.376707045572244326e+00,  1.692836849184913062e+00,  9.254379011141148359e-01,
-      9.283062905207831172e-02,  -7.635641642972592624e-01, -1.623106665875771126e+00, -2.436123563358239874e+00,
-      -3.183328169162753074e+00, -3.820413433825709415e+00, -4.330505776903590842e+00, -4.682225652365088031e+00,
-      -4.864592986792697360e+00, -4.864673672392239467e+00, -4.680833627762423177e+00, -4.319109235572622829e+00,
-      -3.791460534661990955e+00, -3.112227813649470320e+00, -2.317101712775890388e+00, -1.424930078047670357e+00,
-      -4.836995077504246954e-01, 4.836995077504337437e-01,  1.424930078047674797e+00,  2.317101712775885947e+00,
-      3.112227813649479202e+00,  3.791460534661995840e+00,  4.319109235572622829e+00,  4.680833627762423177e+00,
-      4.864673672392239467e+00,  4.864592986792697360e+00,  4.682225652365085367e+00,  4.330505776903591730e+00,
-      3.820413433825709415e+00,  3.183328169162755739e+00,  2.436123563358228328e+00,  1.623106665875771126e+00,
-      7.635641642972592624e-01,  -9.283062905207831172e-02, -9.254379011141148359e-01, -1.692836849184913062e+00,
-      -2.376707045572244326e+00, -2.954292035405047034e+00, -3.395772047857001930e+00, -3.697666851380436270e+00,
-      -3.847701765775221272e+00, -3.849285661993009811e+00, -3.708850398177414576e+00, -3.435081233820336699e+00,
-      -3.051104519296962803e+00, -2.568363900265210997e+00, -2.022008399986621630e+00, -1.424170872668138577e+00,
-      6.605067378489495322e-01,  1.259291168561857077e+00,  1.839190999474684673e+00,  2.392853563815602325e+00,
-      2.881371508884989385e+00,  3.284162147995321579e+00,  3.592573889856939040e+00,  3.780012536289011571e+00,
-      3.839539838641600866e+00,  3.758208348606792537e+00,  3.536408001681977886e+00,  3.173611396499208759e+00,
-      2.681709432899799239e+00,  2.078629325770993130e+00,  1.372126994833993141e+00,  5.987115712158778136e-01,
-      -2.290511017467316557e-01, -1.068280861872652032e+00, -1.884485092349391211e+00, -2.661610071439171943e+00,
-      -3.356104306738467713e+00, -3.938910276008287248e+00, -4.396951730874283371e+00, -4.701241079245408017e+00,
-      -4.838808287552481602e+00, -4.805779829304563044e+00, -4.600189668902620710e+00, -4.225013635489649921e+00,
-      -3.692710538330051140e+00, -3.028518370162588180e+00, -2.246204611923688255e+00, -1.379371447969170106e+00,
-      -4.680439652537387030e-01, 4.680439652537479178e-01,  1.379371447969170106e+00,  2.246204611923706462e+00,
-      3.028518370162578854e+00,  3.692710538330046699e+00,  4.225013635489658803e+00,  4.600189668902624263e+00,
-      4.805779829304561268e+00,  4.838808287552480714e+00,  4.701241079245407128e+00,  4.396951730874281594e+00,
-      3.938910276008289468e+00,  3.356104306738465493e+00,  2.661610071439167058e+00,  1.884485092349391211e+00,
-      1.068280861872652032e+00,  2.290511017467362631e-01,  -5.987115712158778136e-01, -1.372126994834002245e+00,
-      -2.078629325770988245e+00, -2.681709432899797019e+00, -3.173611396499215420e+00, -3.536408001681970781e+00,
-      -3.758208348606794758e+00, -3.839539838641600422e+00, -3.780012536289010239e+00, -3.592573889856939928e+00,
-      -3.284162147995320247e+00, -2.881371508884984500e+00, -2.392853563815604545e+00, -1.839190999474686894e+00,
-      1.099742471735307481e+00,  1.665601980077083821e+00,  2.198787495795696767e+00,  2.693450549931069471e+00,
-      3.113302169974171640e+00,  3.440100969103784490e+00,  3.658500194168339270e+00,  3.765715036234766000e+00,
-      3.743078910475429399e+00,  3.587369291852109843e+00,  3.299851380107230003e+00,  2.887907978728421643e+00,
-      2.361118811572981979e+00,  1.735883993601275765e+00,  1.025873600239942895e+00,  2.606375742019900188e-01,
-      -5.328965530053541011e-01, -1.339384197662834453e+00, -2.114307537064144871e+00, -2.831068445531586431e+00,
-      -3.462410709835448852e+00, -3.995364296207474908e+00, -4.397073787620039198e+00, -4.651070694840991671e+00,
-      -4.752872146744155479e+00, -4.692533946110505561e+00, -4.467789325488516816e+00, -4.085456995938431035e+00,
-      -3.563760911500926554e+00, -2.914491632597960180e+00, -2.160697897191358852e+00, -1.323993923198789835e+00,
-      -4.467453779711883510e-01, 4.467453779711977324e-01,  1.323993923198799161e+00,  2.160697897191358852e+00,
-      2.914491632597962401e+00,  3.563760911500926554e+00,  4.085456995938435476e+00,  4.467789325488519481e+00,
-      4.692533946110507337e+00,  4.752872146744153703e+00,  4.651070694840989894e+00,  4.397073787620040086e+00,
-      3.995364296207472687e+00,  3.462410709835446632e+00,  2.831068445531586431e+00,  2.114307537064140430e+00,
-      1.339384197662829790e+00,  5.328965530053541011e-01,  -2.606375742019853003e-01, -1.025873600239942895e+00,
-      -1.735883993601275765e+00, -2.361118811572979759e+00, -2.887907978728423863e+00, -3.299851380107232224e+00,
-      -3.587369291852107622e+00, -3.743078910475428511e+00, -3.765715036234766888e+00, -3.658500194168338382e+00,
-      -3.440100969103784490e+00, -3.113302169974171640e+00, -2.693450549931065030e+00, -2.198787495795699432e+00,
-      1.505193806293808167e+00,  2.024204462574603625e+00,  2.498302251064618229e+00,  2.908943375348887805e+00,
-      3.254375314428450405e+00,  3.503271259727063658e+00,  3.643303624654641748e+00,  3.665779823811112781e+00,
-      3.566068526619294854e+00,  3.349534192260151144e+00,  3.012231829827727747e+00,  2.562591829633729112e+00,
-      2.013388830954600639e+00,  1.381353499245159711e+00,  6.803561692049466814e-01,  -6.202150451162694728e-02,
-      -8.205006539566508383e-01, -1.568722592125154192e+00, -2.280225567125432118e+00, -2.942609454119787138e+00,
-      -3.518921490827651599e+00, -3.987481371649471029e+00, -4.330254244889022885e+00, -4.543374714151752869e+00,
-      -4.610668908511220465e+00, -4.524702499854477367e+00, -4.286960365934854522e+00, -3.904479299503564871e+00,
-      -3.390253341928263886e+00, -2.766811022176318247e+00, -2.048090139012233024e+00, -1.258845782607607600e+00,
-      -4.264675248138233843e-01, 4.264675248138329322e-01,  1.258845782607607600e+00,  2.048090139012233024e+00,
-      2.766811022176330237e+00,  3.390253341928266106e+00,  3.904479299503569312e+00,  4.286960365934858963e+00,
-      4.524702499854474702e+00,  4.610668908511218689e+00,  4.543374714151751981e+00,  4.330254244889020221e+00,
-      3.987481371649464812e+00,  3.518921490827666254e+00,  2.942609454119772927e+00,  2.280225567125441888e+00,
-      1.568722592125154192e+00,  8.205006539566364054e-01,  6.202150451162694728e-02,  -6.803561692049466814e-01,
-      -1.381353499245159711e+00, -2.013388830954600639e+00, -2.562591829633729112e+00, -3.012231829827727747e+00,
-      -3.349534192260146259e+00, -3.566068526619292633e+00, -3.665779823811114557e+00, -3.643303624654642192e+00,
-      -3.503271259727061437e+00, -3.254375314428452626e+00, -2.908943375348880700e+00, -2.498302251064615565e+00,
-      1.835003291318242802e+00,  2.295537275354685658e+00,  2.702675434319650183e+00,  3.040552089083366827e+00,
-      3.295162279449598941e+00,  3.467968301088316885e+00,  3.534974301888240689e+00,  3.490172454951459446e+00,
-      3.334079256367743493e+00,  3.065765298731110811e+00,  2.690818300107997274e+00,  2.218725463354223049e+00,
-      1.662625030892673328e+00,  1.032575211005031468e+00,  3.522940574289843974e-01,  -3.563964012403376680e-01,
-      -1.068829579946018349e+00, -1.763124199994398511e+00, -2.415671031882382636e+00, -3.003898988011620919e+00,
-      -3.507108506276563897e+00, -3.920425449237697979e+00, -4.214641460472062562e+00, -4.378208351886458516e+00,
-      -4.409588412179642702e+00, -4.301421162494841965e+00, -4.055921664496842105e+00, -3.680107151603508875e+00,
-      -3.187966843938493167e+00, -2.591069196419314213e+00, -1.908912825256781520e+00, -1.171246689396915786e+00,
-      -3.947791954139448500e-01, 3.947791954139448500e-01,  1.171246689396935325e+00,  1.908912825256776635e+00,
-      2.591069196419326648e+00,  3.187966843938493167e+00,  3.680107151603508875e+00,  4.055921664496842993e+00,
-      4.301421162494846406e+00,  4.409588412179640926e+00,  4.378208351886459404e+00,  4.214641460472058121e+00,
-      3.920425449237695759e+00,  3.507108506276563897e+00,  3.003898988011625804e+00,  2.415671031882377751e+00,
-      1.763124199994398511e+00,  1.068829579946018349e+00,  3.563964012403376680e-01,  -3.522940574289892268e-01,
-      -1.032575211005036353e+00, -1.662625030892675770e+00, -2.218725463354225713e+00, -2.690818300107992833e+00,
-      -3.065765298731110811e+00, -3.334079256367740829e+00, -3.490172454951459446e+00, -3.534974301888238912e+00,
-      -3.467968301088316441e+00, -3.295162279449597165e+00, -3.040552089083363718e+00, -2.702675434319650183e+00,
-      2.115569753652723151e+00,  2.508297977154028580e+00,  2.841319059700373906e+00,  3.101631182530637965e+00,
-      3.278172047199655825e+00,  3.362269852100345791e+00,  3.348023644958015410e+00,  3.232596809549412864e+00,
-      3.016410242216812421e+00,  2.703225175067778707e+00,  2.305123990017395208e+00,  1.824413191299517178e+00,
-      1.274079672966802690e+00,  6.697990012480489197e-01,  2.945652433251328556e-02,  -6.274223354371449846e-01,
-      -1.280313373921262432e+00, -1.908384129310881416e+00, -2.491208981233588471e+00, -3.009482786725431236e+00,
-      -3.445706627475587425e+00, -3.784819880840852413e+00, -4.014754481147451592e+00, -4.126889856495164821e+00,
-      -4.116390518313046698e+00, -3.982412518106282828e+00, -3.743630359203476310e+00, -3.389672605394588700e+00,
-      -2.930713267476816597e+00, -2.380479560059079791e+00, -1.755802165203605769e+00, -1.076052174965131281e+00,
-      -3.624849847815463377e-01, 3.624849847815512782e-01,  1.076052174965136388e+00,  1.755802165203605769e+00,
-      2.380479560059094446e+00,  2.930713267476816597e+00,  3.389672605394588700e+00,  3.743630359203481195e+00,
-      3.982412518106282828e+00,  4.099718797800973036e+00,  4.110858820852761220e+00,  3.999980194084144625e+00,
-      3.771870109922978109e+00,  3.435079025137181663e+00,  3.001585765764364755e+00,  2.486346019736672908e+00,
-      1.906742108161267879e+00,  1.281955395070870862e+00,  6.322852969340581053e-01,  -2.155950337144188142e-02,
-      -6.591713989096591453e-01, -1.261129902048925722e+00, -1.809638904236211987e+00, -2.289092954374990274e+00,
-      -2.686553454555703713e+00, -2.992119441308128014e+00, -3.209239490497211023e+00, -3.326497416434534227e+00,
-      -3.343401954995699477e+00, -3.262687564218334835e+00, -3.090125173669815428e+00, -2.834233694427928274e+00,
+      -1.076156379656637851e-01, -2.605430752535708439e-01, 1.571196802293376993e-01,  3.008582844156415526e-01,
+      -5.553283623356639054e-02, -3.198573314184935401e-01, -5.554810139455701457e-02, 3.005675569206666675e-01,
+      1.599404993046590895e-01,  -2.450071410878400524e-01, -2.450072726026717163e-01, 1.599496696088877068e-01,
+      3.005928236707823276e-01,  -5.553287248432439704e-02, -3.199005990154500934e-01, -5.567451717219062957e-02,
+      3.003260090051703135e-01,  1.595745536093102768e-01,  -2.454569435960985146e-01, -2.454231680392203185e-01,
+      1.597772462712993835e-01,  3.009495025778660127e-01,  -5.434744969759383593e-02, -3.176866140479779332e-01,
+      -5.248265984033706477e-02, 3.040483167182718161e-01,  1.629057665756528106e-01,  -2.438498957715058424e-01,
+      -2.470325236120803347e-01, 1.537381796369042819e-01,  2.900891347086071992e-01,  -6.910887408599641901e-02,
+      -3.338791856881936360e-01, -6.627863632731689769e-02, 2.971349148602809298e-01,  1.668932524731738809e-01,
+      -2.267085850972798411e-01, -2.173423459933979118e-01, 1.920183170941296980e-01,  3.300181999050571524e-01,
+      -3.617526637794180044e-02, -3.163419285197205388e-01, -7.015192746705710414e-02, 2.699854595548604741e-01,
+      1.196166516092393994e-01,  -2.862738194941565339e-01, -2.781681144867066413e-01, 1.418050252118814580e-01,
+      3.005030701250036018e-01,  -3.897519328089948942e-02, -2.918523562725188203e-01, -2.337292139540650404e-02,
+      3.296224509088608312e-01,  1.803875270671104758e-01,  -2.357730182685037756e-01, -2.465692360227703384e-01,
+      1.503485399063912153e-01,  2.868734794527096343e-01,  -6.946128347904231837e-02, -3.310961665410804278e-01,
+      -6.261518570832441677e-02, 2.980533370643457802e-01,  1.577518316438456525e-01,  -2.571113766910629317e-01,
+      -6.823143821518336261e-02, 3.535274163597732500e-01,  -1.903735179033879399e-01, -1.131602402311856492e-01,
+      3.058608330169115125e-02,  1.378570745361978045e-01,  2.561145404534874437e-02,  -1.334634320727948742e-01,
+      -7.093629262273327962e-02, 1.087097341916494070e-01,  1.086933354875476154e-01,  -7.096127575065415416e-02,
+      -1.333406010903072925e-01, 2.464889173881680898e-02,  1.418964818054416488e-01,  2.462648997306957424e-02,
+      -1.333474267269414981e-01, -7.093833312682250314e-02, 1.087148642828156681e-01,  1.087051302968629340e-01,
+      -7.094449898572656454e-02, -1.333210499904519675e-01, 2.466645083831970828e-02,  1.419053099405282181e-01,
+      2.461931994673578067e-02,  -1.333758471976119186e-01, -7.098811605879884468e-02, 1.086513824118921362e-01,
+      1.086441154557130501e-01,  -7.098079872771345666e-02, -1.333102416318660555e-01, 2.473851021142142032e-02,
+      1.420362245711967453e-01,  2.478540973103205217e-02,  -1.332177109217724253e-01, -7.089092504134456019e-02,
+      1.086403992102379784e-01,  1.085006317908646795e-01,  -7.124556742378825025e-02, -1.336466960245822899e-01,
+      2.440903261856977244e-02,  1.418017554196316643e-01,  2.471885834564469669e-02,  -1.330803613434022037e-01,
+      -7.056295418819964749e-02, 1.090973756433906011e-01,  1.089905874468634628e-01,  -7.083008987852526528e-02,
+      -1.333964751118613679e-01, 2.442058240524896603e-02,  1.415891733636368832e-01,  2.433866099436311770e-02,
+      -1.335584810831271785e-01, -7.104904578670510895e-02, 1.087153914767614304e-01,  1.088063015649613080e-01,
+      -7.079353255675036038e-02, -1.333091382633651567e-01, 2.571721274799774332e-02,  1.378892419735902319e-01,
+      3.068681296894113994e-02,  -1.134254704907689398e-01, -1.906287020626867279e-01, 3.550027957824627434e-01,
+      3.132437948104131453e-01,  1.127169820665900213e+00,  -3.448696127945110601e-01, -1.375894634155801821e+00,
+      1.253549241850782092e-01,  1.450919705767415691e+00,  2.761892112039513458e-01,  -1.352336612504464686e+00,
+      -7.208802417330612000e-01, 1.099289889202480719e+00,  1.098926546188231601e+00,  -7.169626341133648051e-01,
+      -1.347553682127654806e+00, 2.488832038142758940e-01,  1.433958056576689843e+00,  2.490860248079360406e-01,
+      -1.347532502825535827e+00, -7.171906280640752973e-01, 1.098341633725597788e+00,  1.098577514640833863e+00,
+      -7.167514678788799998e-01, -1.347249207589195086e+00, 2.493526706814023219e-01,  1.434571063233999411e+00,
+      2.497076623783223703e-01,  -1.347107856045638652e+00, -7.172047548015741958e-01, 1.097677144658633086e+00,
+      1.097164643877527324e+00,  -7.188243434365493290e-01, -1.349674637491107054e+00, 2.470717236705259334e-01,
+      1.433025892737331164e+00,  2.494421508256276510e-01,  -1.345746927182238872e+00, -7.141810184719613597e-01,
+      1.102047188879602180e+00,  1.102252444932566577e+00,  -7.138478423862985034e-01, -1.345686981402133942e+00,
+      2.493046346115352363e-01,  1.432957781416869691e+00,  2.469109436000337388e-01,  -1.350530703615347106e+00,
+      -7.206629198685005067e-01, 1.094734799617215870e+00,  1.095200429637067208e+00,  -7.195205072055125273e-01,
+      -1.349069978879927634e+00, 2.487418631056716456e-01,  1.435325690195917714e+00,  2.518221896233034940e-01,
+      -1.343901130397258337e+00, -7.134160578679805687e-01, 1.102017031638097722e+00,  1.101615696753093898e+00,
+      -7.198118711887909749e-01, -1.353513683502497456e+00, 2.750057493042513124e-01,  1.449381967866932630e+00,
+      1.221957445326948971e-01,  -1.377711828832558716e+00, -3.427658708371437157e-01, 1.127258810548665613e+00,
+      1.150778505010539243e+00,  7.211756536716331656e-01,  -1.092898878728561174e+00, -1.463257015014054252e+00,
+      5.401318049695984502e-01,  1.863272253416391688e+00,  2.276952638125384620e-01,  -1.840264512420301646e+00,
+      -9.425027669825837284e-01, 1.507027736511684424e+00,  1.490090069545874529e+00,  -9.798774443859313843e-01,
+      -1.834012736840517022e+00, 3.396055095051805361e-01,  1.951814441952952395e+00,  3.387566763717443363e-01,
+      -1.834187527607261892e+00, -9.760792790637838889e-01, 1.494881841063582018e+00,  1.495068585147699469e+00,
+      -9.755345707796859722e-01, -1.833293340559175366e+00, 3.399360595107828731e-01,  1.952814060547697128e+00,
+      3.396532827282109368e-01,  -1.834228094887012883e+00, -9.775314175290227281e-01, 1.491947941173756176e+00,
+      1.491145775082470593e+00,  -9.793264029479497035e-01, -1.835422557954736522e+00, 3.409211097906539312e-01,
+      1.957662820969813922e+00,  3.478619240601671381e-01,  -1.824495859935988396e+00, -9.691528799586429654e-01,
+      1.495870872202105462e+00,  1.488400482827532345e+00,  -9.891051376274871965e-01, -1.850390296231056997e+00,
+      3.244265878242276191e-01,  1.944121922474809860e+00,  3.413110827362990651e-01,  -1.821768428650604843e+00,
+      -9.573063267811765531e-01, 1.514236744169903837e+00,  1.508939628478096040e+00,  -9.713506511734445459e-01,
+      -1.839748184367982820e+00, 3.253813786933881236e-01,  1.935413839501383571e+00,  3.254004329032448295e-01,
+      -1.842193003312496469e+00, -9.806415617375058291e-01, 1.495742268125974439e+00,  1.516512596604547403e+00,
+      -9.326054716632418140e-01, -1.833633218291254252e+00, 2.287851746253908303e-01,  1.860517421838525642e+00,
+      5.384794152093784758e-01,  -1.461850641746465174e+00, -1.093408912300081637e+00, 7.138905117957662361e-01,
+      6.523695436673904169e-01,  -9.148361284015988498e-03, -6.999927466053038616e-01, -5.222580204586706465e-01,
+      2.445049380987487919e-01,  5.966371652545662263e-01,  1.413067507939507195e-01,  -3.954348487890615993e-01,
+      -2.628116688762455744e-01, 2.373866121120297712e-01,  2.837216761458572489e-01,  -1.496525558093976804e-01,
+      -3.181721058696513893e-01, 5.669460308311169427e-02,  3.421016160400449091e-01,  5.851763223967258037e-02,
+      -3.258222646060847660e-01, -1.740016839373331181e-01, 2.637621784505587152e-01,  2.643879713358527339e-01,
+      -1.720785010552191574e-01, -3.220870732645387258e-01, 6.499268102844796280e-02,  3.514031187636908471e-01,
+      6.361499964833523812e-02,  -3.261724627857623404e-01, -1.804119178480161900e-01, 2.515318226345136243e-01,
+      2.485554977196628157e-01,  -1.865888386560058676e-01, -3.286708280876642352e-01, 7.223183508219922777e-02,
+      3.748766397536335560e-01,  1.001945972854710182e-01,  -2.854232580553300314e-01, -1.484430099621606158e-01,
+      2.616119614541374538e-01,  2.281299243955776657e-01,  -2.378360911604434913e-01, -4.013270221303558705e-01,
+      -4.431002238201910311e-03, 3.150304291354710795e-01,  7.538626338084754297e-02,  -2.651305657879480804e-01,
+      -8.444075102359345497e-02, 3.564522115888340004e-01,  3.326931426605788666e-01,  -1.476405212223987906e-01,
+      -3.471227757927574653e-01, -3.821339644465658451e-04, 2.663008277812257130e-01,  -1.236544590525535947e-02,
+      -3.617691595726456599e-01, -1.594445771835852343e-01, 3.041515013677485446e-01,  2.752608374669945901e-01,
+      -2.234320061976452221e-01, -3.666309077530378047e-01, 1.555138609716829878e-01,  5.991562838618165188e-01,
+      2.395727031850540811e-01,  -5.334292854175035625e-01, -7.173988299781207667e-01, -2.874053431491973773e-02,
+      3.640880561230374624e-01,  5.257561939274062179e-02,  -2.955390817007730875e-01, -3.535598152079009182e-01,
+      -1.321558389546443335e-01, 1.340505194492614405e-01,  1.788811468879522859e-01,  8.231854734570667742e-02,
+      -5.089474571260232776e-03, -6.068109232214073841e-03, -2.208926490283508182e-02, -6.151292464756356188e-02,
+      -5.188793950918246106e-02, 2.996648812238376230e-02,  7.292812131024753453e-02,  1.007656881884263535e-02,
+      -6.596904534114987617e-02, -3.876368984097969955e-02, 4.261676593712745292e-02,  4.855285165751441895e-02,
+      -2.102988677346148347e-02, -3.890526610104851762e-02, 3.457624326425645656e-02,  8.174652235946550105e-02,
+      1.770296325643517035e-02,  -7.143510922277179764e-02, -6.870708931692730281e-02, -1.202485683385157156e-02,
+      -1.951182752009961163e-02, -8.130810530379688206e-02, -6.704870979863195024e-02, 5.827333250822971239e-02,
+      1.640891292521426126e-01,  1.472099417870301186e-01,  7.528731070437484629e-02,  5.321863170768557222e-02,
+      4.290743587625941297e-02,  -6.003738344930531490e-02, -2.207538740607294658e-01, -2.795214495669220978e-01,
+      -1.766889587435533648e-01, -3.111813330716103193e-02, 4.821170232765562697e-02,  1.063628131847433322e-01,
+      2.145432650448417800e-01,  2.993911877456273407e-01,  2.295394539175575344e-01,  3.054503441691908822e-02,
+      -1.277523492146537265e-01, -1.584432079861004816e-01, -1.452240847830046644e-01, -1.704066352520756111e-01,
+      -1.781024919222879699e-01, -8.694321572293842171e-02, 4.409695613090788835e-02,  1.165909628658356040e-01,
+      1.306115775893016140e-01,  1.941234299231316962e-01,  2.433476223019869489e-01,  1.438260190501788049e-01,
+      -1.693579587570422651e-01, -4.189892663710857446e-01, -3.670953692804365676e-01, -5.243796510396939344e-03,
+      2.697453724377494311e-01,  5.606967605037058849e-02,  -1.336330319830032476e-01, -1.968709854334711185e-01,
+      -2.087920324902741431e-01, -1.209335148965447887e-01, 3.167940565814987564e-02,  1.488251506204237296e-01,
+      1.465543649533269932e-01,  5.446596924130853168e-02,  -2.254669760169095843e-02, -3.432948183237215234e-02,
+      -3.045866739640899767e-02, -3.792233926513460807e-02, -3.624290708745740719e-02, -7.726838708116441981e-03,
+      1.827209317733121535e-02,  9.662966541991018302e-03,  -1.042588052209014564e-02, 5.729733248186564057e-03,
+      5.151216322237899686e-02,  7.542401569179536802e-02,  5.243387856359182919e-02,  1.267260839111160851e-02,
+      -1.665267358469470563e-02, -5.470532515396978740e-02, -1.213714262624657619e-01, -1.793200973226497519e-01,
+      -1.657505308855534154e-01, -7.097015142802499954e-02, 5.461386109345674200e-02,  1.688213057847406107e-01,
+      2.673031213752043445e-01,  3.338040757747570697e-01,  3.099731124739781296e-01,  1.550764105573461393e-01,
+      -8.595387468510176654e-02, -3.120381452113342724e-01, -4.525917271704635314e-01, -4.904956065716953861e-01,
+      -4.139476117936018440e-01, -2.041856960054673209e-01, 1.054227595474576118e-01,  4.014397443732543591e-01,
+      5.638716504290620657e-01,  5.556407664236857613e-01,  4.151944682384513530e-01,  1.888811317152777058e-01,
+      -9.325710837486608784e-02, -3.657078022012389962e-01, -5.263901657940285306e-01, -5.159366309488829794e-01,
+      -3.683073590772836803e-01, -1.569366535146479724e-01, 7.612977186372285598e-02,  3.185882954066596162e-01,
+      4.829671508855328810e-01,  4.590809383249135900e-01,  2.402592143600549845e-01,  -4.959598342666301368e-02,
+      -2.674915128776357842e-01, -3.451914171650982133e-01, -3.146645721834679388e-01, -1.019830448167796944e-01,
+      2.185015503227412115e-01,  1.105401825914447966e-01,  -3.645804114634373927e-02, -1.570039526128303997e-01,
+      -2.023978599110545784e-01, -1.623464906102394245e-01, -6.545899785271218352e-02, 3.926936206876608521e-02,
+      1.079564450580926677e-01,  1.203903895828972725e-01,  8.379061046861495388e-02,  2.316160694266171383e-02,
+      -3.378990976580330957e-02, -6.842860779162730778e-02, -7.504109145654207225e-02, -5.766574730166833945e-02,
+      -2.425193181962282535e-02, 1.750324458295147295e-02,  6.080081102869283605e-02,  9.794915538075871231e-02,
+      1.187917204229755330e-01,  1.116630889985279346e-01,  6.747082005648256942e-02,  -1.450600501662783516e-02,
+      -1.218421199123784215e-01, -2.280846691007404614e-01, -2.975174624722484173e-01, -2.953093996538160293e-01,
+      -2.005043417186586907e-01, -1.754898506514538173e-02, 2.184259710114040132e-01,  4.460936290592523168e-01,
+      5.927991506916320263e-01,  5.966356990504843028e-01,  4.292049463066227588e-01,  1.110356118504624012e-01,
+      -2.870799137027047476e-01, -6.595112304735133435e-01, -8.949676681382167098e-01, -9.110710914499896562e-01,
+      -6.830757268582222652e-01, -2.564448861041591643e-01, 2.621880408486327863e-01,  7.339937626324779529e-01,
+      1.028251362274525293e+00,  1.061292538978783728e+00,  8.217165779782973356e-01,  3.740726530008248174e-01,
+      -1.597887324620674843e-01, -6.356566411261002081e-01, -9.277198330901089696e-01, -9.636319382545472934e-01,
+      -7.443779524024758398e-01, -3.434629592486291849e-01, 1.149619503912955865e-01,  4.938610531529100678e-01,
+      6.865132343536899384e-01,  6.512764584705139637e-01,  4.247204034709558540e-01,  1.062680159964822790e-01,
+      -1.815204680229429990e-01, -3.415916380800598784e-01, -3.390205139272841062e-01, -2.091074574063999936e-01,
+      1.545215409971751608e-01,  9.812498051948156941e-02,  4.167779402703281066e-02,  -5.807180919864113333e-02,
+      -1.701474975430069814e-01, -2.352505690407705741e-01, -1.201242514156009022e-01, 3.686499118737240899e-02,
+      6.964282482937619867e-02,  1.682271974604750836e-02,  2.533130619533068006e-02,  9.129652260616810677e-02,
+      7.062003708897043874e-02,  -6.171739761984700035e-02, -1.411087328260186846e-01, -6.422356041703554397e-02,
+      6.905407262330469365e-02,  1.095500999286599803e-01,  8.584088621666889629e-02,  1.259838815983557181e-01,
+      2.106154429632017544e-01,  1.752456226813108309e-01,  -3.229614216981113728e-02, -2.570330759224564998e-01,
+      -3.581727831852760668e-01, -3.841403752369945135e-01, -4.251374983113783146e-01, -3.998338236580256666e-01,
+      -1.563300612899848896e-01, 2.672114035255429010e-01,  6.436290145429529597e-01,  8.247584207295350911e-01,
+      8.560190198647534832e-01,  7.820559464177336828e-01,  5.024840511314054847e-01,  -5.554898059737789495e-02,
+      -7.222294633196590929e-01, -1.198086833117398164e+00, -1.346353877467284299e+00, -1.234867521797036183e+00,
+      -9.119319777023042750e-01, -3.247384457075377373e-01, 4.787057101089932099e-01,  1.211292991091145410e+00,
+      1.570548045103978163e+00,  1.508261696931222140e+00,  1.169158020896638561e+00,  6.389525848011010645e-01,
+      -7.697625147307118887e-02, -8.413374629980580055e-01, -1.350443936193856498e+00, -1.405115760220999599e+00,
+      -1.092747434740040102e+00, -6.448937162994430317e-01, -1.593762044139684919e-01, 3.668706036705465801e-01,
+      8.140108496750596556e-01,  9.573118865322826077e-01,  7.437002629365834228e-01,  3.868241848042429654e-01,
+      1.125042800628359152e-01,  -1.165870956388290192e-01, -2.803511096314761364e-01, -3.629150740911444295e-01,
+      1.933486562518807739e-01,  1.076426712595783958e-01,  5.047841060002760533e-02,  -3.013160590350243487e-02,
+      -1.166270859828469342e-01, -1.470231926047324555e-01, -1.168429765426066552e-01, -1.186931086208969088e-01,
+      -6.812186274945519759e-02, -1.489070404138536849e-02, 2.383164778178215384e-02,  1.387594893358104660e-02,
+      1.595918415137407426e-02,  1.475871847142585028e-02,  5.206363357864175062e-02,  8.463267165763772859e-02,
+      1.269979573658552297e-01,  1.768418789044756967e-01,  2.166723362144298837e-01,  1.928227121246958164e-01,
+      7.373273957566094106e-02,  -9.100122345185270023e-02, -2.685445812189546921e-01, -4.430219197822350963e-01,
+      -5.825907070499073415e-01, -6.089242391644661412e-01, -4.643510465300749179e-01, -1.567919562176030568e-01,
+      2.392785001773080067e-01,  6.465360271175842888e-01,  9.944262886575462312e-01,  1.192167799213530444e+00,
+      1.135440257101176798e+00,  7.809627031268677744e-01,  1.920143316393541633e-01,  -4.951525455844807411e-01,
+      -1.141122955512682502e+00, -1.616497805623771100e+00, -1.792029734191694645e+00, -1.570461588154390187e+00,
+      -9.691264246785707970e-01, -1.261184475651200565e-01, 7.540490136214349493e-01,  1.493421167179531439e+00,
+      1.945792402071490290e+00,  1.999506416397538455e+00,  1.602371568569924687e+00,  8.654587838732198390e-01,
+      -1.247400493433087690e-02, -8.371511917615156451e-01, -1.440605562491721781e+00, -1.723056253958058504e+00,
+      -1.604451793975099738e+00, -1.173636244206996970e+00, -5.299931613627775207e-01, 1.139518040537967625e-01,
+      6.430504052856730324e-01,  9.619414442721506697e-01,  1.067738651002308581e+00,  8.884017261368395424e-01,
+      5.846004974735256043e-01,  2.505605712832118526e-01,  -7.267055625585411294e-02, -3.196013881602461915e-01,
+      1.877756745197220467e-01,  1.773498263523564655e-01,  7.981390462123486018e-02,  -5.588962475280836312e-02,
+      -9.171829747138637856e-02, -9.218874200454439671e-02, -1.490767091650735399e-01, -2.202163109979105027e-01,
+      -1.590887205996218690e-01, -8.585708015613892352e-02, -4.676577808961319277e-02, -1.340275293147117838e-02,
+      6.718951459939699611e-02,  1.756054550337380893e-01,  2.197110402800965812e-01,  2.533753564706837103e-01,
+      2.804509470618867240e-01,  2.658515891773254869e-01,  1.699413070810313064e-01,  9.807904495693667637e-03,
+      -1.918865455864875169e-01, -3.969382920812995486e-01, -5.758512082214654049e-01, -6.908500730837361381e-01,
+      -6.857060639279918268e-01, -5.193811494364500847e-01, -1.930283873096097502e-01, 2.371766815606875800e-01,
+      6.911276023359046450e-01,  1.087055762182129959e+00,  1.335471746908890589e+00,  1.347638759454575563e+00,
+      1.066688774587909450e+00,  5.176773432378547479e-01,  -1.972534213772513811e-01, -9.430749618329744566e-01,
+      -1.585070611914226824e+00, -1.981286135412752225e+00, -2.011450033924125691e+00, -1.631945203287598289e+00,
+      -9.084431679538237381e-01, 1.282577536801942156e-02,  9.597190668882201736e-01,  1.754029544855383760e+00,
+      2.230044038226858927e+00,  2.275539468229606843e+00,  1.880232343253755989e+00,  1.150973975308672292e+00,
+      2.300210360237523455e-01,  -6.952702251670459521e-01, -1.440829021202086890e+00, -1.866272080506176545e+00,
+      -1.949683808257608453e+00, -1.641031203195145949e+00, -1.047399904224441514e+00, -3.568724812299680638e-01,
+      2.770692529416379779e-01,  8.336316227699677173e-01,  1.165808417270559616e+00,  1.208073944954302981e+00,
+      1.021436940236768676e+00,  7.254039571157427924e-01,  3.939841214883700315e-01,  3.423510521739598408e-03,
+      1.979195562565257416e-01,  1.032875325408822015e-01,  7.388021258899205024e-02,  1.364670078299134136e-02,
+      -7.863463019867435178e-02, -1.884531318644405151e-01, -2.202831533155493737e-01, -1.860729836987937147e-01,
+      -2.029050262230952528e-01, -1.490048539423707574e-01, -2.833820635971010665e-02, 9.175180730792789618e-02,
+      1.965433600681169846e-01,  2.755449113737773459e-01,  3.630533814099292100e-01,  3.698641325118732226e-01,
+      2.858133179835334881e-01,  1.608399517947124435e-01,  -2.870693803023338653e-02, -2.592171368239996054e-01,
+      -4.977879803753233467e-01, -6.797226920112315884e-01, -7.609601510412746794e-01, -7.282424640194391507e-01,
+      -5.387360709737706310e-01, -2.014929239664536020e-01, 2.346027491889908223e-01,  7.014340980213025212e-01,
+      1.114543840168730426e+00,  1.390054706777353433e+00,  1.442413393992351578e+00,  1.229725387785199464e+00,
+      7.623017392947875059e-01,  1.009878983305406569e-01,  -6.525661278980623425e-01, -1.369823868264403721e+00,
+      -1.908453646823702776e+00, -2.141326600352158938e+00, -2.011622777745675883e+00, -1.524674751459233812e+00,
+      -7.496178124873309478e-01, 1.954429556211285668e-01,  1.144178670530257902e+00,  1.899237394402517154e+00,
+      2.344589308571881414e+00,  2.403475914952520220e+00,  2.050772728378840171e+00,  1.356516152565677258e+00,
+      4.483601528818672022e-01,  -4.742202657667306531e-01, -1.295285837794622141e+00, -1.881322027563492760e+00,
+      -2.082692093657950494e+00, -1.940419540235171603e+00, -1.511008413597929145e+00, -8.956003789833757445e-01,
+      -1.687578221313258409e-01, 5.359218065178924517e-01,  9.919970528666315346e-01,  1.260262585582463846e+00,
+      1.343782241322490245e+00,  1.183353957092918352e+00,  8.382339580124620326e-01,  4.029866037595676298e-01,
+      1.135536725882935472e-01,  5.869987746684678098e-02,  6.163084541150179452e-02,  1.457199816867432544e-02,
+      -1.231539552306697149e-01, -2.359848323791751967e-01, -2.205030920483776746e-01, -9.313017843559566467e-02,
+      -8.827519165220858166e-02, -1.267613114472213587e-01, -9.985223900131810770e-03, 2.375381680969095577e-01,
+      3.792385911043010815e-01,  3.228578206321173205e-01,  2.387692702279881618e-01,  2.510476591105527122e-01,
+      2.180206709417117084e-01,  -3.013711947522528661e-02, -3.869499138443790454e-01, -6.122981087081406093e-01,
+      -6.319654726059141803e-01, -6.479396689383293273e-01, -7.185904880161348984e-01, -6.210617102189838201e-01,
+      -2.049070814464947210e-01, 3.392518291328842639e-01,  7.357846848640706705e-01,  9.876796659454714078e-01,
+      1.259047856168387991e+00,  1.489080505390903086e+00,  1.396944230536462550e+00,  8.875035340004571172e-01,
+      2.163887415926450675e-01,  -3.800154728812719096e-01, -9.531611119833783841e-01, -1.601516861774638700e+00,
+      -2.124042072523784075e+00, -2.201127858925345127e+00, -1.805754396537006201e+00, -1.202809565364706401e+00,
+      -5.472391237384681695e-01, 2.570512756230960427e-01,  1.221293094656357159e+00,  2.043278712963822574e+00,
+      2.398915490668351413e+00,  2.310477520542332464e+00,  2.012941191828379939e+00,  1.527085048070050410e+00,
+      7.533218913102441849e-01,  -2.533427864789731254e-01, -1.166944210792282055e+00, -1.719680948420976518e+00,
+      -1.958159941635327694e+00, -2.033609401020752383e+00, -1.892345858060423103e+00, -1.383842786154750870e+00,
+      -5.995256488034405029e-01, 1.375259602986234342e-01,  6.364289318617047941e-01,  1.049597973983896537e+00,
+      1.350674458664880451e+00,  1.437532750381322222e+00,  1.233692367346445495e+00,  8.456034531491152251e-01,
+      1.467260742316298938e-01,  1.123622900941055325e-01,  -5.657402306607337700e-02, -1.057557238112471903e-01,
+      -6.295177083605282831e-02, -4.464776814485743595e-02, -9.866228491316128557e-02, -1.508522603967922537e-01,
+      -6.124591639689858785e-02, 1.668056972825438800e-01,  2.198902799992258628e-01,  1.735346770311333997e-01,
+      1.543669368623728222e-01,  2.479903525544368270e-01,  2.508892409513964195e-01,  4.415746317429558587e-02,
+      -2.566419500318690150e-01, -3.860285406362509164e-01, -4.385077795744283247e-01, -5.455650372160563144e-01,
+      -7.194165864493482498e-01, -6.919814987446996080e-01, -3.932271443011954304e-01, -1.916367786634825404e-02,
+      2.543158665452901479e-01,  5.362962306259021483e-01,  9.301494974354773682e-01,  1.316753443511357702e+00,
+      1.414038687718725873e+00,  1.202569425983842866e+00,  8.689806557591766012e-01,  5.161383179290985890e-01,
+      4.411968685043276064e-03,  -7.173881381080952080e-01, -1.425111261817489927e+00, -1.831311742363123773e+00,
+      -1.937474037265871640e+00, -1.889854852341761537e+00, -1.695171737706322013e+00, -1.159375062802855183e+00,
+      -3.000537809259007926e-01, 6.151866450149036103e-01,  1.309609932719181247e+00,  1.813242814634357103e+00,
+      2.218736710663839151e+00,  2.409349752238156395e+00,  2.131919718945650466e+00,  1.471173600338621990e+00,
+      6.747505405841823789e-01,  -2.135423953263143951e-02, -7.394436871413290202e-01, -1.470481297711863755e+00,
+      -2.008134008841505835e+00, -2.108552724408489176e+00, -1.866974383838370111e+00, -1.463971343776215184e+00,
+      -1.062583856409258232e+00, -4.528804576639091084e-01, 2.638738743497704986e-01,  8.600976087351883681e-01,
+      1.201019500614485702e+00,  1.306325870313787219e+00,  1.298340598227454956e+00,  1.239492502421928988e+00,
+      3.028411255436088464e-03,  1.197869650068672000e-02,  1.094005712205633196e-01,  4.161638887259306446e-02,
+      -8.574762736806021413e-02, -6.156022851758608666e-02, 7.186336795651582232e-02,  1.465110572446766957e-01,
+      9.272330430872105511e-02,  5.512180259669289401e-02,  8.948498433501747562e-02,  2.124272042617097456e-01,
+      1.802655469612115535e-01,  -4.060206081937024064e-02, -2.296276229577691730e-01, -2.472724972173437341e-01,
+      -2.800315819014573826e-01, -4.801815148332166938e-01, -6.520023102575503993e-01, -6.267062609140928719e-01,
+      -4.120031574709806521e-01, -1.829870682782789026e-01, -4.825200993772560398e-02, 1.849531501132461453e-01,
+      6.151043230767001546e-01,  1.020821009498220189e+00,  1.177580129516455409e+00,  1.133752644735109616e+00,
+      1.077107855558536054e+00,  9.762625382507381655e-01,  6.409098583248109549e-01,  3.216072586947701234e-02,
+      -6.020293971300634261e-01, -1.053596774720969131e+00, -1.385727194206231694e+00, -1.721525846201141130e+00,
+      -1.934550898500656757e+00, -1.796221817022149336e+00, -1.290663183450162288e+00, -6.728599988824979228e-01,
+      -1.011788165144424517e-01, 5.193417073111463722e-01,  1.264039636031914382e+00,  1.906733766342876057e+00,
+      2.161609805423058361e+00,  2.086203981389263884e+00,  1.848918451869991930e+00,  1.499150700336880915e+00,
+      9.535066525350043287e-01,  1.280647677557977537e-01,  -7.070739787578573798e-01, -1.258380759315280484e+00,
+      -1.578292684975801219e+00, -1.829282097597322077e+00, -1.959455522455186616e+00, -1.748901866766265245e+00,
+      -1.269585892234865288e+00, -6.486031512762205908e-01, -1.114546356682864919e-01, 3.292747349790575706e-01,
+      7.699011018435779619e-01,  1.205323951948908512e+00,  1.405573432282957169e+00,  1.270626147412671880e+00,
+      7.703878338784575508e-02,  8.328670371872076705e-02,  8.964832657000576521e-02,  9.755243638104110770e-02,
+      1.072988178521259717e-01,  1.175894779174822546e-01,  1.253619819613369657e-01,  1.260220122476720661e-01,
+      1.141072762629739001e-01,  8.433283180603712292e-02,  3.288183465571936637e-02,  -4.126856281792745662e-02,
+      -1.352430003706726058e-01, -2.416479549938996829e-01, -3.486560233049110780e-01, -4.409238659271715877e-01,
+      -5.013439484087415243e-01, -5.134798602301046122e-01, -4.643876237814310581e-01, -3.474079255984316994e-01,
+      -1.644518708048106070e-01, 7.268551100963493994e-02,  3.423560696067957654e-01,  6.146352965771482157e-01,
+      8.544191770021098975e-01,  1.025762651931504177e+00,  1.096943695474724034e+00,  1.045556718592434819e+00,
+      8.628527938316823409e-01,  5.565765645046996113e-01,  1.517072965686061536e-01,  -3.112197559386404855e-01,
+      -7.801899525359208276e-01, -1.197789971414207733e+00, -1.508558813850797486e+00, -1.666625434326106880e+00,
+      -1.642536441199826225e+00, -1.428228612425967547e+00, -1.039318058075737738e+00, -5.142350309407417441e-01,
+      8.981942908081297361e-02,  7.036487296058009377e-01,  1.254702060668571040e+00,  1.676415010224636237e+00,
+      1.916950671050619004e+00,  1.946104059862946656e+00,  1.759381635529760235e+00,  1.378667621338910187e+00,
+      8.493788212324417941e-01,  2.345142039704910530e-01,  -3.935529485338875588e-01, -9.623812023386317804e-01,
+      -1.408570928148620283e+00, -1.685441345497397325e+00, -1.768275474812050829e+00, -1.656509831104123087e+00,
+      -1.372698677366644082e+00, -9.585414256224105145e-01, -4.686572715043277881e-01, 3.693261579177598009e-02,
+      5.005327104119423609e-01,  8.736685172964291368e-01,  1.122294666938070673e+00,  1.229756184691179310e+00,
+      1.726309009731196442e-01,  1.430555717394552673e-01,  1.448244296758931238e-01,  1.554106942819315773e-01,
+      2.260047553059642556e-01,  2.193449888207139042e-01,  1.140876910464539568e-01,  5.709358199018328001e-02,
+      4.267809541586050498e-02,  -1.124069483956910941e-02, -1.455380431434608046e-01, -2.317759765138503736e-01,
+      -3.460735755986550366e-01, -4.369015657894604332e-01, -4.773969661178912860e-01, -4.684770217894247968e-01,
+      -4.742103851556133121e-01, -4.264949258024777756e-01, -2.677922255544332719e-01, -6.761245426763606847e-02,
+      1.631187046948890662e-01,  3.869188564880423620e-01,  5.990302832795830756e-01,  8.028669469003396619e-01,
+      9.390998624318590560e-01,  1.005696173684265116e+00,  9.504639605478419906e-01,  7.780535180260986783e-01,
+      5.290217240375075791e-01,  2.087874246362421415e-01,  -1.711811561585681873e-01, -5.844746399555035277e-01,
+      -9.532431321335074204e-01, -1.252717372690612452e+00, -1.427683749681106340e+00, -1.486062739646681008e+00,
+      -1.402269785669054469e+00, -1.160141840480132025e+00, -7.654122092833203217e-01, -2.869160824785925157e-01,
+      2.183530104822541673e-01,  7.323962983080670730e-01,  1.178286232220251417e+00,  1.538354930733374593e+00,
+      1.742900496317809189e+00,  1.749576949754955368e+00,  1.573372473320533871e+00,  1.229480790337705631e+00,
+      8.173994879517971768e-01,  3.290973087852758772e-01,  -2.408671277910405528e-01, -7.610963918030260178e-01,
+      -1.167892777475626698e+00, -1.436197342149151845e+00, -1.581888085614167716e+00, -1.512701638107700308e+00,
+      -1.362369346079326693e+00, -1.111767065979217595e+00, -7.144214570701877820e-01, -2.091468727346524337e-01,
+      2.091888708179358847e-01,  5.171919648728799945e-01,  8.144730631522935083e-01,  1.023077902305088216e+00,
+      1.881161805480971172e-01,  2.359710490397077809e-01,  2.150580415294692516e-01,  2.344150430302511523e-01,
+      1.926594747174036337e-01,  1.481402186341032878e-01,  8.203683962513245997e-02,  -5.258755150704496999e-03,
+      -7.769905418511015294e-02, -2.025594106227799618e-01, -3.332452450650434383e-01, -3.510645492577034177e-01,
+      -4.239751250964340357e-01, -4.712830594653529270e-01, -5.213993464760555696e-01, -4.404949476452622026e-01,
+      -3.150187285910792667e-01, -1.874702455461361716e-01, -5.185521692353211448e-02, 1.331771956144575664e-01,
+      3.921407919052110613e-01,  6.254442977404938153e-01,  7.165948518077205343e-01,  8.057693601279675155e-01,
+      8.779678650429114661e-01,  9.065333211798984880e-01,  7.545641325022122148e-01,  4.929139969421373890e-01,
+      2.182451168723386070e-01,  -3.254693864949957660e-02, -3.581571483898192687e-01, -7.278449519031879866e-01,
+      -1.061527565480239410e+00, -1.214970824206470512e+00, -1.275867659122747799e+00, -1.274381980390025593e+00,
+      -1.203873745190214617e+00, -9.451211225442880393e-01, -5.337027719252307456e-01, -8.429182233452817141e-02,
+      2.969997489731258655e-01,  6.993845280569482847e-01,  1.094476334285647612e+00,  1.442432161491944864e+00,
+      1.553823011812375698e+00,  1.508591457666013991e+00,  1.384997334525116974e+00,  1.155277015782768757e+00,
+      7.917914001067103413e-01,  3.239058760686507887e-01,  -1.705339741665028441e-01, -5.581305902874631464e-01,
+      -9.223197970449693583e-01, -1.190412878226028370e+00, -1.414329278227212772e+00, -1.408740857848732819e+00,
+      -1.285714629826386401e+00, -1.095604819771491156e+00, -7.908813975703943289e-01, -4.400411334473687819e-01,
+      -7.720095693434277095e-02, 2.855952692611269383e-01,  5.598792759697388544e-01,  8.184909533996466147e-01,
+      2.736273543021752186e-01,  1.680436987381665748e-01,  2.233395602269365177e-01,  2.512446833159482917e-01,
+      1.663657868570496690e-01,  4.677076204011699351e-02,  -5.582959949554577861e-02, -1.163693045169445078e-01,
+      -1.754915053392157864e-01, -2.868173920594484505e-01, -4.589785020228672185e-01, -4.704399330489481557e-01,
+      -3.904897481210252153e-01, -4.363423967455598573e-01, -4.408960033207887652e-01, -3.166058753382128277e-01,
+      -1.452583237883194323e-01, 3.331742695095382678e-02,  1.706360507272416394e-01,  3.192245312856296646e-01,
+      5.129550139512375484e-01,  7.119145007865759212e-01,  7.709150876698102062e-01,  7.371315741633722718e-01,
+      7.468186825997702449e-01,  6.950974938010141546e-01,  5.081937915463478062e-01,  2.555076320331673423e-01,
+      -1.660055183057786155e-02, -2.718323875504024545e-01, -5.255601006474531767e-01, -8.013370425252260842e-01,
+      -1.021898999220889337e+00, -1.111232694673638832e+00, -1.110408822178643451e+00, -1.065164875023532964e+00,
+      -9.284082209065659397e-01, -6.710414167675055053e-01, -3.276198205776061911e-01, 4.568604461223657598e-02,
+      3.586647989209277299e-01,  6.566323483686988816e-01,  1.011189076605315762e+00,  1.250796398086361894e+00,
+      1.296704640196478353e+00,  1.268709707245692542e+00,  1.189440135253847286e+00,  1.018914442371484874e+00,
+      7.091944518973579692e-01,  3.234813112441642380e-01,  -7.559391924824936104e-02, -3.771037195581692369e-01,
+      -6.380602485179993622e-01, -9.960722010582592212e-01, -1.206861603838810248e+00, -1.182183404867649168e+00,
+      -1.132777980764397396e+00, -1.046786330971882339e+00, -8.774210666052706387e-01, -5.983529279390236155e-01,
+      -2.543623487536421646e-01, 7.944545744965257617e-02,  2.999919524952535665e-01,  4.702522674378065703e-01,
+      2.897149595283884382e-01,  1.533069401671905141e-01,  9.600327719960310979e-02,  2.067554326643253892e-01,
+      1.459231900630888479e-01,  -8.477993157657867651e-02, -2.305667029280785707e-01, -1.867680675863448436e-01,
+      -1.870370726892342239e-01, -3.358214513429326753e-01, -4.881436916938916015e-01, -4.573535614570060637e-01,
+      -3.141992331736871980e-01, -3.245885330649925238e-01, -3.194886082104057556e-01, -1.821179012439004263e-01,
+      4.112269846750674085e-02,  2.020967994375577614e-01,  2.592079507606143141e-01,  3.815713138259901327e-01,
+      5.863790042747188958e-01,  7.206486123266985233e-01,  6.890296547366029367e-01,  6.299441288831169050e-01,
+      5.773587754529514449e-01,  5.041034000340586241e-01,  3.290399297308453930e-01,  4.920234650940384646e-02,
+      -1.783499854726365297e-01, -3.740781429115180301e-01, -5.816017159789339530e-01, -8.007545082678807491e-01,
+      -9.644905759825412872e-01, -9.931632007610342594e-01, -9.441474129077135347e-01, -8.648708557702422528e-01,
+      -7.404851892495842858e-01, -5.184319926152773927e-01, -1.764781195363510080e-01, 1.222874961517503994e-01,
+      3.682607212240895933e-01,  6.246464704138199320e-01,  8.974326584310664545e-01,  1.130300174993894124e+00,
+      1.162911762943819260e+00,  1.072988216651206361e+00,  1.001236335979882597e+00,  9.246491922327110258e-01,
+      6.753060515138049613e-01,  3.032983386183236152e-01,  -2.903095545257759758e-02, -2.567378820919261062e-01,
+      -4.759796238237690158e-01, -8.349293543345818192e-01, -1.047037514265016345e+00, -1.026079659200134664e+00,
+      -9.483577511135131699e-01, -9.544745466890556251e-01, -9.416131010177876126e-01, -6.829579215834233885e-01,
+      -2.954012829118684014e-01, -4.925442598794700644e-02, 3.689625781468347521e-02,  2.859066092899030243e-01,
+      2.509818586430216936e-01,  1.842599822864128545e-01,  5.651273913449596231e-02,  -1.136641092142118455e-03,
+      5.314039190335323459e-03,  -5.133954982175892995e-02, -2.011193697726740004e-01, -3.174537527965924366e-01,
+      -3.157261584582995440e-01, -2.829729554081275578e-01, -3.218251337568452386e-01, -3.802620122384016144e-01,
+      -3.868563634301446230e-01, -1.853754564893856371e-01, 3.019633715274166151e-03,  2.206810844558627568e-02,
+      1.950148959117479694e-02,  1.910780327080033314e-01,  4.440265778800091545e-01,  5.369158890532397255e-01,
+      4.654642690150756490e-01,  4.572332400363430249e-01,  5.845159206629798598e-01,  6.358210686041558812e-01,
+      4.591512900508898376e-01,  2.107476008490490327e-01,  9.932922252132257712e-02,  4.954995807852673184e-02,
+      -1.585303333742181520e-01, -5.046588662981835727e-01, -7.354688041374819463e-01, -7.540548776077706794e-01,
+      -7.525147973414769709e-01, -8.625856682354984262e-01, -9.366704622132667746e-01, -7.693273290009360332e-01,
+      -4.485811357371958241e-01, -2.244080122899938523e-01, -1.191776030106372897e-01, 8.031114532015962149e-02,
+      4.394963687827080356e-01,  7.381877338478749495e-01,  8.085047947489780729e-01,  7.916076862471849163e-01,
+      8.894752024080258002e-01,  1.021839698763748139e+00,  9.548290408460443635e-01,  6.883247614053178420e-01,
+      4.617411489203375186e-01,  3.688695796412180816e-01,  2.186529354784229606e-01,  -1.279051902042792344e-01,
+      -5.019882046397190489e-01, -6.672869016827609467e-01, -7.636707182644285608e-01, -8.455659437032555514e-01,
+      -9.542446742725352316e-01, -9.742078310896505888e-01, -8.236924725065022379e-01, -5.926992100281092135e-01,
+      -4.141012032456360958e-01, -2.693968391445499266e-01, -4.939591508416577709e-02, 2.344653737002040106e-01,
+      4.747643560646129524e-02,  3.477437005883472071e-02,  8.383377199071352648e-02,  2.510664306526687317e-02,
+      -1.424049599175457037e-01, -2.425100086212893802e-01, -2.191072898867240937e-01, -1.621254648258393105e-01,
+      -2.317547090250825781e-01, -3.484169006555289383e-01, -3.233139514783892055e-01, -1.678572618693576768e-01,
+      -7.480186723515618030e-02, -1.023509999167394463e-01, -8.315169525566028230e-02, 9.178223123668298455e-02,
+      3.334270582375974401e-01,  3.261153112364972850e-01,  2.314975640036733562e-01,  3.243769602133048102e-01,
+      5.394556893333580794e-01,  5.706966121201653142e-01,  3.703695707245379110e-01,  2.236017036453251394e-01,
+      2.757925567792656740e-01,  2.944309327214336136e-01,  5.930251702751001414e-02,  -2.994540899938952783e-01,
+      -3.778807741670948683e-01, -3.092395987584689032e-01, -4.372995022152535438e-01, -7.470079700466597528e-01,
+      -8.715798957235488809e-01, -6.839368804200198770e-01, -4.966010954918945175e-01, -5.408283491192638071e-01,
+      -5.864049339774849434e-01, -3.304572844981776836e-01, 1.052639200425978944e-01,  2.687805404964021538e-01,
+      2.629424369697350716e-01,  4.256023879186502379e-01,  7.833394270948978999e-01,  9.846800821697564432e-01,
+      8.617712492654249212e-01,  6.939977261290004584e-01,  7.392589621328143901e-01,  8.083847517913232972e-01,
+      5.783840437009357682e-01,  2.127551501857655736e-01,  -4.793296271213072501e-02, -1.220412997945457823e-01,
+      -2.365938049537476828e-01, -5.264883330399160455e-01, -7.888880972046899975e-01, -8.004892269206252964e-01,
+      -6.745383632631807291e-01, -6.681505960100158070e-01, -7.583360021929064221e-01, -6.830699694661372945e-01,
+      -4.249440263026483255e-01, -1.741563878612986394e-01, -9.063693653494860059e-02, -4.356107008774551259e-02,
+      7.321808039794695799e-02,  2.380901590695183936e-02,  -2.751142583131200095e-02, -1.332714855350916883e-01,
+      -1.220768121956060243e-01, -1.010897484693604326e-01, -1.742404111534891775e-01, -2.778977990730032155e-01,
+      -2.528027643808485325e-01, -1.569866962648459041e-01, -1.263980574741991880e-01, -1.639125361734175279e-01,
+      -7.521477922673232286e-02, 2.830540153179601087e-02,  1.021948489754357786e-01,  1.509635700791882307e-01,
+      2.782970795799216690e-01,  3.205458107648209154e-01,  3.267870750510250555e-01,  3.559675171941669714e-01,
+      3.982850050050637525e-01,  3.857052236671436041e-01,  2.887148808624919738e-01,  1.702717015093893616e-01,
+      9.885411377424634105e-02,  6.165864427309489942e-03,  -1.090077400931198093e-01, -2.392838469261402978e-01,
+      -3.674935411065574087e-01, -4.547403510769028046e-01, -5.327566277689934626e-01, -5.544568064090868997e-01,
+      -5.494122548752417012e-01, -5.399434152245331520e-01, -5.012541115533053482e-01, -4.016977491261139455e-01,
+      -2.872999445625856185e-01, -1.252422896180991618e-01, 4.474198222056428864e-02,  2.031668417837795559e-01,
+      3.393961750204066985e-01,  4.506434540818844425e-01,  6.013915373286873312e-01,  7.186998147929229974e-01,
+      7.355562581824524049e-01,  6.790268700173530680e-01,  6.157986942013415899e-01,  5.562548243436666873e-01,
+      4.437258919518201061e-01,  2.334736128146131795e-01,  9.466314539955893170e-02,  -7.200144873716969596e-02,
+      -2.650692583487521126e-01, -4.341907718079499601e-01, -4.629900707917616876e-01, -5.433310589367671417e-01,
+      -6.695570584036687478e-01, -7.040140540669374003e-01, -5.883143874410380336e-01, -4.825279064469844004e-01,
+      -4.516040397823052888e-01, -3.940371670920473912e-01, -2.064065009288035268e-01, -6.488992968728242439e-02,
+      -6.723420182669906896e-03, 1.832894567485181953e-02,  -7.856005883318716021e-02, -1.057681122832552223e-01,
+      -9.126664412895567347e-02, -1.443881669649202948e-01, -1.576865280240225542e-01, -1.479678724789767197e-01,
+      -1.274994770780365494e-01, -1.107232489558259425e-01, -9.841101505382197911e-02, -9.528384056423406731e-03,
+      3.371672364678073019e-02,  4.793749894056247018e-02,  1.636084266298088175e-01,  2.071562964673385465e-01,
+      2.110205428463668709e-01,  2.942100468118016288e-01,  3.025490468956293921e-01,  2.794320653584481673e-01,
+      2.843249922510974748e-01,  2.361433444581998997e-01,  1.794633482104236455e-01,  1.005233736377470904e-01,
+      8.107782630280937694e-03,  -6.745656597887597639e-02, -1.892710177319704423e-01, -2.794949566663201268e-01,
+      -3.400986883734262722e-01, -4.376186429877271800e-01, -4.678532206752753497e-01, -4.776929896004197262e-01,
+      -4.946744722450769904e-01, -4.309195492326619026e-01, -3.751497235098402716e-01, -2.993086221432724181e-01,
+      -1.576471299366999368e-01, -5.571691281052375266e-02, 7.249951674350330055e-02,  2.271207958933705584e-01,
+      3.283795408454601161e-01,  4.378203033463570204e-01,  5.232948653502461633e-01,  5.746071637164829049e-01,
+      6.040901192152554611e-01,  5.669110083949433498e-01,  5.447760093545850335e-01,  4.783217079111895531e-01,
+      3.265325075995235693e-01,  2.468403568114483360e-01,  1.222868796628895638e-01,  -7.507787219825361180e-02,
+      -1.669353199274775656e-01, -2.808275410569823771e-01, -4.289033062631600890e-01, -4.851604569562498193e-01,
+      -5.286966581012793043e-01, -5.568118850092828032e-01, -5.544536837582648703e-01, -5.097590083130195682e-01,
+      -4.077767743112116205e-01, -3.590563433767017254e-01, -2.568323280183899548e-01, -7.788508658903724180e-02,
+      -3.147893611747956677e-02, -1.493939023593335302e-02, -8.957617314333463088e-02, -8.532724167945135441e-02,
+      -1.069942061709636127e-01, -6.934961057683493302e-02, -9.247737017713857088e-02, -8.893000492760837206e-02,
+      -6.272674499776025037e-02, -1.711920029910489471e-02, 3.549111306146712774e-03,  5.417880934428492834e-02,
+      6.819032336480047862e-02,  1.430846789212276982e-01,  1.496306681501724523e-01,  2.181052531363233959e-01,
+      2.008594293907250972e-01,  2.510225025894266548e-01,  2.194803840061405886e-01,  1.887405184033458250e-01,
+      2.088688428589401125e-01,  1.629203158968475784e-01,  6.446171621021457021e-02,  -4.796180651504833303e-02,
+      -8.800510913151426973e-02, -1.212319563046126980e-01, -2.293783881073599429e-01, -3.254694893989787396e-01,
+      -3.561472995581365097e-01, -3.667528746097366010e-01, -3.692183528963707828e-01, -4.012187958874691152e-01,
+      -3.483829577362937413e-01, -3.372862309570864858e-01, -2.430309517111126083e-01, -1.823221664635843453e-01,
+      -1.180950283910139897e-01, -4.029224368235023723e-02, 9.592598287373632626e-02,  2.356617310797001763e-01,
+      2.904366848241204946e-01,  3.409681327383979887e-01,  4.511291562494007534e-01,  5.333548138259963656e-01,
+      5.484131866558092927e-01,  4.820861419893971433e-01,  4.527982958003512470e-01,  4.117483617150968778e-01,
+      2.806440323263878489e-01,  2.135702100322256491e-01,  6.157222100494019745e-02,  -2.231975351354664738e-02,
+      -1.651443676159378149e-01, -2.340084505865142050e-01, -3.256219537067972514e-01, -3.724334694397651857e-01,
+      -4.303643056660655386e-01, -4.557463134637371183e-01, -4.462847237649191778e-01, -3.988352393924288197e-01,
+      -4.015690422998912101e-01, -3.344401174497665941e-01, -2.838747384989886990e-01, -1.454873151899249706e-01,
+      -4.881034931394508114e-02, -4.639136921804250246e-02, 2.614479227252786836e-02,  -4.835579329511428132e-02,
+      -8.142036908175281917e-02, -8.934639055148757558e-02, 4.495389028957229652e-03,  1.937715893356594873e-02,
+      -2.025761077642181454e-02, -1.801581939901750196e-02, 5.117343475582251944e-02,  1.541522625168581517e-01,
+      1.219024258914298692e-01,  1.205056874557008939e-01,  1.815896943021886867e-01,  1.875034858657960712e-01,
+      2.088911846734999023e-01,  1.524734281138133696e-01,  1.769489064978926052e-01,  1.247974616724564778e-01,
+      1.128496870247042844e-01,  2.678146930839691089e-02,  -1.640259198955761749e-02, -7.712046404598811578e-02,
+      -1.293410853907396296e-01, -1.967276747535141590e-01, -2.613412005831962093e-01, -2.995398836237181950e-01,
+      -3.049667856904977881e-01, -3.542379613117136450e-01, -3.236524240698330779e-01, -3.384593457863483423e-01,
+      -2.673837264478722275e-01, -2.628894136563670880e-01, -1.737884990662244555e-01, -1.332742711185166684e-01,
+      -1.857037192545481219e-02, 4.316050128359554677e-02,  1.256497159895860749e-01,  2.190137103786391481e-01,
+      2.981507536006987036e-01,  3.448408163078662270e-01,  3.839967471487597539e-01,  3.918710210983397113e-01,
+      4.316802427871671011e-01,  3.887578933874620835e-01,  3.797495017380336790e-01,  2.889201142941014155e-01,
+      2.756094017889403891e-01,  1.817352134672862440e-01,  1.037543616201775792e-01,  -2.714731836587163175e-02,
+      -8.894697266669827906e-02, -1.109766168558555255e-01, -2.572937754549015632e-01, -3.566798126063410179e-01,
+      -3.758079108009848568e-01, -3.397975188815649528e-01, -3.460012688631161626e-01, -4.198891970979794497e-01,
+      -3.813563018558220885e-01, -3.081603885179572955e-01, -1.841531151297598479e-01, -1.998062468078471987e-01,
+      3.520232519816158395e-02,  -1.236331976474966260e-01, -4.413314408414584916e-02, 4.925063647417166762e-02,
+      2.886596799855360718e-02,  -6.947034512318209926e-03, -4.228782735678940363e-02, 4.369477759537340050e-02,
+      1.112502685141738418e-01,  1.001667238730192949e-01,  4.713828426606734429e-02,  1.032757246128547385e-01,
+      2.167497892472332321e-01,  1.639119539454443886e-01,  1.195388240450297179e-01,  7.173704731601088236e-02,
+      1.769646234627801351e-01,  2.281169414828164987e-01,  2.164948435048865902e-02,  -5.773780223404040984e-02,
+      5.242202674552712272e-02,  5.142686227240435282e-02,  -5.954388986444959092e-02, -1.775850389382033212e-01,
+      -1.962284649742421505e-01, -1.352335773788961581e-01, -1.493747765049948106e-01, -2.945996403491220050e-01,
+      -3.970552780597992881e-01, -2.708547192461389086e-01, -2.073203011434522069e-01, -3.181227731891986821e-01,
+      -3.140129928122266101e-01, -2.358988534790014413e-01, -4.611781580196704783e-02, -3.720715297066544414e-02,
+      -9.952231672320929756e-02, 5.561044082952244089e-02,  2.402577471478319071e-01,  2.797127776370690877e-01,
+      2.291536686794735656e-01,  2.435644087513559874e-01,  3.434889569828610822e-01,  4.242451832603476025e-01,
+      3.842336482472631931e-01,  2.237256738238149467e-01,  2.459507794445477957e-01,  3.892373036010145504e-01,
+      2.699150230803641359e-01,  9.410028756940437555e-02,  6.972802472595349133e-02,  4.202505302228336237e-02,
+      2.625742229828981894e-02,  -1.498566681499978459e-01, -2.588159376254779986e-01, -2.463271191971313778e-01,
+      -2.611299087312873857e-01, -3.381590108506488113e-01, -4.167773001284572065e-01, -3.578248443496963582e-01,
+      -2.844650483427195731e-01, -2.150746399221543093e-01, -2.526019753388205058e-01, -2.722275873343588670e-01,
+      3.218458606854036202e-02,  -8.951352999798896370e-02, 1.750054189622553269e-02,  1.024666591977734659e-01,
+      6.334713275705762536e-02,  -8.487682845267272708e-03, 7.467677576962440666e-02,  1.380814437605556444e-01,
+      1.154968293717406197e-01,  6.525138328771483420e-02,  8.451822311162648926e-02,  1.472811279624131608e-01,
+      1.763438975075016235e-01,  8.684779311590065665e-02,  6.470017882107796658e-02,  1.514146907832754074e-01,
+      1.229020190454302025e-01,  8.059643148047028471e-02,  3.287543742598308949e-02,  2.114917183718285562e-02,
+      -5.520569490555778808e-02, -6.544058396385245280e-02, -7.299782782972116801e-02, -1.730931277942356628e-01,
+      -2.264789974030037845e-01, -1.949332486117194285e-01, -2.008187787560014870e-01, -2.787734550601250194e-01,
+      -2.900980461043506931e-01, -2.615542932709719048e-01, -2.102954480207508414e-01, -2.357391303832436225e-01,
+      -2.079452777000126429e-01, -1.557327308772371299e-01, -5.396474206309315874e-02, -3.475940777064515097e-02,
+      -4.632703348813570752e-04, 6.389308095540653654e-02,  1.831881627150858671e-01,  2.179179652102991582e-01,
+      2.020063470830844310e-01,  2.567668791983893084e-01,  3.434972116810321441e-01,  3.229050023209693032e-01,
+      2.919723475865938500e-01,  3.156223065330357458e-01,  2.652150710232154540e-01,  2.456473578695576310e-01,
+      2.185192878415106177e-01,  1.773707190098244568e-01,  2.205193929061282504e-02,  -2.070411452615782133e-02,
+      8.344753492403805123e-03,  -7.627015013834255452e-02, -1.875730914118262926e-01, -2.466178841680749523e-01,
+      -2.255453193839996318e-01, -2.196030332419116882e-01, -2.858439599188513647e-01, -3.573594848304572635e-01,
+      -2.598841445989664711e-01, -1.839935206870050577e-01, -2.234700742909233318e-01, -2.784454281941622367e-01,
+      6.745271665576166309e-02,  -1.179619195913448049e-01, -5.368820936908742791e-02, 2.514882822603049517e-01,
+      2.202429136992057612e-01,  -5.479308301707361273e-02, -9.458999145925801877e-02, 1.898722104786342291e-01,
+      3.676511716021294007e-01,  1.153441379386542509e-01,  -1.212049748928953341e-01, 5.604307569624749491e-02,
+      3.553990316379467829e-01,  2.327796851794284028e-01,  -9.190967321827155090e-02, -9.107047890801112100e-02,
+      2.083160714819293213e-01,  2.775789143693890848e-01,  -1.096528459174175435e-01, -2.849446862276554526e-01,
+      -2.353935163970034133e-02, 1.774639126699177061e-01,  -1.332750200958857656e-01, -4.481135896599743873e-01,
+      -2.952803668520708191e-01, 7.541037369351690292e-04,  -9.084400395694865182e-02, -4.478386952524024966e-01,
+      -4.832015065785014163e-01, -8.631483353867601405e-02, 7.363086510868833978e-02,  -2.290374422636484442e-01,
+      -4.106894060561265269e-01, -1.508877852866644109e-01, 2.282685511545913259e-01,  1.403016730876339713e-01,
+      -1.913979112366274438e-01, -1.010740486733938126e-01, 2.983696210801613513e-01,  4.180404988697420388e-01,
+      1.347714708154428287e-01,  -2.062042517153607479e-02, 2.768375673851934393e-01,  5.569266068834646255e-01,
+      3.138701490900753233e-01,  2.398661862723603343e-03,  1.214728779133942560e-01,  4.476920143829548060e-01,
+      3.137022019550284035e-01,  -5.108653613810573008e-02, -1.166404717501257349e-01, 1.455806446218592953e-01,
+      2.099099344896189767e-01,  -1.420163566625512186e-01, -3.637013598028356887e-01, -1.626057590592031865e-01,
+      6.359949985389677651e-02,  -1.305006265652049191e-01, -4.215578170826986271e-01, -3.794207956290854833e-01,
+      -9.322537867894475916e-02, -4.192309441730865394e-02, -3.175618585109141190e-01, -3.425346573356718438e-01,
+      8.645565026673478551e-03,  1.512376474440250973e-01,  1.458918039304007153e-01,  2.726883843379072567e-02,
+      8.299970907243818530e-02,  1.564608413936748599e-01,  1.592333130186406598e-01,  1.067459126011479076e-01,
+      8.339621880207062632e-02,  1.501077289245447699e-01,  1.994768983339336443e-01,  1.450767914911553214e-01,
+      3.099751724389636018e-02,  5.192467408992620242e-02,  1.415345293116217484e-01,  1.188371884138934576e-01,
+      -2.641360591396722107e-02, -8.677789293168254592e-02, -8.798364527554451003e-03, 2.839843965419402289e-02,
+      -1.584068576097380776e-01, -2.342469712274244664e-01, -1.425544937548147706e-01, -9.323281730515980970e-02,
+      -1.805475220414123061e-01, -3.184891912456469520e-01, -2.978850118331576313e-01, -1.681613055544497470e-01,
+      -1.090560745386705555e-01, -1.994741466137849861e-01, -2.659337483553795844e-01, -1.192657226468444298e-01,
+      -3.378293840709086643e-03, -6.829444568499420942e-02, -1.600791627699673092e-01, -3.382756710068388073e-02,
+      1.202917271004480121e-01,  1.247138511018138496e-01,  5.199308095974266436e-02,  7.530920049185378662e-02,
+      2.397735004136512527e-01,  3.344341737505284740e-01,  2.739026097771503632e-01,  1.560677124957531858e-01,
+      1.951729758107156043e-01,  3.377457264450920982e-01,  2.502103850347778269e-01,  1.174659774881786356e-01,
+      1.176484618429071843e-01,  1.966751605866033925e-01,  1.482841170495079464e-01,  -1.425685649707205023e-02,
+      -1.052625018576391902e-01, -5.322291849506893824e-02, -4.845684365737801952e-02, -1.320829206282782831e-01,
+      -2.180858461881967914e-01, -2.016302383570082735e-01, -1.469466244754474016e-01, -1.418765338233266282e-01,
+      -2.039267499901066261e-01, -2.444758186495680496e-01, -1.050980633539001924e-01, -7.307108491904883152e-02,
     };
 
     {
@@ -2289,8 +2751,8 @@ void test_cwt() {
         auto r        = cwt<double>(data, scales, psi, x);
         assert(r.size() == expected.size());
         for (size_t i = 0; i < r.size(); i++) {
-            auto diff = std::abs(r[i] - expected[i]);
-            assert(diff < 1e-9);
+            double diff = std::abs(r[i] - expected[i]);
+            assert(diff < 1e-14);
         }
     }
 
@@ -2299,8 +2761,8 @@ void test_cwt() {
         auto r        = cwt<float>(data, scales, psi, x);
         assert(r.size() == expected.size());
         for (size_t i = 0; i < r.size(); i++) {
-            auto diff = std::abs(r[i] - expected[i]);
-            assert(diff < 1e-4);
+            double diff = std::abs(static_cast<double>(r[i]) - expected[i]);
+            assert(diff < 1e-5);
         }
     }
 }

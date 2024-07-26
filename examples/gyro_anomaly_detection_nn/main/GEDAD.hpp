@@ -127,8 +127,8 @@ template <typename DataType = float, size_t Channels = 3u> class GEDADNN final :
     explicit GEDADNN(size_t   buffer_size,
                      size_t   tensor_arena_size,
                      void*    model_data,
-                     DataType nyquist_rate    = 6667.0 / 2.0,
-                     DataType cutoff_freq     = 160.0,
+                     DataType nyquist_rate    = 200.0 / 2.0,
+                     DataType cutoff_freq     = 10.0,
                      size_t   num_taps        = 200,
                      size_t   mtf_bins        = 64,
                      DataType cwt_scale_start = 9.0,
@@ -238,11 +238,13 @@ template <typename DataType = float, size_t Channels = 3u> class GEDADNN final :
     }
 
     decltype(auto) predict(size_t                           view_size,
-                           bool                             rescale         = true,
+                           bool                             rescale         = false,
                            DataType                         rescale_squeeze = 0.02,
                            DataType                         rescale_expand  = 50.0,
-                           const array<DataType, Channels>& cwt_std         = {1.0, 1.0, 1.0},
-                           const array<DataType, Channels>& cwt_mean        = {0.0, 0.0, 0.0}) {
+                           const array<DataType, Channels>& cwt_std         = {0.5408972 * 100.0,
+                                                                               1.3549063 * 100.0,
+                                                                               1.9004489 * 100.0},
+                           const array<DataType, Channels>& cwt_mean        = {-0.02590827, 0.16317472, -0.25089505}) {
         assert(view_size <= this->_buffer_size);
         assert(view_size > 0);
 

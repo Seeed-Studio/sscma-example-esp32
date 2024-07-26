@@ -20,7 +20,7 @@
 #define GEDAD_YIELD_DELAY_MS     5
 
 #define GYRO_BUFFER_SIZE         6144
-#define GYRO_VIEW_SIZE           4096
+#define GYRO_VIEW_SIZE           1024
 #define GYRO_SAMPLE_SIZE_MIN     2048
 #define GYRO_SAMPLE_MODE         0
 
@@ -107,7 +107,7 @@ static void gedadPredictTask(void*) {
         std::cout << "Predict time: " << duration_ms << "ms" << std::endl;
         std::cout << "Sampled: " << sample_count_diff << " (" << gyroSampleCount << ")" << std::endl;
         std::cout << "Data skipped: " << (has_data_skipped ? "yes" : "no") << std::endl;
-        std::cout << "Coverage: " << 1.0 - (float(sample_count_diff) / float(GYRO_VIEW_SIZE)) << std::endl;
+        std::cout << "Coverage: " << 1.0f - (float(sample_count_diff) / float(GYRO_VIEW_SIZE)) << std::endl;
 
         int32_t delay = GYRO_SAMPLE_DELAY_MS - duration_ms;
         if (delay > 0) {

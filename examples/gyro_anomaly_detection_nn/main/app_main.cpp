@@ -21,10 +21,10 @@
 
 #define GYRO_BUFFER_SIZE         6144
 #define GYRO_VIEW_SIZE           1024
-#define GYRO_SAMPLE_SIZE_MIN     2048
-#define GYRO_SAMPLE_MODE         0
+#define GYRO_SAMPLE_SIZE_MIN     512
+#define GYRO_SAMPLE_MODE         1
 
-#define TFLITE_TENSOR_ARENA_SIZE (512 * 1024)
+#define TFLITE_TENSOR_ARENA_SIZE (1024 * 1024)
 
 #define DEBUG                    3
 
@@ -93,6 +93,10 @@ static void gedadPredictTask(void*) {
     static int32_t sample_count_diff = 0;
 
     while (true) {
+        // while (gyroSampleCount % GYRO_VIEW_SIZE != 0) {
+        //     vTaskDelay(pdMS_TO_TICKS(GEDAD_YIELD_DELAY_MS));
+        // }
+
         start                       = std::chrono::high_resolution_clock::now();
         sample_count_diff           = gyroSampleCount - last_sample_count;
         last_sample_count           = gyroSampleCount;
@@ -101,6 +105,7 @@ static void gedadPredictTask(void*) {
         const bool has_data_skipped = sample_count_diff > GYRO_VIEW_SIZE;
 
         gedad->printPerf();
+        gedad->printTFPerf();
 
         std::cout << "Predict results: " << l1 << " " << l2 << std::endl;
         auto duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();

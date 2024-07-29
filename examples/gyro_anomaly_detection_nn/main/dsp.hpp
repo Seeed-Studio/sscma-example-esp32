@@ -347,7 +347,6 @@ void lfilter(lfilter_ctx_t<T>&  ctx,
     auto&      y  = ctx.result;
     if (y.size() != nx) [[unlikely]] {
         y.resize(nx);
-        std::fill(y.begin(), y.end(), static_cast<T>(0.0));
     }
 
     {
@@ -363,7 +362,7 @@ void lfilter(lfilter_ctx_t<T>&  ctx,
             for (size_t j = 0; j < nn_end; ++j) {
                 sum += static_cast<T>(numerators[j] * x[i - j]);
             }
-            y_i += sum;
+            y_i = sum;
             for (size_t j = 1; j < nd_end; ++j) {
                 y_i -= denominators[j] * y[i - j];
             }
@@ -550,9 +549,10 @@ constexpr inline decltype(auto) norm_ppf(T q, T std = 1.0, T mean = 0.0) {
 
 // MARK: Markov Transition Field
 template <typename T = double> struct mtf_ctx_t {
-    std::vector<T>      bins;
-    std::vector<size_t> digitize;
-    std::vector<T>      transition_matrix;
+    minmax_scale_ctx_t<T> minmax_ctx;
+    std::vector<T>        bins;
+    std::vector<size_t>   digitize;
+    std::vector<T>        transition_matrix;
 
     std::vector<T>      result;
     std::vector<size_t> shape;
@@ -566,46 +566,51 @@ template <typename T = double,
                              has_contained_type_nothrow_convertible_to_v<Container, T>,
                            bool> = true>
 void mtf(mtf_ctx_t<T>& ctx, const Container& x, size_t n_bins = 16) {
-    ENSURE_TRUE(n_bins > 1);
-    const auto bins_size = n_bins - 1;
-    auto&      bins      = ctx.bins;
-    if (bins.size() != bins_size) [[unlikely]] {
-        bins.resize(bins_size);
-        const auto space = static_cast<P>(n_bins);
-        for (size_t i = 1; i < n_bins; ++i) {
-            const auto v = static_cast<T>(static_cast<P>(i) * static_cast<P>(1.0) / space);
-            bins[i - 1]  = norm_ppf<T>(v);
+    auto& ctx_minmax_ctx = ctx.minmax_ctx;
+    minmax_scale<T>(ctx_minmax_ctx, x, static_cast<T>(0.0), static_cast<T>(1.0));
+    const auto& norm = ctx_minmax_ctx.result;
+
+    auto& bins = ctx.bins;
+    if (bins.size() != n_bins) [[unlikely]] {
+        bins.resize(n_bins);
+        auto space = static_cast<P>(n_bins) - static_cast<P>(1.0);
+        if (std::abs(space) < static_cast<P>(EPS)) [[unlikely]] {
+            space = EPS;
         }
+        std::generate(bins.begin(), bins.end(), [space, n = 0]() mutable {
+            return static_cast<T>(n++) * static_cast<T>(1.0) / static_cast<T>(space);
+        });
     }
 
     auto&      digitize = ctx.digitize;
-    const auto n_x      = x.size();
-    if (digitize.size() != n_x) [[unlikely]] {
-        digitize.resize(n_x);
+    const auto ns       = norm.size();
+    if (digitize.size() != ns) [[unlikely]] {
+        digitize.resize(ns);
     }
+
     {
-        ENSURE_TRUE(digitize.size() == n_x);
-        ENSURE_TRUE(bins.size() == bins_size);
-        for (size_t i = 0; i < n_x; ++i) {
-            const auto x_i = x[i];
-            auto       idx = bins_size;
-            for (size_t j = 0; j < bins_size; ++j) {
-                if (static_cast<T>(x_i) <= static_cast<T>(bins[j])) {
+        ENSURE_TRUE(digitize.size() == ns);
+        ENSURE_TRUE(bins.size() == n_bins);
+        for (size_t i = 0; i < ns; ++i) {
+            const auto ni  = norm[i];
+            auto       idx = n_bins - 1;
+            for (size_t j = 0; j < n_bins; ++j) {
+                if (ni < bins[j]) {
                     idx = j;
                     break;
                 }
             }
-            digitize[i] = idx != 0 ? idx - 1 : bins_size;
+            digitize[i] = idx >= 1 ? idx - 1 : idx;
         }
     }
 
-    const auto n_tm              = n_bins * n_bins;
+    const auto ntm               = n_bins * n_bins;
     auto&      transition_matrix = ctx.transition_matrix;
-    if (transition_matrix.size() != n_tm) [[unlikely]] {
-        transition_matrix.resize(n_tm);
-        std::fill(transition_matrix.begin(), transition_matrix.end(), static_cast<T>(0.0));
+    if (transition_matrix.size() != ntm) [[unlikely]] {
+        transition_matrix.resize(ntm);   
     }
     {
+        std::fill(transition_matrix.begin(), transition_matrix.end(), static_cast<T>(0.0));
         const size_t start = 1;
         const size_t end   = digitize.size();
         for (size_t p = start; p < end; ++p) {
@@ -617,7 +622,7 @@ void mtf(mtf_ctx_t<T>& ctx, const Container& x, size_t n_bins = 16) {
     {
         const auto stride = n_bins;
         const auto size   = transition_matrix.size();
-        ENSURE_TRUE(size == n_tm);
+        ENSURE_TRUE(size == ntm);
         for (size_t i = 0; i < size; i += stride) {
             T sum = 0.0;
             for (size_t j = 0; j < stride; ++j) {
@@ -632,18 +637,17 @@ void mtf(mtf_ctx_t<T>& ctx, const Container& x, size_t n_bins = 16) {
         }
     }
 
+    auto&      y     = ctx.result;
+    auto&      shape = ctx.shape;
+    const auto cols  = ns;
+    const auto rows  = ns;
+    const auto ny    = cols * rows;
+    if (y.size() != ny) [[unlikely]] {
+        y.resize(ny);
+        shape = {cols, rows};
+    }
     {
-        auto&      y     = ctx.result;
-        auto&      shape = ctx.shape;
-        const auto cols  = n_x;
-        const auto rows  = n_x;
-        const auto n_y   = cols * rows;
-        if (y.size() != n_y) [[unlikely]] {
-            y.resize(n_y);
-            shape = {cols, rows};
-        }
-
-        ENSURE_TRUE(y.size() == n_y);
+        ENSURE_TRUE(y.size() == ny);
         for (size_t i = 0; i < cols; ++i) {
             const auto i_mul_cols = i * cols;
             const auto digitize_i = digitize[i];
@@ -653,12 +657,6 @@ void mtf(mtf_ctx_t<T>& ctx, const Container& x, size_t n_bins = 16) {
                 y[idx]         = transition_matrix[(digitize_i * n_bins) + digitize[j]];
             }
         }
-
-        // size_t i = 0;
-        // for (const auto& v : ctx.result) {
-        //     std::cout << v << "\t";
-        //     if (++i % 20 == 0) std::cout << "\n";
-        // }
     }
 }
 

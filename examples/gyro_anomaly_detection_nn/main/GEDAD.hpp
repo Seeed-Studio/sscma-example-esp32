@@ -31,6 +31,7 @@
 
 // #define AD_DEBUG
 #define AD_PERF
+// #define TF_PERF
 
 #ifdef AD_PERF
     #define AD_PERF_TIME_MS(records, name, func)                                              \
@@ -136,6 +137,7 @@ template <typename DataType = float, size_t Channels = 3u> class GEDADNN final :
         : GEDAD<DataType, Channels>(buffer_size) {
         {
             _op_resolver  = nullptr;
+            _profiler     = nullptr;
             _interpreter  = nullptr;
             _tensor_arena = nullptr;
 
@@ -269,6 +271,19 @@ template <typename DataType = float, size_t Channels = 3u> class GEDADNN final :
 #endif
     }
 
+    void printTFPerf() const {
+        cout << "GEDADNN TF Perf:" << endl;
+#ifdef TF_PERF
+        if (_profiler != nullptr) [[likely]] {
+            _profiler->Log();
+        } else {
+            cout << "  profiler not enabled" << endl;
+        }
+#else
+        cout << "  tf perf not enabled" << endl;
+#endif
+    }
+
    protected:
     void initInterpreter(size_t tensor_arena_size, void* model_data) {
         if (_op_resolver == nullptr) [[unlikely]] {
@@ -304,9 +319,17 @@ template <typename DataType = float, size_t Channels = 3u> class GEDADNN final :
         _tensor_arena = unique_ptr<uint8_t[]>(new (align_val_t(64)) uint8_t[tensor_arena_size]{});
         assert(_tensor_arena != nullptr);
 
-        if (_interpreter == nullptr) [[unlikely]] {
+        if (_interpreter == nullptr) {
+#ifdef TF_PERF
+            if (_profiler == nullptr) {
+                _profiler = new tflite::MicroProfiler();
+            }
+            _interpreter = new tflite::MicroInterpreter(
+              model, *_op_resolver, _tensor_arena.get(), tensor_arena_size, nullptr, _profiler);
+#else
             _interpreter =
               new tflite::MicroInterpreter(model, *_op_resolver, _tensor_arena.get(), tensor_arena_size, nullptr);
+#endif
         }
         assert(_interpreter != nullptr);
 
@@ -467,12 +490,12 @@ template <typename DataType = float, size_t Channels = 3u> class GEDADNN final :
 
             const auto& cwt_result = _resize_ctx.result;
             const auto& mtf_result = _mtf_ctx.result;
-            assert(_resize_ctx.result.size() == input_stride_wh);
-            assert(_mtf_ctx.result.size() == input_stride_wh);
+            assert(cwt_result.size() == input_stride_wh);
+            assert(mtf_result.size() == input_stride_wh);
 
             const auto cwt_std_i  = cwt_std[i];
             const auto cwt_mean_i = cwt_mean[i];
-            for (size_t j = 0, k = 0; (j < input_stride_wh) & (j < input_stride_whc); ++j, k += Channels) {
+            for (size_t j = 0, k = 0; (j < input_stride_wh) & (k < input_stride_whc); ++j, k += Channels) {
                 const auto k_add_i      = k + i;
                 const auto cwt_result_j = (cwt_result[j] - cwt_mean_i) / cwt_std_i;
 
@@ -509,6 +532,7 @@ template <typename DataType = float, size_t Channels = 3u> class GEDADNN final :
     static constexpr size_t                   _num_ops = 32;
     tflite::MicroMutableOpResolver<_num_ops>* _op_resolver;
     unique_ptr<uint8_t[]>                     _tensor_arena;
+    tflite::MicroProfiler*                    _profiler;
     tflite::MicroInterpreter*                 _interpreter;
 
     vector<TfLiteTensor*> _inputs;

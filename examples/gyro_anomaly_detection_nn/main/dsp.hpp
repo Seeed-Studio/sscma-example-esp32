@@ -607,7 +607,7 @@ void mtf(mtf_ctx_t<T>& ctx, const Container& x, size_t n_bins = 16) {
     const auto ntm               = n_bins * n_bins;
     auto&      transition_matrix = ctx.transition_matrix;
     if (transition_matrix.size() != ntm) [[unlikely]] {
-        transition_matrix.resize(ntm);   
+        transition_matrix.resize(ntm);
     }
     {
         std::fill(transition_matrix.begin(), transition_matrix.end(), static_cast<T>(0.0));
@@ -743,9 +743,9 @@ void resize(resize_ctx_t<T>&       ctx,
 #endif
     }
     for (const auto& s : shape) {
-        if (s < 2) [[unlikely]] {
+        if (s < 1) [[unlikely]] {
 #ifdef ENABLE_THROW
-            throw std::invalid_argument("The shape must be greater than or equal to 2.");
+            throw std::invalid_argument("The shape must be greater than or equal to 1.");
 #else
             return;
 #endif
@@ -990,15 +990,6 @@ decltype(auto) integrate_wavelet(cwt_wavelet_t wavelet, size_t percision = 10, T
     return std::make_pair(std::move(psi), std::move(x));
 }
 
-template <typename T = double> struct cwt_ctx_t {
-    std::vector<size_t> psi_arange;
-    std::vector<size_t> psi_indices;
-    std::vector<T>      coefficients;
-
-    std::vector<T>      result;
-    std::vector<size_t> shape;
-};
-
 namespace traits {
 
 template <typename Container, typename T, typename = std::void_t<>> struct is_cwt_container_fine : std::false_type {};
@@ -1017,18 +1008,45 @@ constexpr bool is_cwt_container_fine_v = is_cwt_container_fine<Container, T>::va
 
 using namespace traits;
 
+template <typename T = double, typename Container = std::vector<T>> struct cwt_ctx_t {
+    cwt_ctx_t() = default;
+
+    cwt_ctx_t(const Container& scales) {
+        this->scales = scales;
+        std::sort(this->scales.begin(), this->scales.end());
+        std::transform(
+          this->scales.begin(), this->scales.end(), std::back_inserter(negtive_sqrt_scales), [](const auto& s) {
+              return -std::sqrt(s);
+          });
+    }
+
+    ~cwt_ctx_t() = default;
+
+    Container      scales;
+    std::vector<T> negtive_sqrt_scales;
+
+    std::vector<size_t> psi_arange;
+    std::vector<size_t> psi_indices;
+    std::vector<T>      coefficients;
+
+    std::vector<T>      result;
+    std::vector<size_t> shape;
+};
+
 template <typename T = double,
           typename P = double,
           typename Container_1,
           typename Container_2,
+          typename Container_3,
+          typename Container_4,
           std::enable_if_t<(std::is_floating_point_v<T> || is_complex_v<T>)&&std::is_floating_point_v<P> &&
-                             is_cwt_container_fine_v<Container_1, T> && is_cwt_container_fine_v<Container_2, T>,
+                             is_cwt_container_fine_v<Container_1, P> && is_cwt_container_fine_v<Container_2, T> &&
+                             is_cwt_container_fine_v<Container_3, T> && is_cwt_container_fine_v<Container_4, T>,
                            bool> = true>
-void cwt(cwt_ctx_t<T>&         ctx,
-         const Container_1&    signal,
-         const Container_2&    ascending_scales,
-         const std::vector<T>& wavelet_psi,
-         const std::vector<T>& wavelet_x) {
+void cwt(cwt_ctx_t<T, Container_1>& ctx,
+         const Container_2&         signal,
+         const Container_3&         wavelet_psi,
+         const Container_4&         wavelet_x) {
     const auto n_psi = wavelet_psi.size();
     const auto n_x   = wavelet_x.size();
 
@@ -1059,7 +1077,7 @@ void cwt(cwt_ctx_t<T>&         ctx,
     const auto x_n      = wavelet_x[n_x - 1];
     const auto x_step   = x_1 - x_0;
     const auto x_range  = x_n - x_0;
-    const auto n_scales = ascending_scales.size();
+    const auto n_scales = ctx.scales.size();
 
     if (std::abs(x_step) <= static_cast<T>(EPS)) [[unlikely]] {
 #ifdef ENABLE_THROW
@@ -1077,14 +1095,14 @@ void cwt(cwt_ctx_t<T>&         ctx,
     }
     if (n_scales == 0) [[unlikely]] {
 #ifdef ENABLE_THROW
-        throw std::invalid_argument("The size of ascending_scales must be greater than 0.");
+        throw std::runtime_error("The size of ctx.scales must be greater than 0.");
 #else
         return;
 #endif
     }
 
-    const auto max_scale         = ascending_scales[n_scales - 1];
-    const auto n_psi_indices_max = static_cast<size_t>(std::ceil((max_scale * x_range) + static_cast<T>(1.0)));
+    const auto max_scale         = ctx.scales[n_scales - 1];
+    const auto n_psi_indices_max = static_cast<size_t>(std::ceil(max_scale * x_range)) + 1;
     auto&      psi_arange        = ctx.psi_arange;
     if (psi_arange.size() != n_psi_indices_max) [[unlikely]] {
         psi_arange.resize(n_psi_indices_max);
@@ -1118,15 +1136,16 @@ void cwt(cwt_ctx_t<T>&         ctx,
         coefficients.resize(n_coefficients);
     }
     {
-        ENSURE_TRUE(ascending_scales.size() >= n_scales);
+        ENSURE_TRUE(ctx.scales.size() >= n_scales);
+        ENSURE_TRUE(ctx.negtive_sqrt_scales.size() >= n_scales);
         size_t result_pos = 0;
         for (size_t i = 0; i < n_scales; ++i) {
-            const auto scale           = static_cast<P>(ascending_scales[i]);
+            const auto scale           = static_cast<P>(ctx.scales[i]);
             size_t     len_psi_indices = 0;
 
             {
-                const auto psi_arange_end = static_cast<size_t>(std::ceil(scale * static_cast<P>(x_range))) + 1;
-                ENSURE_TRUE(psi_arange.size() >= psi_arange_end);
+                const auto psi_arange_end =
+                  std::min(static_cast<size_t>(std::ceil(scale * static_cast<P>(x_range))) + 1, psi_arange.size());
                 const auto scale_mul_step = std::max(scale * static_cast<P>(x_step), static_cast<P>(EPS));
                 for (size_t j = 0; j < psi_arange_end; ++j) {
                     const auto idx = static_cast<size_t>(std::floor(static_cast<P>(psi_arange[j]) / scale_mul_step));
@@ -1136,12 +1155,13 @@ void cwt(cwt_ctx_t<T>&         ctx,
                     psi_indices[len_psi_indices++] = idx;
                 }
             }
+
             if (len_psi_indices < 1) [[unlikely]] {
 #ifdef ENABLE_THROW
                 throw std::runtime_error("Selected scale is too large.");
 #else
                 auto it = result.begin() + result_pos;
-                std::fill(it, it + n_signal, static_cast<T>(0.0));
+                std::fill(it, it + n_signal, std::numeric_limits<T>::quiet_NaN());
                 result_pos += n_signal;
                 continue;
 #endif
@@ -1167,14 +1187,13 @@ void cwt(cwt_ctx_t<T>&         ctx,
             const auto len_diff = len_conv - 1;
             ENSURE_TRUE(len_diff > 1);
             ENSURE_TRUE(coefficients.size() >= len_diff);
-            {
-                const T negtive_sqrt_scale = -std::sqrt(scale);
-                for (size_t j = 1; j < len_conv; ++j) {
-                    auto&       coefficient_prev    = coefficients[j - 1];
-                    const auto& coefficient_current = coefficients[j];
-                    coefficient_prev                = coefficient_current - coefficient_prev;
-                    coefficient_prev *= negtive_sqrt_scale;
-                }
+
+            const T negtive_sqrt_scale = ctx.negtive_sqrt_scales[i];
+            for (size_t j = 1; j < len_conv; ++j) {
+                auto&       coefficient_prev    = coefficients[j - 1];
+                const auto& coefficient_current = coefficients[j];
+                coefficient_prev                = coefficient_current - coefficient_prev;
+                coefficient_prev *= negtive_sqrt_scale;
             }
 
             ENSURE_TRUE(len_diff >= n_signal);
@@ -1184,7 +1203,7 @@ void cwt(cwt_ctx_t<T>&         ctx,
                 throw std::runtime_error("Selected scale is too small.");
 #else
                 auto it = result.begin() + result_pos;
-                std::fill(it, it + n_signal, static_cast<T>(0.0));
+                std::fill(it, it + n_signal, std::numeric_limits<T>::quiet_NaN());
                 result_pos += n_signal;
                 continue;
 #endif
@@ -1199,7 +1218,7 @@ void cwt(cwt_ctx_t<T>&         ctx,
                 result[result_pos++] = coefficients[j];
             }
             for (size_t j = end; j < end_max; ++j) {
-                result[result_pos++] = static_cast<T>(0.0);
+                result[result_pos++] = std::numeric_limits<T>::quiet_NaN();
             }
         }
     }
@@ -1209,15 +1228,18 @@ template <typename T = double,
           typename P = double,
           typename Container_1,
           typename Container_2,
+          typename Container_3,
+          typename Container_4,
           std::enable_if_t<(std::is_floating_point_v<T> || is_complex_v<T>)&&std::is_floating_point_v<P> &&
-                             is_cwt_container_fine_v<Container_1, T> && is_cwt_container_fine_v<Container_2, T>,
+                             is_cwt_container_fine_v<Container_1, T> && is_cwt_container_fine_v<Container_2, T> &&
+                             is_cwt_container_fine_v<Container_3, T> && is_cwt_container_fine_v<Container_4, T>,
                            bool> = true>
-decltype(auto) cwt(const Container_1&    signal,
-                   const Container_2&    ascending_scales,
-                   const std::vector<T>& wavelet_psi,
-                   const std::vector<T>& wavelet_x) {
-    cwt_ctx_t<T> ctx;
-    cwt<T, P>(ctx, signal, ascending_scales, wavelet_psi, wavelet_x);
+decltype(auto) cwt(const Container_1& signal,
+                   const Container_2& scales,
+                   const Container_3& wavelet_psi,
+                   const Container_4& wavelet_x) {
+    cwt_ctx_t<T, Container_2> ctx(scales);
+    cwt<T, P>(ctx, signal, wavelet_psi, wavelet_x);
     const auto r = std::move(ctx.result);
     return r;
 }

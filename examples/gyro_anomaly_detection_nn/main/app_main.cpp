@@ -14,19 +14,32 @@
 #include "GEDAD.hpp"
 #include "nn_model.h"
 
-#define GRAVITY_EARTH            9.78762f
-#define GYRO_SAMPLE_DELAY_MS     5
-#define GEDAD_PREDICT_DELAY_MS   (GYRO_SAMPLE_DELAY_MS / 2)
-#define GEDAD_YIELD_DELAY_MS     5
+#define GRAVITY_EARTH               9.78762f
+#define GEDAD_PREDICT_DELAY_MS      (GYRO_SAMPLE_DELAY_MS / 2)
+#define GEDAD_YIELD_DELAY_MS        5
+#define GEDAD_RESCALE               false
+#define GEDAD_RESCALE_SQUEEZE       0.02
+#define GEDAD_RESCALE_EXPAND        50.0
+#define GEDAD_CWT_ON_RAW            true
+#define GEDAD_CWT_DOWNSAMPLE_FACTOR 0.375
 
-#define GYRO_BUFFER_SIZE         6144
-#define GYRO_VIEW_SIZE           1024
-#define GYRO_SAMPLE_SIZE_MIN     512
-#define GYRO_SAMPLE_MODE         1
+#define GYRO_SAMPLE_DELAY_MS        5
+#define GYRO_BUFFER_SIZE            6144
+#define GYRO_VIEW_SIZE              256
+#define GYRO_SAMPLE_SIZE_MIN        256
+#define GYRO_SAMPLE_MODE            0
+
+#define GEDAD_STD \
+    { 0.5408972 * 100.0, 1.3549063 * 100.0, 1.9004489 * 100.0 }
+#define GEDAD_MEAN \
+    { -0.02590827, 0.16317472, -0.25089505 }
 
 #define TFLITE_TENSOR_ARENA_SIZE (1024 * 1024)
 
 #define DEBUG                    3
+
+static constexpr std::array<float, 3> gedadStd  = GEDAD_STD;
+static constexpr std::array<float, 3> gedadMean = GEDAD_MEAN;
 
 enum class GEDADState { Sampling, Predicting };
 
@@ -100,7 +113,14 @@ static void gedadPredictTask(void*) {
         start                       = std::chrono::high_resolution_clock::now();
         sample_count_diff           = gyroSampleCount - last_sample_count;
         last_sample_count           = gyroSampleCount;
-        const auto [l1, l2]         = gedad->predict(GYRO_VIEW_SIZE);
+        const auto [l1, l2]         = gedad->predict(GYRO_VIEW_SIZE,
+                                             GEDAD_RESCALE,
+                                             GEDAD_RESCALE_SQUEEZE,
+                                             GEDAD_RESCALE_EXPAND,
+                                             GEDAD_STD,
+                                             GEDAD_MEAN,
+                                             GEDAD_CWT_ON_RAW,
+                                             GEDAD_CWT_DOWNSAMPLE_FACTOR);
         end                         = std::chrono::high_resolution_clock::now();
         const bool has_data_skipped = sample_count_diff > GYRO_VIEW_SIZE;
 
@@ -153,7 +173,14 @@ extern "C" void app_main() {
     // dry run model
     std::cout << "Dry run model..." << std::endl;
     std::cout << *gedad << std::endl;
-    gedad->predict(GYRO_VIEW_SIZE);
+    gedad->predict(GYRO_VIEW_SIZE,
+                   GEDAD_RESCALE,
+                   GEDAD_RESCALE_SQUEEZE,
+                   GEDAD_RESCALE_EXPAND,
+                   GEDAD_STD,
+                   GEDAD_MEAN,
+                   GEDAD_CWT_ON_RAW,
+                   GEDAD_CWT_DOWNSAMPLE_FACTOR);
     vTaskDelay(1000 / portTICK_PERIOD_MS);
 
     // start sampling

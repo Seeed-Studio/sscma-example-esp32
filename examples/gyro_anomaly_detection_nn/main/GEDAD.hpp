@@ -129,7 +129,7 @@ template <typename DataType = float, size_t Channels = 3u> class GEDADNN final :
                      size_t   tensor_arena_size,
                      void*    model_data,
                      DataType nyquist_rate    = 200.0 / 2.0,
-                     DataType cutoff_freq     = 10.0,
+                     DataType cutoff_freq     = 90.0,
                      size_t   num_taps        = 200,
                      size_t   mtf_bins        = 64,
                      DataType cwt_scale_start = 9.0,
@@ -172,6 +172,7 @@ template <typename DataType = float, size_t Channels = 3u> class GEDADNN final :
             generate(_cwt_scales.begin(), _cwt_scales.end(), [this, i = 0]() mutable {
                 return _cwt_scale_start + (i++ * _cwt_scale_step);
             });
+            _cwt_ctx = dsp::cwt_ctx_t<DataType, vector<DataType>>(_cwt_scales);
         }
     }
 
@@ -240,18 +241,21 @@ template <typename DataType = float, size_t Channels = 3u> class GEDADNN final :
     }
 
     decltype(auto) predict(size_t                           view_size,
-                           bool                             rescale         = false,
-                           DataType                         rescale_squeeze = 0.02,
-                           DataType                         rescale_expand  = 50.0,
-                           const array<DataType, Channels>& cwt_std         = {0.5408972 * 100.0,
-                                                                               1.3549063 * 100.0,
-                                                                               1.9004489 * 100.0},
-                           const array<DataType, Channels>& cwt_mean        = {-0.02590827, 0.16317472, -0.25089505}) {
+                           bool                             rescale,
+                           DataType                         rescale_squeeze,
+                           DataType                         rescale_expand,
+                           const array<DataType, Channels>& std,
+                           const array<DataType, Channels>& mean,
+                           bool                             cwt_on_raw,
+                           DataType                         cwt_downsample_factor) {
         assert(view_size <= this->_buffer_size);
         assert(view_size > 0);
 
         AD_PERF_TIME_MS(
-          _perf, "pre-process", preProcess(view_size, rescale, rescale_squeeze, rescale_expand, cwt_std, cwt_mean));
+          _perf,
+          "pre-process",
+          preProcess(
+            view_size, rescale, rescale_squeeze, rescale_expand, std, mean, cwt_on_raw, cwt_downsample_factor));
         AD_PERF_TIME_MS(_perf, "invoke", _interpreter->Invoke());
 
         array<DataType, 2> results;
@@ -388,8 +392,10 @@ template <typename DataType = float, size_t Channels = 3u> class GEDADNN final :
                     bool                             rescale,
                     DataType                         rescale_squeeze,
                     DataType                         rescale_expand,
-                    const array<DataType, Channels>& cwt_std,
-                    const array<DataType, Channels>& cwt_mean) {
+                    const array<DataType, Channels>& std,
+                    const array<DataType, Channels>& mean,
+                    bool                             cwt_on_raw,
+                    DataType                         cwt_downsample_factor) {
         assert(_fir_coefficients.size() == _num_taps);
         assert(_lfilter_denominator.size() == 1);
         assert(this->_cached_view.size() == Channels);
@@ -427,6 +433,10 @@ template <typename DataType = float, size_t Channels = 3u> class GEDADNN final :
                 }
             }
 
+            for (auto& v : cached_view_i) {
+                v = (v - mean[i]) / std[i];
+            }
+
             AD_PERF_TIME_MS(_perf,
                             string("lfilter ") + to_string(i),
                             dsp::lfilter(_lfilter_ctx, _fir_coefficients, _lfilter_denominator, cached_view_i));
@@ -436,9 +446,42 @@ template <typename DataType = float, size_t Channels = 3u> class GEDADNN final :
             cout << "cached view size: " << cached_view_i.size() << endl;
             cout << "lfilter result size: " << _lfilter_ctx.result.size() << endl;
 #endif
-            AD_PERF_TIME_MS(_perf,
-                            string("cwt ") + to_string(i),
-                            (dsp::cwt<DataType, float>)(_cwt_ctx, _lfilter_ctx.result, _cwt_scales, _cwt_psi, _cwt_x));
+            if (cwt_on_raw) {
+                const array<size_t, 2> raw_shape        = {1, cached_view_i.size()};
+                const array<size_t, 2> downsample_shape = {
+                  1, static_cast<size_t>(round(cached_view_i.size() * cwt_downsample_factor))};
+
+            try {
+                AD_PERF_TIME_MS(
+                  _perf,
+                  string("cwt resize ") + to_string(i),
+                  (dsp::resize<DataType, int32_t, float>)(_cwt_resize_ctx, cached_view_i, raw_shape, downsample_shape));
+            }
+            catch (const std::exception& e) {
+                std::cerr << e.what() << '\n';
+            }
+#ifdef AD_DEBUG
+                cout << "cwt resize input size: " << cached_view_i.size() << endl;
+                cout << "cwt resize input shape: ";
+                for (size_t j = 0; j < raw_shape.size(); ++j) {
+                    cout << raw_shape[j] << " ";
+                }
+                cout << endl;
+                cout << "cwt resize result size: " << _cwt_resize_ctx.result.size() << endl;
+                cout << "cwt resize result shape: ";
+                for (size_t j = 0; j < downsample_shape.size(); ++j) {
+                    cout << downsample_shape[j] << " ";
+                }
+                cout << endl;
+#endif
+                AD_PERF_TIME_MS(_perf,
+                                string("cwt ") + to_string(i),
+                                (dsp::cwt<DataType, float>)(_cwt_ctx, _cwt_resize_ctx.result, _cwt_psi, _cwt_x));
+            } else {
+                AD_PERF_TIME_MS(_perf,
+                                string("cwt ") + to_string(i),
+                                (dsp::cwt<DataType, float>)(_cwt_ctx, _lfilter_ctx.result, _cwt_psi, _cwt_x));
+            }
 #ifdef AD_DEBUG
             cout << "cwt psi size: " << _cwt_psi.size() << endl;
             cout << "cwt x size: " << _cwt_x.size() << endl;
@@ -493,15 +536,12 @@ template <typename DataType = float, size_t Channels = 3u> class GEDADNN final :
             assert(cwt_result.size() == input_stride_wh);
             assert(mtf_result.size() == input_stride_wh);
 
-            const auto cwt_std_i  = cwt_std[i];
-            const auto cwt_mean_i = cwt_mean[i];
             for (size_t j = 0, k = 0; (j < input_stride_wh) & (k < input_stride_whc); ++j, k += Channels) {
-                const auto k_add_i      = k + i;
-                const auto cwt_result_j = (cwt_result[j] - cwt_mean_i) / cwt_std_i;
+                const auto k_add_i = k + i;
 
-                cached_inputs_0[k_add_i] = cwt_result_j;
+                cached_inputs_0[k_add_i] = cwt_result[j];
                 cached_inputs_1[k_add_i] = mtf_result[j];
-                input_batch_0[k_add_i]   = round((static_cast<DataType>(cwt_result_j) / scale) + zero_point);
+                input_batch_0[k_add_i]   = round((static_cast<DataType>(cwt_result[j]) / scale) + zero_point);
                 input_batch_1[k_add_i]   = round((static_cast<DataType>(mtf_result[j]) / scale) + zero_point);
             }
         }
@@ -552,16 +592,19 @@ template <typename DataType = float, size_t Channels = 3u> class GEDADNN final :
     dsp::mtf_ctx_t<DataType> _mtf_ctx;
     size_t                   _mtf_bins;
 
-    vector<DataType>                    _cwt_psi;
-    vector<DataType>                    _cwt_x;
-    DataType                            _cwt_scale_start;
-    DataType                            _cwt_scale_step;
-    vector<DataType>                    _cwt_scales;
-    dsp::cwt_ctx_t<DataType>            _cwt_ctx;
-    static constexpr dsp::cwt_wavelet_t _cwt_wavelet_type = dsp::cwt_wavelet_t::MORLET;
+    vector<DataType>                           _cwt_psi;
+    vector<DataType>                           _cwt_x;
+    DataType                                   _cwt_scale_start;
+    DataType                                   _cwt_scale_step;
+    vector<DataType>                           _cwt_scales;
+    dsp::cwt_ctx_t<DataType, vector<DataType>> _cwt_ctx;
+    static constexpr dsp::cwt_wavelet_t        _cwt_wavelet_type = dsp::cwt_wavelet_t::MORLET;
 
     dsp::resize_ctx_t<DataType> _resize_ctx;
     array<int32_t, 2>           _resize_input_shape;
+
+    dsp::resize_ctx_t<DataType> _cwt_resize_ctx;
+    array<int32_t, 2>           _cwt_resize_input_shape;
 
     array<vector<DataType>, 2> _cached_inputs;
     array<vector<DataType>, 2> _cached_outputs;

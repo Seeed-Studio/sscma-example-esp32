@@ -160,7 +160,7 @@ template <typename DataType = float, size_t Channels = 3u> class GEDADNN final :
         { _mtf_bins = mtf_bins; }
 
         {
-            auto [psi, x] = dsp::integrate_wavelet<DataType>(_cwt_wavelet_type);
+            auto [psi, x] = dsp::integrate_wavelet<DataType>(_cwt_wavelet_type, 10, -2.0, 2.0);
             _cwt_psi      = move(psi);
             _cwt_x        = move(x);
 
@@ -451,15 +451,10 @@ template <typename DataType = float, size_t Channels = 3u> class GEDADNN final :
                 const array<size_t, 2> downsample_shape = {
                   1, static_cast<size_t>(round(cached_view_i.size() * cwt_downsample_factor))};
 
-            try {
                 AD_PERF_TIME_MS(
                   _perf,
                   string("cwt resize ") + to_string(i),
                   (dsp::resize<DataType, int32_t, float>)(_cwt_resize_ctx, cached_view_i, raw_shape, downsample_shape));
-            }
-            catch (const std::exception& e) {
-                std::cerr << e.what() << '\n';
-            }
 #ifdef AD_DEBUG
                 cout << "cwt resize input size: " << cached_view_i.size() << endl;
                 cout << "cwt resize input shape: ";

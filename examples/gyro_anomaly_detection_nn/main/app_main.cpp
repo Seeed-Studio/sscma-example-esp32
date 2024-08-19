@@ -17,11 +17,19 @@
 #define GRAVITY_EARTH               9.78762f
 #define GEDAD_PREDICT_DELAY_MS      (GYRO_SAMPLE_DELAY_MS / 2)
 #define GEDAD_YIELD_DELAY_MS        4
-#define GEDAD_RESCALE               false
-#define GEDAD_RESCALE_SQUEEZE       0.02
-#define GEDAD_RESCALE_EXPAND        50.0
+#define GEDAD_RESCALE               true
+#define GEDAD_RESCALE_SQUEEZE       0.1953125
+#define GEDAD_RESCALE_EXPAND        0.1953125
 #define GEDAD_CWT_ON_RAW            true
-#define GEDAD_CWT_DOWNSAMPLE_FACTOR 0.375
+#define GEDAD_CWT_DOWNSAMPLE_FACTOR 0.125
+
+#define GEDAD_NYQUIST_FREQ          200.0 / 2.0
+#define GEDAD_CUTOFF_FREQ           90.0
+#define GEDAD_NUM_TAPS              200
+#define GEDAD_MTF_BINS              64
+#define GEDAD_CWT_SCALES            16
+#define GEDAD_CWT_SCALE_START       2.0
+#define GEDAD_CWT_SCALE_SETP        1.0
 
 #define GYRO_SAMPLE_DELAY_MS        5
 #define GYRO_BUFFER_SIZE            6144
@@ -30,9 +38,9 @@
 #define GYRO_SAMPLE_MODE            0
 
 #define GEDAD_STD \
-    { 5.324575457416985, 5.324575457416985, 5.324575457416985 }
+    { 2.768257565258182, 2.768257565258182, 2.768257565258182 }
 #define GEDAD_MEAN \
-    { 2.6397314500808715, 2.6397314500808715, 2.6397314500808715 }
+    { 5.096703647473537, 5.096703647473537, 5.096703647473537 }
 
 #define TFLITE_TENSOR_ARENA_SIZE (1024 * 1024)
 
@@ -163,8 +171,16 @@ extern "C" void app_main() {
     // initialize GEDAD
     std::cout << "Initializing GEDAD..." << std::endl;
     if (gedad == nullptr) [[likely]] {
-        gedad = new ad::GEDADNN<float, 3>(
-          GYRO_BUFFER_SIZE, TFLITE_TENSOR_ARENA_SIZE, reinterpret_cast<void*>(nn_model_tflite));
+        gedad = new ad::GEDADNN<float, 3>(GYRO_BUFFER_SIZE,
+                                          TFLITE_TENSOR_ARENA_SIZE,
+                                          reinterpret_cast<void*>(nn_model_tflite),
+                                          GEDAD_NYQUIST_FREQ,
+                                          GEDAD_CUTOFF_FREQ,
+                                          GEDAD_NUM_TAPS,
+                                          GEDAD_MTF_BINS,
+                                          GEDAD_CWT_SCALES,
+                                          GEDAD_CWT_SCALE_START,
+                                          GEDAD_CWT_SCALE_SETP);
     }
     assert(gedad != nullptr);
     std::cout << "GEDAD initialized" << std::endl;

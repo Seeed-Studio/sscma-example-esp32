@@ -132,7 +132,8 @@ template <typename DataType = float, size_t Channels = 3u> class GEDADNN final :
                      DataType cutoff_freq     = 90.0,
                      size_t   num_taps        = 200,
                      size_t   mtf_bins        = 64,
-                     DataType cwt_scale_start = 9.0,
+                     size_t   cwt_scales      = 16,
+                     DataType cwt_scale_start = 2.0,
                      DataType cwt_scale_step  = 1.0) noexcept
         : GEDAD<DataType, Channels>(buffer_size) {
         {
@@ -167,8 +168,7 @@ template <typename DataType = float, size_t Channels = 3u> class GEDADNN final :
             _cwt_scale_start = cwt_scale_start;
             _cwt_scale_step  = cwt_scale_step;
 
-            const auto cwt_num_scales = _inputs[0]->dims->data[2];
-            _cwt_scales.resize(cwt_num_scales);
+            _cwt_scales.resize(cwt_scales);
             generate(_cwt_scales.begin(), _cwt_scales.end(), [this, i = 0]() mutable {
                 return _cwt_scale_start + (i++ * _cwt_scale_step);
             });
@@ -314,6 +314,8 @@ template <typename DataType = float, size_t Channels = 3u> class GEDADNN final :
         _op_resolver->AddSqrt();
         _op_resolver->AddTransposeConv();
         _op_resolver->AddDiv();
+        _op_resolver->AddStridedSlice();
+        _op_resolver->AddConcatenation();
         constexpr auto line_end = __LINE__;
         assert(line_end - line_begin - 1 <= _num_ops);
 
@@ -536,8 +538,8 @@ template <typename DataType = float, size_t Channels = 3u> class GEDADNN final :
 
                 cached_inputs_0[k_add_i] = cwt_result[j];
                 cached_inputs_1[k_add_i] = mtf_result[j];
-                input_batch_0[k_add_i]   = round((static_cast<DataType>(cwt_result[j]) / scale) + zero_point);
-                input_batch_1[k_add_i]   = round((static_cast<DataType>(mtf_result[j]) / scale) + zero_point);
+                input_batch_0[k_add_i]   = round(static_cast<DataType>(cwt_result[j]) / scale) + zero_point;
+                input_batch_1[k_add_i]   = round(static_cast<DataType>(mtf_result[j]) / scale) + zero_point;
             }
         }
     }

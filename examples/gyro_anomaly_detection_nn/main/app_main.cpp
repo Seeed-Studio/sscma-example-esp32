@@ -15,11 +15,12 @@
 #include "nn_model.h"
 
 #define GRAVITY_EARTH               9.78762f
+#define GEDAD_N_CHANNELS            3
 #define GEDAD_PREDICT_DELAY_MS      (GYRO_SAMPLE_DELAY_MS / 2)
 #define GEDAD_YIELD_DELAY_MS        4
 #define GEDAD_RESCALE               true
-#define GEDAD_RESCALE_SQUEEZE       0.1953125
-#define GEDAD_RESCALE_EXPAND        0.1953125
+#define GEDAD_RESCALE_SQUEEZE       (1024.0 * 0.005)
+#define GEDAD_RESCALE_EXPAND        (200.0 / 1024.0)
 #define GEDAD_CWT_ON_RAW            true
 #define GEDAD_CWT_DOWNSAMPLE_FACTOR 0.125
 
@@ -35,7 +36,9 @@
 #define GYRO_BUFFER_SIZE            6144
 #define GYRO_VIEW_SIZE              256
 #define GYRO_SAMPLE_SIZE_MIN        256
+#define GYRO_SAMPLE_ALLOW_DUPLICATE true
 #define GYRO_SAMPLE_MODE            0
+#define GYRO_SAMPLE_DEBUG           0
 
 #define GEDAD_STD \
     { 2.768257565258182, 2.768257565258182, 2.768257565258182 }
@@ -46,47 +49,61 @@
 
 #define DEBUG                    3
 
-static constexpr std::array<float, 3> gedadStd  = GEDAD_STD;
-static constexpr std::array<float, 3> gedadMean = GEDAD_MEAN;
+static constexpr std::array<float, GEDAD_N_CHANNELS> gedadStd  = GEDAD_STD;
+static constexpr std::array<float, GEDAD_N_CHANNELS> gedadMean = GEDAD_MEAN;
 
 enum class GEDADState { Sampling, Predicting };
 
-static volatile size_t        gyroSampleCount = 0;
-static volatile bool          gyroSampleFlag  = false;
-static ad::GEDADNN<float, 3>* gedad           = nullptr;
+static volatile size_t                       gyroSampleCount = 0;
+static volatile bool                         gyroSampleFlag  = false;
+static ad::GEDADNN<float, GEDAD_N_CHANNELS>* gedad           = nullptr;
 
 static void gyroSampleCallback(TimerHandle_t xTimer) {
     if (!gyroSampleFlag) [[unlikely]] {
         return;
     }
 
-    static std::array<float, 3> xyz;
-    qma7981_get_acce(&xyz[0], &xyz[1], &xyz[2]);
+    static std::array<float, GEDAD_N_CHANNELS> frame;
+#if GEDAD_N_CHANNELS == 3
+    qma7981_get_acce(&frame[0], &frame[1], &frame[2]);
+#else
+    #error "Unsupported number of channels"
+#endif
 
     auto        current_time     = std::chrono::high_resolution_clock::now();
     static auto last_sample_time = current_time;
     auto duration    = std::chrono::duration_cast<std::chrono::milliseconds>(current_time - last_sample_time).count();
     last_sample_time = current_time;
+#if GEDAD_N_CHANNELS == 3
+    frame[0] *= GRAVITY_EARTH;
+    frame[1] *= GRAVITY_EARTH;
+    frame[2] *= GRAVITY_EARTH;
+#else
+    #error "Unsupported number of channels"
+#endif
 
-    xyz[0] *= GRAVITY_EARTH;
-    xyz[1] *= GRAVITY_EARTH;
-    xyz[2] *= GRAVITY_EARTH;
-
+#if !GYRO_SAMPLE_DEBUG
     if (gedad != nullptr) [[likely]] {
-        gedad->pushToBuffer(xyz);
+        gedad->pushToBuffer(frame);
         gyroSampleCount = gyroSampleCount + 1;
     }
+#endif
 
 #if GYRO_SAMPLE_MODE == 1
-    std::cout << std::fixed << std::setprecision(5) << xyz[0] << " " << xyz[1] << " " << xyz[2] << " " << duration
-              << std::endl;
+    std::cout << std::fixed << std::setprecision(5);
+    for (const auto& f : frame) {
+        std::cout << f << " ";
+    }
+    std::cout << duration << std::endl;
 #else
     #if DEBUG > 2
     if (gyroSampleCount < GYRO_SAMPLE_SIZE_MIN) {
         std::cout << std::fixed << std::setprecision(5) << "sample " << gyroSampleCount << ":" << std::endl;
-        std::cout << "  x: " << xyz[0] << " y: " << xyz[1] << " z: " << xyz[2] << "  duration: " << duration << "ms"
-                  << std::endl;
-    }
+        std::cout << "  ";
+        for (const auto& f : frame) {
+            std::cout << f << " ";
+        }
+        std::cout << duration << std::endl;    }
     #endif
 #endif
 }
@@ -114,9 +131,11 @@ static void gedadPredictTask(void*) {
     static int32_t sample_count_diff = 0;
 
     while (true) {
-        // while (gyroSampleCount % GYRO_VIEW_SIZE != 0) {
-        //     vTaskDelay(pdMS_TO_TICKS(GEDAD_YIELD_DELAY_MS));
-        // }
+#if !GYRO_SAMPLE_ALLOW_DUPLICATE
+        while (gyroSampleCount % GYRO_VIEW_SIZE != 0) {
+            vTaskDelay(pdMS_TO_TICKS(GEDAD_YIELD_DELAY_MS));
+        }
+#endif
 
         start                       = std::chrono::high_resolution_clock::now();
         sample_count_diff           = gyroSampleCount - last_sample_count;
@@ -171,16 +190,16 @@ extern "C" void app_main() {
     // initialize GEDAD
     std::cout << "Initializing GEDAD..." << std::endl;
     if (gedad == nullptr) [[likely]] {
-        gedad = new ad::GEDADNN<float, 3>(GYRO_BUFFER_SIZE,
-                                          TFLITE_TENSOR_ARENA_SIZE,
-                                          reinterpret_cast<void*>(nn_model_tflite),
-                                          GEDAD_NYQUIST_FREQ,
-                                          GEDAD_CUTOFF_FREQ,
-                                          GEDAD_NUM_TAPS,
-                                          GEDAD_MTF_BINS,
-                                          GEDAD_CWT_SCALES,
-                                          GEDAD_CWT_SCALE_START,
-                                          GEDAD_CWT_SCALE_SETP);
+        gedad = new ad::GEDADNN<float, GEDAD_N_CHANNELS>(GYRO_BUFFER_SIZE,
+                                                         TFLITE_TENSOR_ARENA_SIZE,
+                                                         reinterpret_cast<void*>(nn_model_tflite),
+                                                         GEDAD_NYQUIST_FREQ,
+                                                         GEDAD_CUTOFF_FREQ,
+                                                         GEDAD_NUM_TAPS,
+                                                         GEDAD_MTF_BINS,
+                                                         GEDAD_CWT_SCALES,
+                                                         GEDAD_CWT_SCALE_START,
+                                                         GEDAD_CWT_SCALE_SETP);
     }
     assert(gedad != nullptr);
     std::cout << "GEDAD initialized" << std::endl;
@@ -207,6 +226,21 @@ extern "C" void app_main() {
     }
     std::cout << std::endl;
     gyroSampleFlag = true;
+    #if GYRO_SAMPLE_DEBUG
+    std::array<float, GEDAD_N_CHANNELS> frame;
+    for (size_t i = 0; i < GYRO_VIEW_SIZE; ++i) {
+        const auto v = std::sin((static_cast<float>(i) / static_cast<float>(GYRO_VIEW_SIZE)) * 2.0f *
+                                static_cast<float>(dsp::constants::PI)) *
+                       GRAVITY_EARTH;
+        for (auto& f : frame) {
+            f = v;
+        }
+        if (gedad != nullptr) [[likely]] {
+            gedad->pushToBuffer(frame);
+            gyroSampleCount = gyroSampleCount + 1;
+        }
+    }
+    #endif
     while (gyroSampleCount < GYRO_SAMPLE_SIZE_MIN) {
         vTaskDelay(10 / portTICK_PERIOD_MS);
     }

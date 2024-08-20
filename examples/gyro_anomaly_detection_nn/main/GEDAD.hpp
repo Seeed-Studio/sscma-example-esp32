@@ -538,8 +538,8 @@ template <typename DataType = float, size_t Channels = 3u> class GEDADNN final :
 
                 cached_inputs_0[k_add_i] = cwt_result[j];
                 cached_inputs_1[k_add_i] = mtf_result[j];
-                input_batch_0[k_add_i]   = round(static_cast<DataType>(cwt_result[j]) / scale) + zero_point;
-                input_batch_1[k_add_i]   = round(static_cast<DataType>(mtf_result[j]) / scale) + zero_point;
+                input_batch_0[k_add_i]   = (static_cast<DataType>(cwt_result[j]) / scale) + zero_point;
+                input_batch_1[k_add_i]   = (static_cast<DataType>(mtf_result[j]) / scale) + zero_point;
             }
         }
     }

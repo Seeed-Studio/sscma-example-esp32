@@ -16,6 +16,8 @@
 #define MA_USE_ENGINE_TENSOR_INDEX           1
 #define MA_USE_STATIC_TENSOR_ARENA           1
 
+#define MA_USE_EXTERNAL_WIFI_STATUS          1
+
 #define MA_USE_LIB_JPEGENC                   1
 
 #define MA_TFLITE_OP_CONV_2D                 1

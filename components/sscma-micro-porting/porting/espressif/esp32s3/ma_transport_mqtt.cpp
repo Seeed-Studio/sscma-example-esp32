@@ -21,6 +21,7 @@
 
 #include "core/utils/ma_ringbuffer.hpp"
 #include "ma_storage_lfs.h"
+#include "porting/ma_osal.h"
 
 typedef enum {
     NETWORK_LOST = 0,
@@ -29,18 +30,20 @@ typedef enum {
     NETWORK_CONNECTED,
 } ma_net_sta_t;
 
-volatile ma_net_sta_t _net_sta = NETWORK_LOST;
+volatile int _net_sta = NETWORK_LOST;
 
 extern const uint8_t _ca_crt[] asm("_binary_mqtt_ca_crt_start");
 
 static esp_netif_t* _esp_netif = nullptr;
 static esp_mqtt_client_handle_t _mqtt_client{};
 
+ma::Mutex _net_sync_mutex{};
+
 static ma_mqtt_config_t _mqtt_server_config{};
 static ma_mqtt_topic_config_t _mqtt_topic_config{};
 
-static in4_info_t _in4_info{};
-static in6_info_t _in6_info{};
+in4_info_t _in4_info{};
+in6_info_t _in6_info{};
 
 static ma::SPSCRingBuffer<char>* _rb_rx = nullptr;
 
@@ -94,10 +97,12 @@ static void _wifi_event_handler(void* arg, esp_event_base_t base, int32_t id, vo
         MA_LOGD(MA_TAG, "joined to AP");
         _net_sta = NETWORK_JOINED;
 
-        memcpy(&_in4_info.ip.addr, &event->ip_info.ip, 4);
-        memcpy(&_in4_info.netmask.addr, &event->ip_info.netmask, 4);
-        memcpy(&_in4_info.gateway.addr, &event->ip_info.gw, 4);
-
+        {
+            ma::Guard lock(_net_sync_mutex);
+            memcpy(&_in4_info.ip.addr, &event->ip_info.ip, 4);
+            memcpy(&_in4_info.netmask.addr, &event->ip_info.netmask, 4);
+            memcpy(&_in4_info.gateway.addr, &event->ip_info.gw, 4);
+        }
     } else if (base == WIFI_EVENT && id == WIFI_EVENT_STA_DISCONNECTED) {
         MA_LOGD(MA_TAG, "disconnected from AP");
         _net_sta = NETWORK_IDLE;
@@ -188,7 +193,11 @@ static void _mqtt_serivice_thread(void*) {
                             .password    = {0},
                             .scan_method = WIFI_FAST_SCAN,
                             .sort_method = WIFI_CONNECT_AP_BY_SIGNAL,
-                            .threshold   = {.rssi = -127, .authmode = WIFI_AUTH_WPA2_PSK},
+                            .threshold =
+                                {
+                                    .rssi     = -127,
+                                    .authmode = WIFI_AUTH_WPA2_PSK,
+                                },
                         },
                 };
 

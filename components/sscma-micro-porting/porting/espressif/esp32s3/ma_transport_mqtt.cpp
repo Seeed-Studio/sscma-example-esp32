@@ -154,6 +154,7 @@ static void _mqtt_serivice_thread(void*) {
     while (1) {
         switch (_net_sta) {
             case NETWORK_LOST: {
+                MA_LOGD(MA_TAG, "Network lost, reconnecting");
                 esp_err_t ret = nvs_flash_init();
                 if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
                     nvs_flash_erase();
@@ -183,6 +184,8 @@ static void _mqtt_serivice_thread(void*) {
                 [[fallthrough]];
 
             case NETWORK_IDLE: {
+                MA_LOGD(MA_TAG, "Network idle, joining to wifi");
+
                 esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &_wifi_event_handler, nullptr);
                 esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &_wifi_event_handler, nullptr);
 
@@ -256,6 +259,8 @@ static void _mqtt_serivice_thread(void*) {
                 [[fallthrough]];
 
             case NETWORK_JOINED: {
+                MA_LOGD(MA_TAG, "Network joined, connecting to mqtt");
+
                 if (_mqtt_server_config.host[0] == 0) {
                     auto storage = ma::get_storage_instance();
                     if (!storage) {
@@ -347,7 +352,7 @@ static void _mqtt_serivice_thread(void*) {
             default:
                 break;
         }
-
+    
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
 }
@@ -355,7 +360,7 @@ static void _mqtt_serivice_thread(void*) {
 static void _mqtt_serivice_thread_wrapper(void*) {
     _mqtt_serivice_thread(nullptr);
     while (1) {
-        vTaskDelay(portMAX_DELAY);
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
 }
 
@@ -376,7 +381,7 @@ ma_err_t MQTT::init(void const* config) {
         _rb_rx = new SPSCRingBuffer<char>(4096);
     }
 
-    auto ret = xTaskCreatePinnedToCore(_mqtt_serivice_thread_wrapper, "mqtt_service", 10240, nullptr, 3, &_mqtt_serivice_thread_handler, 1);
+    auto ret = xTaskCreatePinnedToCore(_mqtt_serivice_thread_wrapper, "mqtt_service", 6144, nullptr, 3, &_mqtt_serivice_thread_handler, 1);
 
     if (ret != pdPASS) {
         MA_LOGE(MA_TAG, "Failed to create mqtt service thread");

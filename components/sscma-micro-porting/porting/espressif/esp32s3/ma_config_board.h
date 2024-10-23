@@ -51,6 +51,7 @@
 #define MA_STORAGE_LFS_USE_FLASHBD           1
 
 #define MA_OSAL_FREERTOS                     1
+#define MA_OSAL_FREERTOS_CXX_ALLOC_OVERRIDE  0
 #define MA_SEVER_AT_EXECUTOR_STACK_SIZE      (20 * 1024)
 #define MA_SEVER_AT_EXECUTOR_TASK_PRIO       2
 

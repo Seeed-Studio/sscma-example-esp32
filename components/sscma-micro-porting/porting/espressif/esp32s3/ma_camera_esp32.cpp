@@ -6,7 +6,7 @@
 #include "core/ma_debug.h"
 #include <vector>
 
-#define XCLK_FREQ_HZ 15000000
+#define XCLK_FREQ_HZ 16000000
 
 struct presets_wrapper_t {
     const char* description;

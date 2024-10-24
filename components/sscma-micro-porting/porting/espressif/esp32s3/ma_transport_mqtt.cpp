@@ -6,6 +6,7 @@
 #include <cstring>
 
 #include "esp_event.h"
+#include "esp_tls.h"
 #include "esp_wifi.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
@@ -32,10 +33,8 @@ typedef enum {
 
 volatile int _net_sta = NETWORK_LOST;
 
-extern const uint8_t _ca_crt[] asm("_binary_mqtt_ca_crt_start");
-
-static esp_netif_t* _esp_netif = nullptr;
-static esp_mqtt_client_handle_t _mqtt_client{};
+static esp_netif_t* _esp_netif               = nullptr;
+static esp_mqtt_client_handle_t _mqtt_client = nullptr;
 
 ma::Mutex _net_sync_mutex{};
 
@@ -66,7 +65,7 @@ typedef struct mdns_record {
     uint16_t port;
 } mdns_record_t;
 
-static mdns_record_t* _mdns_record = nullptr;
+static mdns_record_t _mdns_record{};
 
 static void _emit_mdns() {
     if (_net_sta != NETWORK_CONNECTED) {
@@ -74,17 +73,17 @@ static void _emit_mdns() {
     }
 
     mdns_init();
-    mdns_hostname_set(PRODUCT_NAME_PREFIX);
-    mdns_instance_name_set(PRODUCT_NAME_PREFIX);
+    mdns_hostname_set(PRODUCT_NAME_PREFIX "_" PRODUCT_NAME_SUFFIX);
+    mdns_instance_name_set(PRODUCT_NAME_PREFIX "_" PRODUCT_NAME_SUFFIX);
 
-    static std::string port_str = std::to_string((int)_mdns_record->port);
+    static std::string port_str = std::to_string((int)_mdns_record.port);
 
     mdns_txt_item_t srv_data[] = {
-        {MDNS_ITEM_PROTOCAL, _mdns_record->protocol},
-        {MDNS_ITEM_SERVER, _mdns_record->server},
+        {MDNS_ITEM_PROTOCAL, _mdns_record.protocol},
+        {MDNS_ITEM_SERVER, _mdns_record.server},
         {MDNS_ITEM_PORT, port_str.c_str()},
-        {MDNS_ITEM_DEST, _mdns_record->destination},
-        {MDNS_ITEM_AUTH, _mdns_record->authentication},
+        {MDNS_ITEM_DEST, _mdns_record.destination},
+        {MDNS_ITEM_AUTH, _mdns_record.authentication},
     };
 
     mdns_service_add(PRODUCT_NAME_PREFIX, "_sscma", "_tcp", SSCMA_MDNS_PORT, srv_data, 5);
@@ -116,14 +115,48 @@ static void _mqtt_event_handler(void* arg, esp_event_base_t base, int32_t id, vo
         case MQTT_EVENT_CONNECTED: {
             _net_sta = NETWORK_CONNECTED;
 
-            for (int i = 0; i < 10; ++i) {
-                int ret = esp_mqtt_client_subscribe(_mqtt_client, _mqtt_topic_config.sub_topic, _mqtt_topic_config.sub_qos);
-                if (ret < 0) {
-                    MA_LOGD(MA_TAG, "Failed to subscribe to topic %d", ret);
-                } else {
+            do {
+                int cnt = esp_mqtt_client_subscribe(_mqtt_client, _mqtt_topic_config.sub_topic, _mqtt_topic_config.sub_qos);
+                if (cnt >= 0) {
                     break;
                 }
-                vTaskDelay(10 / portTICK_PERIOD_MS);
+                MA_LOGD(MA_TAG, "Failed to subscribe to topic %d", cnt);
+                vTaskDelay(100 / portTICK_PERIOD_MS);
+            } while (_net_sta == NETWORK_CONNECTED);
+
+            {
+                const char* discover_topic = "/ma/" MA_AT_API_VERSION "/discover";
+                std::string payload        = "{\"pub_topic\":\"";
+                payload += _mqtt_topic_config.pub_topic;
+                payload += "\",\"pub_qos\":";
+                payload += std::to_string((int)_mqtt_topic_config.pub_qos);
+                payload += ",\"sub_topic\":\"";
+                payload += _mqtt_topic_config.sub_topic;
+                payload += "\",\"sub_qos\":";
+                payload += std::to_string((int)_mqtt_topic_config.sub_qos);
+                payload += ",\"client_id\":\"";
+                payload += _mqtt_server_config.client_id;
+                payload += "\"}";
+
+                esp_mqtt_client_publish(_mqtt_client, discover_topic, payload.c_str(), payload.size(), _mqtt_topic_config.pub_qos, 0);
+            }
+
+            {
+                std::strncpy(_mdns_record.host_name, _mqtt_server_config.client_id, sizeof _mdns_record.host_name - 1);
+                std::strncpy(_mdns_record.server, _mqtt_server_config.host, sizeof _mdns_record.server - 1);
+                std::strncpy(_mdns_record.authentication, std::strlen(_mqtt_server_config.username) ? "y" : "n", sizeof _mdns_record.protocol - 1);
+                std::strncpy(_mdns_record.protocol, _mqtt_server_config.use_ssl ? "mqtts" : "mqtt", sizeof _mdns_record.authentication - 1);
+                std::string topic = _mqtt_topic_config.sub_topic;
+                {
+                    auto pos = topic.find_last_of('/');
+                    if (pos != std::string::npos) {
+                        topic = topic.substr(0, pos);
+                    }
+                }
+                std::strncpy(_mdns_record.destination, topic.c_str(), sizeof _mdns_record.destination - 1);
+                _mdns_record.port = _mqtt_server_config.port;
+
+                _emit_mdns();
             }
 
             _emit_mdns();
@@ -245,15 +278,11 @@ static void _mqtt_serivice_thread(void*) {
                     break;
                 }
 
-                for (int i = 0; i < 100; ++i) {
+                for (;;) {
                     if (_net_sta == NETWORK_JOINED) {
                         break;
                     }
                     vTaskDelay(30 / portTICK_PERIOD_MS);
-                }
-
-                if (_net_sta != NETWORK_JOINED) {
-                    MA_LOGE(MA_TAG, "Failed to join to wifi");
                 }
             }
                 [[fallthrough]];
@@ -288,13 +317,11 @@ static void _mqtt_serivice_thread(void*) {
                     MA_STORAGE_GET_ASTR(storage, MA_STORAGE_KEY_MQTT_USER, _mqtt_server_config.username, "");
                     if (_mqtt_server_config.username[0] == 0) {
                         MA_LOGD(MA_TAG, "No mqtt username found");
-                        return;
                     }
 
                     MA_STORAGE_GET_ASTR(storage, MA_STORAGE_KEY_MQTT_PWD, _mqtt_server_config.password, "");
                     if (_mqtt_server_config.password[0] == 0) {
                         MA_LOGD(MA_TAG, "No mqtt password found");
-                        return;
                     }
 
                     MA_STORAGE_GET_POD(storage, MA_STORAGE_KEY_MQTT_SSL, _mqtt_server_config.use_ssl, 0);
@@ -317,42 +344,58 @@ static void _mqtt_serivice_thread(void*) {
                     }
                 }
 
-                static esp_mqtt_client_config_t esp_mqtt_cfg = {
-                    .broker =
-                        {
-                            .address =
-                                {
-                                    .hostname  = _mqtt_server_config.host,
-                                    .transport = (_mqtt_server_config.use_ssl == 1) ? MQTT_TRANSPORT_OVER_SSL : MQTT_TRANSPORT_OVER_TCP,
-                                    .port      = (uint32_t)_mqtt_server_config.port,
-                                },
-                        },
-                    .credentials =
-                        {
-                            .username  = _mqtt_server_config.username,
-                            .client_id = _mqtt_server_config.client_id,
-                            .authentication =
-                                {
-                                    .password = _mqtt_server_config.password,
-                                },
-                        },
-                };
+                if (!_mqtt_client) {
 
-                _mqtt_client = esp_mqtt_client_init(&esp_mqtt_cfg);
+                    static esp_mqtt_client_config_t esp_mqtt_cfg = {
+                        .broker =
+                            {
+                                .address =
+                                    {
+                                        .hostname  = _mqtt_server_config.host,
+                                        .transport = _mqtt_server_config.use_ssl != 0 ? MQTT_TRANSPORT_OVER_SSL : MQTT_TRANSPORT_OVER_TCP,
+                                        .port      = (uint32_t)_mqtt_server_config.port,
+                                    },
+                            },
+                        .credentials =
+                            {
+                                .username  = _mqtt_server_config.username,
+                                .client_id = _mqtt_server_config.client_id,
+                                .authentication =
+                                    {
+                                        .password = _mqtt_server_config.password,
+                                    },
+                            },
+                    };
 
-                esp_mqtt_client_register_event(_mqtt_client, (esp_mqtt_event_id_t)ESP_EVENT_ANY_ID, _mqtt_event_handler, nullptr);
-                esp_mqtt_client_start(_mqtt_client);
-            }
-                [[fallthrough]];
+                    MA_LOGD(MA_TAG, "Connecting to mqtt %s:%d", esp_mqtt_cfg.broker.address.hostname, esp_mqtt_cfg.broker.address.port);
+                    MA_LOGD(MA_TAG, "Client id: %s", esp_mqtt_cfg.credentials.client_id);
+                    MA_LOGD(MA_TAG, "Username: %s", esp_mqtt_cfg.credentials.username);
+                    MA_LOGD(MA_TAG, "Password: %s", esp_mqtt_cfg.credentials.authentication.password);
+                    MA_LOGD(MA_TAG, "Use SSL: %d", _mqtt_server_config.use_ssl);
+
+                    if (_mqtt_server_config.use_ssl) {
+                        auto ret = esp_tls_init_global_ca_store();
+                        if (ret != ESP_OK) {
+                            MA_LOGE(MA_TAG, "Failed to init global ca store");
+                            return;
+                        }
+                        esp_mqtt_cfg.broker.verification.use_global_ca_store = true;
+                    }
+
+                    _mqtt_client = esp_mqtt_client_init(&esp_mqtt_cfg);
+
+                    esp_mqtt_client_register_event(_mqtt_client, (esp_mqtt_event_id_t)ESP_EVENT_ANY_ID, _mqtt_event_handler, nullptr);
+                    esp_mqtt_client_start(_mqtt_client);
+                }
+            } break;
 
             case NETWORK_CONNECTED:
-                MA_LOGD(MA_TAG, "MQTT is connected");
                 break;
 
             default:
                 break;
         }
-    
+
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
 }
@@ -360,7 +403,7 @@ static void _mqtt_serivice_thread(void*) {
 static void _mqtt_serivice_thread_wrapper(void*) {
     _mqtt_serivice_thread(nullptr);
     while (1) {
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        vTaskDelay(portMAX_DELAY);
     }
 }
 
@@ -428,6 +471,7 @@ size_t MQTT::send(const char* data, size_t length) {
         return 0;
     }
 
+    MA_LOGD(MA_TAG, "Publishing data to mqtt %d", length);
     if (esp_mqtt_client_publish(_mqtt_client, _mqtt_topic_config.pub_topic, data, length, _mqtt_topic_config.pub_qos, 0) < 0) {
         MA_LOGD(MA_TAG, "Failed to publish data to mqtt");
         return 0;

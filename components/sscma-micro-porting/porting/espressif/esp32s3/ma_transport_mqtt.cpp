@@ -3,9 +3,12 @@
 #include "core/ma_debug.h"
 #include "ma_transport_mqtt.h"
 
+#include <chrono>
 #include <cstring>
+#include <iostream>
 
 #include "esp_event.h"
+#include "esp_netif_sntp.h"
 #include "esp_tls.h"
 #include "esp_wifi.h"
 #include "freertos/FreeRTOS.h"
@@ -191,11 +194,23 @@ static void _mqtt_serivice_thread(void*) {
                 esp_err_t ret = nvs_flash_init();
                 if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
                     nvs_flash_erase();
-                    nvs_flash_init();
+                    ret = nvs_flash_init();
+                    if (ret != ESP_OK) {
+                        MA_LOGE(MA_TAG, "Failed to init nvs");
+                        return;
+                    }
                 }
 
-                esp_netif_init();
-                esp_event_loop_create_default();
+                ret = esp_netif_init();
+                if (ret != ESP_OK) {
+                    MA_LOGE(MA_TAG, "Failed to init netif");
+                    return;
+                }
+                ret = esp_event_loop_create_default();
+                if (ret != ESP_OK) {
+                    MA_LOGE(MA_TAG, "Failed to create event loop");
+                    return;
+                }
 
                 static esp_netif_inherent_config_t esp_netif_config;
                 esp_netif_config            = ESP_NETIF_INHERENT_DEFAULT_WIFI_STA();
@@ -353,7 +368,7 @@ static void _mqtt_serivice_thread(void*) {
                                 .address =
                                     {
                                         .hostname  = _mqtt_server_config.host,
-                                        .transport = _mqtt_server_config.use_ssl != 0 ? MQTT_TRANSPORT_OVER_SSL : MQTT_TRANSPORT_OVER_TCP,
+                                        .transport = _mqtt_server_config.use_ssl ? MQTT_TRANSPORT_OVER_SSL : MQTT_TRANSPORT_OVER_TCP,
                                         .port      = (uint32_t)_mqtt_server_config.port,
                                     },
                             },
@@ -375,12 +390,48 @@ static void _mqtt_serivice_thread(void*) {
                     MA_LOGD(MA_TAG, "Use SSL: %d", _mqtt_server_config.use_ssl);
 
                     if (_mqtt_server_config.use_ssl) {
-                        auto ret = esp_tls_init_global_ca_store();
-                        if (ret != ESP_OK) {
-                            MA_LOGE(MA_TAG, "Failed to init global ca store");
-                            return;
+                        auto storage = ma::get_storage_instance();
+                        static std::string custom_ca;
+
+                        if (storage) {
+                            MA_STORAGE_GET_STR(storage, MA_STORAGE_KEY_MQTT_SSL_CA, custom_ca, "");
                         }
-                        esp_mqtt_cfg.broker.verification.use_global_ca_store = true;
+                        if (custom_ca.size()) {
+                            custom_ca.push_back('\0');
+                            MA_LOGD(MA_TAG, "Using custom CA:\n%s", custom_ca.c_str());
+                            esp_mqtt_cfg.broker.verification.use_global_ca_store         = false;
+                            esp_mqtt_cfg.broker.verification.certificate                 = custom_ca.c_str();
+                            esp_mqtt_cfg.broker.verification.certificate_len             = custom_ca.size();
+                            esp_mqtt_cfg.broker.verification.skip_cert_common_name_check = true;
+                        } else {
+                            auto ret = esp_tls_init_global_ca_store();
+                            if (ret != ESP_OK) {
+                                MA_LOGE(MA_TAG, "Failed to init global ca store");
+                                return;
+                            }
+                            esp_mqtt_cfg.broker.verification.use_global_ca_store = true;
+                        }
+                        static const char* servers[] = {
+                            "pool.ntp.org",
+                            "ntp.ntsc.ac.cn",
+                            "time.windows.com",
+                        };
+                        esp_sntp_config_t ntp_config = ESP_NETIF_SNTP_DEFAULT_CONFIG("");
+                        ntp_config.server_from_dhcp  = true;
+                        ntp_config.num_of_servers    = sizeof servers / sizeof servers[0];
+                        for (size_t i = 0; i < ntp_config.num_of_servers; ++i) {
+                            ntp_config.servers[i] = servers[i];
+                        }
+                        auto ret = esp_netif_sntp_init(&ntp_config);
+                        if (ret != ESP_OK) {
+                            MA_LOGE(MA_TAG, "Failed to init sntp");
+                            break;
+                        }
+                        while (esp_netif_sntp_sync_wait(pdMS_TO_TICKS(10000)) != ESP_OK) {
+                            MA_LOGD(MA_TAG, "Failed to sync time with NTP");
+                        }
+                        std::time_t end_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+                        MA_LOGD(MA_TAG, "Current Time and Date: %s", std::ctime(&end_time));
                     }
 
                     _mqtt_client = esp_mqtt_client_init(&esp_mqtt_cfg);
@@ -397,7 +448,10 @@ static void _mqtt_serivice_thread(void*) {
                 break;
         }
 
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        MA_LOGD(MA_TAG, "Network status: %d", _net_sta);
+        MA_LOGD(MA_TAG, "Minimum free heap: %d KB", int(esp_get_minimum_free_heap_size() / 1024));
+
+        vTaskDelay(3000 / portTICK_PERIOD_MS);
     }
 }
 

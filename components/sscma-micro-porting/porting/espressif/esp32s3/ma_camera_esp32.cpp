@@ -216,6 +216,8 @@ ma_err_t CameraESP32::retrieveFrame(ma_img_t& frame, ma_pixel_format_t format) n
         case MA_PIXEL_FORMAT_RGB565:
             frame.data   = _fb->buf;
             frame.size   = _fb->len;
+            frame.width  = _fb->width;
+            frame.height = _fb->height;
             frame.format = MA_PIXEL_FORMAT_RGB565;
             break;
         case MA_PIXEL_FORMAT_JPEG: {
@@ -226,13 +228,13 @@ ma_err_t CameraESP32::retrieveFrame(ma_img_t& frame, ma_pixel_format_t format) n
             rgb565_frame.height = _fb->height;
             rgb565_frame.format = MA_PIXEL_FORMAT_RGB565;
 
-            size_t estimated_size =  rgb565_frame.width * rgb565_frame.height * 3 / 8;
+            size_t estimated_size = rgb565_frame.width * rgb565_frame.height * 3 / 8;
             if (_jpeg_buffer.size() < estimated_size) {
                 _jpeg_buffer.resize(estimated_size);
             }
 
-            frame.data   = _jpeg_buffer.data(); 
-            frame.size   = _jpeg_buffer.size();
+            frame.data = _jpeg_buffer.data();
+            frame.size = _jpeg_buffer.size();
             if (frame.data == nullptr || frame.size == 0) {
                 MA_LOGE(MA_TAG, "JPEG buffer allocation failed");
                 return MA_ENOMEM;
@@ -240,7 +242,7 @@ ma_err_t CameraESP32::retrieveFrame(ma_img_t& frame, ma_pixel_format_t format) n
 
             frame.width  = _fb->width;
             frame.height = _fb->height;
-            auto ret = ma::cv::rgb_to_jpeg(&rgb565_frame, &frame);
+            auto ret     = ma::cv::rgb_to_jpeg(&rgb565_frame, &frame);
             if (ret != MA_OK) {
                 MA_LOGE(MA_TAG, "Failed to convert RGB565 to JPEG");
             }

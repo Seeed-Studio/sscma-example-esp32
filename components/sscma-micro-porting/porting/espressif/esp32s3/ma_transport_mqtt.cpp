@@ -257,15 +257,16 @@ static void _mqtt_serivice_thread(void*) {
                     MA_STORAGE_GET_CSTR(storage, MA_STORAGE_KEY_WIFI_PWD, (char*)cfg.sta.password, 64, "");
                     int8_t security;
                     MA_STORAGE_GET_POD(storage, MA_STORAGE_KEY_WIFI_SECURITY, security, 0);
-                    if (security == 0) {
-                        if (std::strlen((char*)cfg.sta.password) >= 8) {
-                            cfg.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
-                        } else {
-                            cfg.sta.threshold.authmode = WIFI_AUTH_OPEN;
-                        }
-                    } else {
-                        cfg.sta.threshold.authmode = static_cast<wifi_auth_mode_t>(security);
-                    }
+
+                    std::vector<wifi_auth_mode_t> sec_map = {
+                        WIFI_AUTH_WPA_WPA2_PSK,
+                        WIFI_AUTH_OPEN,
+                        WIFI_AUTH_WEP,
+                        WIFI_AUTH_WPA_WPA2_PSK,
+                        WIFI_AUTH_WPA2_WPA3_PSK,
+                        WIFI_AUTH_WPA3_PSK,
+                    };
+                    cfg.sta.threshold.authmode = security < sec_map.size() ? sec_map[security] : (wifi_auth_mode_t)security;
                 }
 
                 if (esp_wifi_set_config(WIFI_IF_STA, &cfg) != ESP_OK) {

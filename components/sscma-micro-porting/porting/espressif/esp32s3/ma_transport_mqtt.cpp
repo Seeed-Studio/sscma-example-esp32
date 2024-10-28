@@ -93,11 +93,10 @@ static void _emit_mdns() {
 }
 
 static void _wifi_event_handler(void* arg, esp_event_base_t base, int32_t id, void* data) {
-    ip_event_got_ip_t* event = (ip_event_got_ip_t*)data;
 
     if (base == IP_EVENT && id == IP_EVENT_STA_GOT_IP) {
+        ip_event_got_ip_t* event = (ip_event_got_ip_t*)data;
         MA_LOGD(MA_TAG, "joined to AP");
-        _net_sta = NETWORK_JOINED;
 
         {
             ma::Guard lock(_net_sync_mutex);
@@ -105,9 +104,18 @@ static void _wifi_event_handler(void* arg, esp_event_base_t base, int32_t id, vo
             memcpy(&_in4_info.netmask.addr, &event->ip_info.netmask, 4);
             memcpy(&_in4_info.gateway.addr, &event->ip_info.gw, 4);
         }
+
+        _net_sta = NETWORK_JOINED;
     } else if (base == WIFI_EVENT && id == WIFI_EVENT_STA_DISCONNECTED) {
         MA_LOGD(MA_TAG, "disconnected from AP");
         _net_sta = NETWORK_IDLE;
+
+        esp_wifi_clear_fast_connect();
+
+        if (esp_wifi_connect() != ESP_OK) {
+            MA_LOGE(MA_TAG, "failed to reconnect to AP");
+            vTaskDelay(1000 / portTICK_PERIOD_MS);
+        }
     }
 }
 
@@ -222,10 +230,29 @@ static void _mqtt_serivice_thread(void*) {
                 static wifi_init_config_t init_cfg;
                 init_cfg = WIFI_INIT_CONFIG_DEFAULT();
 
-                esp_wifi_init(&init_cfg);
-                esp_wifi_set_storage(WIFI_STORAGE_RAM);
-                esp_wifi_set_mode(WIFI_MODE_STA);
-                esp_wifi_start();
+                ret = esp_wifi_init(&init_cfg);
+                if (ret != ESP_OK) {
+                    MA_LOGE(MA_TAG, "Failed to init wifi");
+                    return;
+                }
+
+                ret = esp_wifi_set_storage(WIFI_STORAGE_RAM);
+                if (ret != ESP_OK) {
+                    MA_LOGE(MA_TAG, "Failed to set wifi storage");
+                    return;
+                }
+
+                ret = esp_wifi_set_mode(WIFI_MODE_STA);
+                if (ret != ESP_OK) {
+                    MA_LOGE(MA_TAG, "Failed to set wifi mode");
+                    return;
+                }
+
+                ret = esp_wifi_start();
+                if (ret != ESP_OK) {
+                    MA_LOGE(MA_TAG, "Failed to start wifi");
+                    return;
+                }
 
                 _net_sta = NETWORK_IDLE;
             }
@@ -240,14 +267,14 @@ static void _mqtt_serivice_thread(void*) {
                 static wifi_config_t cfg = {
                     .sta =
                         {
-                            .ssid        = {0},
-                            .password    = {0},
-                            .scan_method = WIFI_FAST_SCAN,
+                            .ssid        = {},
+                            .password    = {},
+                            .scan_method = WIFI_ALL_CHANNEL_SCAN,
                             .sort_method = WIFI_CONNECT_AP_BY_SIGNAL,
                             .threshold =
                                 {
                                     .rssi     = -127,
-                                    .authmode = WIFI_AUTH_WPA2_PSK,
+                                    .authmode = WIFI_AUTH_OPEN,
                                 },
                         },
                 };
@@ -289,16 +316,16 @@ static void _mqtt_serivice_thread(void*) {
                     return;
                 }
 
+                esp_wifi_clear_fast_connect();
+
                 if (esp_wifi_connect() != ESP_OK) {
                     MA_LOGE(MA_TAG, "Failed to join to wifi");
+                    esp_wifi_disconnect();
                     break;
                 }
 
-                for (;;) {
-                    if (_net_sta == NETWORK_JOINED) {
-                        break;
-                    }
-                    vTaskDelay(30 / portTICK_PERIOD_MS);
+                while (_net_sta != NETWORK_JOINED) {
+                    vTaskDelay(100 / portTICK_PERIOD_MS);
                 }
             }
                 [[fallthrough]];
@@ -369,7 +396,7 @@ static void _mqtt_serivice_thread(void*) {
                                     {
                                         .hostname  = _mqtt_server_config.host,
                                         .transport = _mqtt_server_config.use_ssl ? MQTT_TRANSPORT_OVER_SSL : MQTT_TRANSPORT_OVER_TCP,
-                                        .port      = (uint32_t)_mqtt_server_config.port,
+                                        .port      = (uint16_t)_mqtt_server_config.port,
                                     },
                             },
                         .credentials =
@@ -399,10 +426,8 @@ static void _mqtt_serivice_thread(void*) {
                         if (custom_ca.size()) {
                             custom_ca.push_back('\0');
                             MA_LOGD(MA_TAG, "Using custom CA:\n%s", custom_ca.c_str());
-                            esp_mqtt_cfg.broker.verification.use_global_ca_store         = false;
-                            esp_mqtt_cfg.broker.verification.certificate                 = custom_ca.c_str();
-                            esp_mqtt_cfg.broker.verification.certificate_len             = custom_ca.size();
-                            esp_mqtt_cfg.broker.verification.skip_cert_common_name_check = true;
+                            esp_mqtt_cfg.broker.verification.certificate     = custom_ca.c_str();
+                            esp_mqtt_cfg.broker.verification.certificate_len = custom_ca.size();
                         } else {
                             auto ret = esp_tls_init_global_ca_store();
                             if (ret != ESP_OK) {
@@ -422,6 +447,7 @@ static void _mqtt_serivice_thread(void*) {
                         for (size_t i = 0; i < ntp_config.num_of_servers; ++i) {
                             ntp_config.servers[i] = servers[i];
                         }
+                        esp_netif_sntp_deinit();
                         auto ret = esp_netif_sntp_init(&ntp_config);
                         if (ret != ESP_OK) {
                             MA_LOGE(MA_TAG, "Failed to init sntp");

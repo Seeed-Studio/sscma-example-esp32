@@ -24,7 +24,6 @@ static float tsens_out;
 void ma_init_pm_ctrl() {
     MA_LOGD(MA_TAG, "Initializing Temperature sensor");
 
-    
     temp_sensor_config_t temp_sensor = TSENS_CONFIG_DEFAULT();
     temp_sensor_get_config(&temp_sensor);
 
@@ -61,8 +60,6 @@ void ma_trigger_pm_ctrl() {
     esp_pm_get_configuration(&pm_config);
 
     MA_LOGD(MA_TAG, "Temperature out celsius %f°C, max freq %dMHz", tsens_out, pm_config.max_freq_mhz);
-
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
 }
 
 }  // namespace ma

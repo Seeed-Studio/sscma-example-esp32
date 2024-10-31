@@ -12,6 +12,7 @@
 #include "ma_storage_lfs.h"
 #include "ma_transport_console.h"
 #include "ma_transport_mqtt.h"
+#include "ma_pm.h"
 
 #include <esp_efuse.h>
 #include <esp_efuse_chip.h>
@@ -51,9 +52,16 @@ static inline uint32_t _device_id_from_efuse() {
 
 namespace ma {
 
+void __ma_device_background_task() {
+    ma_trigger_pm_ctrl();
+}
+
 Device::Device() {
     MA_LOGD(MA_TAG, "Initializing device: %s", MA_BOARD_NAME);
-    { m_name = MA_BOARD_NAME; }
+    { 
+        m_name = MA_BOARD_NAME; 
+        ma_init_pm_ctrl();
+    }
 
     MA_LOGD(MA_TAG, "Initializing device version");
     { m_version = "XIAO(ESP32S3)"; }

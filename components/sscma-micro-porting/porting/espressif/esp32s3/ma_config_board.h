@@ -5,6 +5,7 @@
 #include "boards/ma_board_esp32s3_eye.h"
 #elif defined(MA_PORTING_SEEED_XIAO_ESP32S3)
 #include "boards/ma_board_xiao_s3.h"
+#define MA_SERVER_RUN_DEVICE_BACKGROUND_TASK 1
 #else
 #error "Please define the board type"
 #endif

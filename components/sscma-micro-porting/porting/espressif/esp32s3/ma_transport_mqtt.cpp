@@ -121,9 +121,6 @@ static void _wifi_event_handler(void* arg, esp_event_base_t base, int32_t id, vo
             ma::Guard lock(_net_sync_mutex);
             _net_sta = NETWORK_IDLE;
         }
-
-        esp_wifi_clear_fast_connect();
-
     } else {
         MA_LOGD(MA_TAG, "wifi base %s, id %d", base, id);
     }
@@ -340,7 +337,7 @@ static void _mqtt_serivice_thread(void*) {
 
                 if (esp_wifi_set_config(WIFI_IF_STA, &cfg) != ESP_OK) {
                     MA_LOGE(MA_TAG, "Failed to set wifi config");
-                    return;
+                    break;
                 }
 
                 do {
@@ -351,9 +348,7 @@ static void _mqtt_serivice_thread(void*) {
                         if (esp_wifi_connect() != ESP_OK) {
                             MA_LOGE(MA_TAG, "Failed to join to wifi");
                             esp_wifi_disconnect();
-                            return;
                         }
-                        break;
                     }
                     vTaskDelay(100 / portTICK_PERIOD_MS);
                 } while (_net_sta < NETWORK_JOINED);

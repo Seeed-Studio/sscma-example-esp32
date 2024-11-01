@@ -11,6 +11,7 @@
 #include "ma_config_board.h"
 #include "ma_storage_lfs.h"
 #include "ma_transport_console.h"
+#include "ma_transport_serial.h"
 #include "ma_transport_mqtt.h"
 #include "ma_pm.h"
 
@@ -88,6 +89,13 @@ Device::Device() {
             MA_LOGE(MA_TAG, "Failed to initialize console transport: %d", ret);
         }
         m_transports.push_back(&console);
+
+        static Serial serial;
+        ret = serial.init(nullptr);
+        if (ret != MA_OK) {
+            MA_LOGE(MA_TAG, "Failed to initialize serial transport: %d", ret);
+        }
+        m_transports.push_back(&serial);
 
         static MQTT mqtt;
         {

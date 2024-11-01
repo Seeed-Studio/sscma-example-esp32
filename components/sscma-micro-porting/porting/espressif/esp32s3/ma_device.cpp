@@ -94,9 +94,9 @@ Device::Device() {
             ma_mqtt_topic_config_t config;
             using namespace std::string_literals;
             if (!MA_STORAGE_EXISTS(m_storage, MA_STORAGE_KEY_MQTT_PUB_TOPIC) || !MA_STORAGE_EXISTS(m_storage, MA_STORAGE_KEY_MQTT_SUB_TOPIC)) {
-                std::string topic_prefix = "/ma/"s + MA_AT_API_VERSION + "/" + PRODUCT_NAME_PREFIX + "_"s + PRODUCT_NAME_SUFFIX + "_"s + m_id;
-                std::string topic_pub    = topic_prefix + "/pub";
-                std::string topic_sub    = topic_prefix + "/sub";
+                std::string topic_prefix = "sscma/"s + MA_AT_API_VERSION + "/" + PRODUCT_NAME_PREFIX + "_"s + PRODUCT_NAME_SUFFIX + "_"s + m_id;
+                std::string topic_pub    = topic_prefix + "/tx";
+                std::string topic_sub    = topic_prefix + "/rx";
                 MA_STORAGE_SET_STR(ret, m_storage, MA_STORAGE_KEY_MQTT_PUB_TOPIC, topic_pub);
                 MA_STORAGE_SET_STR(ret, m_storage, MA_STORAGE_KEY_MQTT_SUB_TOPIC, topic_sub);
                 MA_STORAGE_SET_RVPOD(ret, m_storage, MA_STORAGE_KEY_MQTT_PUB_QOS, 0);

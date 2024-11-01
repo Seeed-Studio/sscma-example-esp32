@@ -35,6 +35,7 @@ typedef enum {
 } ma_net_sta_t;
 
 volatile int _net_sta = NETWORK_LOST;
+ma::Mutex _net_sta_mutex{};
 
 static esp_netif_t* _esp_netif               = nullptr;
 static esp_mqtt_client_handle_t _mqtt_client = nullptr;
@@ -71,8 +72,11 @@ typedef struct mdns_record {
 static mdns_record_t _mdns_record{};
 
 static void _emit_mdns() {
-    if (_net_sta != NETWORK_CONNECTED) {
-        return;
+    {
+        ma::Guard lock(_net_sync_mutex);
+        if (_net_sta != NETWORK_CONNECTED) {
+            return;
+        }
     }
 
     mdns_init();
@@ -105,17 +109,23 @@ static void _wifi_event_handler(void* arg, esp_event_base_t base, int32_t id, vo
             memcpy(&_in4_info.gateway.addr, &event->ip_info.gw, 4);
         }
 
-        _net_sta = NETWORK_JOINED;
+        {
+            ma::Guard lock(_net_sync_mutex);
+            if (_net_sta == NETWORK_IDLE) {
+                _net_sta = NETWORK_JOINED;
+            }
+        }
     } else if (base == WIFI_EVENT && id == WIFI_EVENT_STA_DISCONNECTED) {
         MA_LOGD(MA_TAG, "disconnected from AP");
-        _net_sta = NETWORK_IDLE;
+        {
+            ma::Guard lock(_net_sync_mutex);
+            _net_sta = NETWORK_IDLE;
+        }
 
         esp_wifi_clear_fast_connect();
 
-        if (esp_wifi_connect() != ESP_OK) {
-            MA_LOGE(MA_TAG, "failed to reconnect to AP");
-            vTaskDelay(1000 / portTICK_PERIOD_MS);
-        }
+    } else {
+        MA_LOGD(MA_TAG, "wifi base %s, id %d", base, id);
     }
 }
 
@@ -124,19 +134,32 @@ static void _mqtt_event_handler(void* arg, esp_event_base_t base, int32_t id, vo
 
     switch ((esp_mqtt_event_id_t)id) {
         case MQTT_EVENT_CONNECTED: {
-            _net_sta = NETWORK_CONNECTED;
+            {
+                ma::Guard lock(_net_sync_mutex);
+                if (_net_sta == NETWORK_JOINED) {
+                    _net_sta = NETWORK_CONNECTED;
+                } else {
+                    return;
+                }
+            }
 
             do {
                 int cnt = esp_mqtt_client_subscribe(_mqtt_client, _mqtt_topic_config.sub_topic, _mqtt_topic_config.sub_qos);
                 if (cnt >= 0) {
                     break;
                 }
-                MA_LOGD(MA_TAG, "Failed to subscribe to topic %d", cnt);
+                MA_LOGD(MA_TAG, "Failed to subscribe to topic: %s, %d", _mqtt_topic_config.sub_topic, cnt);
                 vTaskDelay(100 / portTICK_PERIOD_MS);
-            } while (_net_sta == NETWORK_CONNECTED);
+                {
+                    ma::Guard lock(_net_sync_mutex);
+                    if (_net_sta != NETWORK_CONNECTED) {
+                        return;
+                    }
+                }
+            } while (1);
 
             {
-                const char* discover_topic = "/ma/" MA_AT_API_VERSION "/discover";
+                const char* discover_topic = "sscma/" MA_AT_API_VERSION "/discover";
                 std::string payload        = "{\"pub_topic\":\"";
                 payload += _mqtt_topic_config.pub_topic;
                 payload += "\",\"pub_qos\":";
@@ -170,12 +193,15 @@ static void _mqtt_event_handler(void* arg, esp_event_base_t base, int32_t id, vo
                 _emit_mdns();
             }
 
-            _emit_mdns();
         } break;
 
-        case MQTT_EVENT_DISCONNECTED:
-            _net_sta = NETWORK_JOINED;
-            break;
+        case MQTT_EVENT_DISCONNECTED: {
+            ma::Guard lock(_net_sync_mutex);
+            if (_net_sta == NETWORK_CONNECTED) {
+                _net_sta = NETWORK_JOINED;
+            }
+
+        } break;
 
         case MQTT_EVENT_DATA:
             if (_rb_rx) {
@@ -188,6 +214,7 @@ static void _mqtt_event_handler(void* arg, esp_event_base_t base, int32_t id, vo
             break;
 
         default:
+            MA_LOGD(MA_TAG, "mqtt event base %s, id %d", base, id);
             break;
     }
 }
@@ -316,17 +343,20 @@ static void _mqtt_serivice_thread(void*) {
                     return;
                 }
 
-                esp_wifi_clear_fast_connect();
-
-                if (esp_wifi_connect() != ESP_OK) {
-                    MA_LOGE(MA_TAG, "Failed to join to wifi");
-                    esp_wifi_disconnect();
-                    break;
-                }
-
-                while (_net_sta != NETWORK_JOINED) {
+                do {
+                    static size_t retry = 0;
+                    if (retry++ % 100 == 0) {
+                        MA_LOGE(MA_TAG, "Failed to join to wifi");
+                        esp_wifi_clear_fast_connect();
+                        if (esp_wifi_connect() != ESP_OK) {
+                            MA_LOGE(MA_TAG, "Failed to join to wifi");
+                            esp_wifi_disconnect();
+                            return;
+                        }
+                        break;
+                    }
                     vTaskDelay(100 / portTICK_PERIOD_MS);
-                }
+                } while (_net_sta < NETWORK_JOINED);
             }
                 [[fallthrough]];
 
@@ -347,9 +377,6 @@ static void _mqtt_serivice_thread(void*) {
                     }
 
                     MA_STORAGE_GET_POD(storage, MA_STORAGE_KEY_MQTT_PORT, _mqtt_server_config.port, 0);
-                    if (_mqtt_server_config.port == 0) {
-                        _mqtt_server_config.port = 1883;
-                    }
 
                     MA_STORAGE_GET_ASTR(storage, MA_STORAGE_KEY_MQTT_CLIENTID, _mqtt_server_config.client_id, "");
                     if (_mqtt_server_config.client_id[0] == 0) {
@@ -368,6 +395,9 @@ static void _mqtt_serivice_thread(void*) {
                     }
 
                     MA_STORAGE_GET_POD(storage, MA_STORAGE_KEY_MQTT_SSL, _mqtt_server_config.use_ssl, 0);
+                    if (_mqtt_server_config.port == 0) {
+                        _mqtt_server_config.port = _mqtt_server_config.use_ssl ? 8883 : 1883;
+                    }
 
                     {
                         MA_STORAGE_GET_ASTR(storage, MA_STORAGE_KEY_MQTT_PUB_TOPIC, _mqtt_topic_config.pub_topic, "");
@@ -396,7 +426,7 @@ static void _mqtt_serivice_thread(void*) {
                                     {
                                         .hostname  = _mqtt_server_config.host,
                                         .transport = _mqtt_server_config.use_ssl ? MQTT_TRANSPORT_OVER_SSL : MQTT_TRANSPORT_OVER_TCP,
-                                        .port      = (uint16_t)_mqtt_server_config.port,
+                                        .port      = static_cast<uint16_t>(_mqtt_server_config.port),
                                     },
                             },
                         .credentials =
@@ -414,7 +444,7 @@ static void _mqtt_serivice_thread(void*) {
                     MA_LOGD(MA_TAG, "Client id: %s", esp_mqtt_cfg.credentials.client_id);
                     MA_LOGD(MA_TAG, "Username: %s", esp_mqtt_cfg.credentials.username);
                     MA_LOGD(MA_TAG, "Password: %s", esp_mqtt_cfg.credentials.authentication.password);
-                    MA_LOGD(MA_TAG, "Use SSL: %d", _mqtt_server_config.use_ssl);
+                    MA_LOGD(MA_TAG, "Use SSL: %d", static_cast<int>(_mqtt_server_config.use_ssl));
 
                     if (_mqtt_server_config.use_ssl) {
                         auto storage = ma::get_storage_instance();
@@ -464,7 +494,11 @@ static void _mqtt_serivice_thread(void*) {
 
                     esp_mqtt_client_register_event(_mqtt_client, (esp_mqtt_event_id_t)ESP_EVENT_ANY_ID, _mqtt_event_handler, nullptr);
                     esp_mqtt_client_start(_mqtt_client);
+                } else {
+                    esp_mqtt_client_reconnect(_mqtt_client);
+                    vTaskDelay(3000 / portTICK_PERIOD_MS);
                 }
+
             } break;
 
             case NETWORK_CONNECTED:

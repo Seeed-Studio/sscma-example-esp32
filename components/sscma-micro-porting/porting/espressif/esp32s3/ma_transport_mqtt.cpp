@@ -35,7 +35,6 @@ typedef enum {
 } ma_net_sta_t;
 
 volatile int _net_sta = NETWORK_LOST;
-ma::Mutex _net_sta_mutex{};
 
 static esp_netif_t* _esp_netif               = nullptr;
 static esp_mqtt_client_handle_t _mqtt_client = nullptr;
@@ -72,11 +71,8 @@ typedef struct mdns_record {
 static mdns_record_t _mdns_record{};
 
 static void _emit_mdns() {
-    {
-        ma::Guard lock(_net_sync_mutex);
-        if (_net_sta != NETWORK_CONNECTED) {
-            return;
-        }
+    if (_net_sta != NETWORK_CONNECTED) {
+        return;
     }
 
     mdns_init();
@@ -109,35 +105,38 @@ static void _wifi_event_handler(void* arg, esp_event_base_t base, int32_t id, vo
             memcpy(&_in4_info.gateway.addr, &event->ip_info.gw, 4);
         }
 
-        {
-            ma::Guard lock(_net_sync_mutex);
-            if (_net_sta == NETWORK_IDLE) {
-                _net_sta = NETWORK_JOINED;
-            }
+        if (_net_sta == NETWORK_IDLE) {
+            _net_sta = NETWORK_JOINED;
         }
+
     } else if (base == WIFI_EVENT && id == WIFI_EVENT_STA_DISCONNECTED) {
         MA_LOGD(MA_TAG, "disconnected from AP");
-        {
-            ma::Guard lock(_net_sync_mutex);
-            _net_sta = NETWORK_IDLE;
+
+        _net_sta = NETWORK_IDLE;
+
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        esp_wifi_clear_fast_connect();
+        auto ret = esp_wifi_connect();
+        if (ret != ESP_OK) {
+            MA_LOGE(MA_TAG, "Failed to restore wifi");
         }
+
     } else {
         MA_LOGD(MA_TAG, "wifi base %s, id %d", base, id);
     }
 }
 
 static void _mqtt_event_handler(void* arg, esp_event_base_t base, int32_t id, void* data) {
+
     esp_mqtt_event_handle_t event = (esp_mqtt_event_handle_t)data;
 
     switch ((esp_mqtt_event_id_t)id) {
         case MQTT_EVENT_CONNECTED: {
-            {
-                ma::Guard lock(_net_sync_mutex);
-                if (_net_sta == NETWORK_JOINED) {
-                    _net_sta = NETWORK_CONNECTED;
-                } else {
-                    return;
-                }
+
+            if (_net_sta == NETWORK_JOINED) {
+                _net_sta = NETWORK_CONNECTED;
+            } else {
+                return;
             }
 
             do {
@@ -147,16 +146,15 @@ static void _mqtt_event_handler(void* arg, esp_event_base_t base, int32_t id, vo
                 }
                 MA_LOGD(MA_TAG, "Failed to subscribe to topic: %s, %d", _mqtt_topic_config.sub_topic, cnt);
                 vTaskDelay(100 / portTICK_PERIOD_MS);
-                {
-                    ma::Guard lock(_net_sync_mutex);
-                    if (_net_sta != NETWORK_CONNECTED) {
-                        return;
-                    }
+
+                if (_net_sta != NETWORK_CONNECTED) {
+                    return;
                 }
+
             } while (1);
 
             {
-                const char* discover_topic = "sscma/" MA_AT_API_VERSION "/discover";
+                const char* discover_topic = "sscma/" MA_AT_API_VERSION "/discovery";
                 std::string payload        = "{\"pub_topic\":\"";
                 payload += _mqtt_topic_config.pub_topic;
                 payload += "\",\"pub_qos\":";
@@ -193,11 +191,23 @@ static void _mqtt_event_handler(void* arg, esp_event_base_t base, int32_t id, vo
         } break;
 
         case MQTT_EVENT_DISCONNECTED: {
-            ma::Guard lock(_net_sync_mutex);
+
+            vTaskDelay(1000 / portTICK_PERIOD_MS);
+
             if (_net_sta == NETWORK_CONNECTED) {
                 _net_sta = NETWORK_JOINED;
+            } else {
+                while (1) {
+                    vTaskDelay(100 / portTICK_PERIOD_MS);
+                    if (_net_sta == NETWORK_JOINED) {
+                        break;
+                    }
+                }
             }
 
+            if (_mqtt_client) {
+                esp_mqtt_client_reconnect(_mqtt_client);
+            }
         } break;
 
         case MQTT_EVENT_DATA:
@@ -219,301 +229,295 @@ static void _mqtt_event_handler(void* arg, esp_event_base_t base, int32_t id, vo
 static TaskHandle_t _mqtt_serivice_thread_handler{};
 
 static void _mqtt_serivice_thread(void*) {
-    while (1) {
-        switch (_net_sta) {
-            case NETWORK_LOST: {
-                MA_LOGD(MA_TAG, "Network lost, reconnecting");
-                esp_err_t ret = nvs_flash_init();
-                if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-                    nvs_flash_erase();
-                    ret = nvs_flash_init();
-                    if (ret != ESP_OK) {
-                        MA_LOGE(MA_TAG, "Failed to init nvs");
+
+    switch (_net_sta) {
+        case NETWORK_LOST: {
+            MA_LOGD(MA_TAG, "Network lost, reconnecting");
+            esp_err_t ret = nvs_flash_init();
+            if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+                nvs_flash_erase();
+                ret = nvs_flash_init();
+                if (ret != ESP_OK) {
+                    MA_LOGE(MA_TAG, "Failed to init nvs");
+                    return;
+                }
+            }
+
+            ret = esp_netif_init();
+            if (ret != ESP_OK) {
+                MA_LOGE(MA_TAG, "Failed to init netif");
+                return;
+            }
+            ret = esp_event_loop_create_default();
+            if (ret != ESP_OK) {
+                MA_LOGE(MA_TAG, "Failed to create event loop");
+                return;
+            }
+
+            static esp_netif_inherent_config_t esp_netif_config;
+            esp_netif_config            = ESP_NETIF_INHERENT_DEFAULT_WIFI_STA();
+            esp_netif_config.if_desc    = "sscma";
+            esp_netif_config.route_prio = 128;
+            _esp_netif                  = esp_netif_create_wifi(WIFI_IF_STA, &esp_netif_config);
+            esp_wifi_set_default_wifi_sta_handlers();
+
+            static wifi_init_config_t init_cfg;
+            init_cfg = WIFI_INIT_CONFIG_DEFAULT();
+
+            ret = esp_wifi_init(&init_cfg);
+            if (ret != ESP_OK) {
+                MA_LOGE(MA_TAG, "Failed to init wifi");
+                return;
+            }
+
+            ret = esp_wifi_set_storage(WIFI_STORAGE_RAM);
+            if (ret != ESP_OK) {
+                MA_LOGE(MA_TAG, "Failed to set wifi storage");
+                return;
+            }
+
+            ret = esp_wifi_set_mode(WIFI_MODE_STA);
+            if (ret != ESP_OK) {
+                MA_LOGE(MA_TAG, "Failed to set wifi mode");
+                return;
+            }
+
+            ret = esp_wifi_start();
+            if (ret != ESP_OK) {
+                MA_LOGE(MA_TAG, "Failed to start wifi");
+                return;
+            }
+
+            _net_sta = NETWORK_IDLE;
+        }
+            [[fallthrough]];
+
+        case NETWORK_IDLE: {
+            MA_LOGD(MA_TAG, "Network idle, joining to wifi");
+
+            esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &_wifi_event_handler, nullptr);
+            esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &_wifi_event_handler, nullptr);
+
+            static wifi_config_t cfg = {
+                .sta =
+                    {
+                        .ssid        = {},
+                        .password    = {},
+                        .scan_method = WIFI_ALL_CHANNEL_SCAN,
+                        .sort_method = WIFI_CONNECT_AP_BY_SIGNAL,
+                        .threshold =
+                            {
+                                .rssi     = -127,
+                                .authmode = WIFI_AUTH_OPEN,
+                            },
+                    },
+            };
+
+
+            if (cfg.sta.ssid[0] == 0) {
+                auto storage = ma::get_storage_instance();
+                if (!storage) {
+                    MA_LOGE(MA_TAG, "Failed to get storage instance");
+                    return;
+                }
+
+                MA_STORAGE_GET_CSTR(storage, MA_STORAGE_KEY_WIFI_SSID, (char*)cfg.sta.ssid, 32, "");
+                if (cfg.sta.ssid[0] == 0) {
+                    MA_STORAGE_GET_CSTR(storage, MA_STORAGE_KEY_WIFI_BSSID, (char*)cfg.sta.ssid, 32, "");
+                }
+                if (cfg.sta.ssid[0] == 0) {
+                    MA_LOGD(MA_TAG, "No wifi ssid found");
+                    return;
+                }
+
+                MA_STORAGE_GET_CSTR(storage, MA_STORAGE_KEY_WIFI_PWD, (char*)cfg.sta.password, 64, "");
+                int8_t security;
+                MA_STORAGE_GET_POD(storage, MA_STORAGE_KEY_WIFI_SECURITY, security, 0);
+
+                std::vector<wifi_auth_mode_t> sec_map = {
+                    WIFI_AUTH_WPA_WPA2_PSK,
+                    WIFI_AUTH_OPEN,
+                    WIFI_AUTH_WEP,
+                    WIFI_AUTH_WPA_WPA2_PSK,
+                    WIFI_AUTH_WPA2_WPA3_PSK,
+                    WIFI_AUTH_WPA3_PSK,
+                };
+                cfg.sta.threshold.authmode = security < sec_map.size() ? sec_map[security] : (wifi_auth_mode_t)security;
+            }
+
+            if (esp_wifi_set_config(WIFI_IF_STA, &cfg) != ESP_OK) {
+                MA_LOGE(MA_TAG, "Failed to set wifi config");
+                break;
+            }
+
+            esp_wifi_clear_fast_connect();
+            if (esp_wifi_connect() != ESP_OK) {
+                MA_LOGE(MA_TAG, "Failed to join to wifi");
+                esp_wifi_disconnect();
+            }
+
+            do {
+                vTaskDelay(100 / portTICK_PERIOD_MS);
+                if (_net_sta == NETWORK_JOINED) {
+                    break;
+                }
+            } while (1);
+        }
+            [[fallthrough]];
+
+        case NETWORK_JOINED: {
+            MA_LOGD(MA_TAG, "Network joined, connecting to mqtt");
+
+            if (_mqtt_server_config.host[0] == 0) {
+                auto storage = ma::get_storage_instance();
+                if (!storage) {
+                    MA_LOGE(MA_TAG, "Failed to get storage instance");
+                    return;
+                }
+
+                MA_STORAGE_GET_ASTR(storage, MA_STORAGE_KEY_MQTT_HOST, _mqtt_server_config.host, "");
+                if (_mqtt_server_config.host[0] == 0) {
+                    MA_LOGD(MA_TAG, "No mqtt host found");
+                    return;
+                }
+
+                MA_STORAGE_GET_POD(storage, MA_STORAGE_KEY_MQTT_PORT, _mqtt_server_config.port, 0);
+
+                MA_STORAGE_GET_ASTR(storage, MA_STORAGE_KEY_MQTT_CLIENTID, _mqtt_server_config.client_id, "");
+                if (_mqtt_server_config.client_id[0] == 0) {
+                    MA_LOGD(MA_TAG, "No mqtt client id found");
+                    return;
+                }
+
+                MA_STORAGE_GET_ASTR(storage, MA_STORAGE_KEY_MQTT_USER, _mqtt_server_config.username, "");
+                if (_mqtt_server_config.username[0] == 0) {
+                    MA_LOGD(MA_TAG, "No mqtt username found");
+                }
+
+                MA_STORAGE_GET_ASTR(storage, MA_STORAGE_KEY_MQTT_PWD, _mqtt_server_config.password, "");
+                if (_mqtt_server_config.password[0] == 0) {
+                    MA_LOGD(MA_TAG, "No mqtt password found");
+                }
+
+                MA_STORAGE_GET_POD(storage, MA_STORAGE_KEY_MQTT_SSL, _mqtt_server_config.use_ssl, 0);
+                if (_mqtt_server_config.port == 0) {
+                    _mqtt_server_config.port = _mqtt_server_config.use_ssl ? 8883 : 1883;
+                }
+
+                {
+                    MA_STORAGE_GET_ASTR(storage, MA_STORAGE_KEY_MQTT_PUB_TOPIC, _mqtt_topic_config.pub_topic, "");
+                    if (_mqtt_topic_config.pub_topic[0] == 0) {
+                        MA_LOGD(MA_TAG, "No mqtt pub topic found");
                         return;
                     }
+
+                    MA_STORAGE_GET_ASTR(storage, MA_STORAGE_KEY_MQTT_SUB_TOPIC, _mqtt_topic_config.sub_topic, "");
+                    if (_mqtt_topic_config.sub_topic[0] == 0) {
+                        MA_LOGD(MA_TAG, "No mqtt sub topic found");
+                        return;
+                    }
+
+                    MA_STORAGE_GET_POD(storage, MA_STORAGE_KEY_MQTT_PUB_QOS, _mqtt_topic_config.pub_qos, 0);
+                    MA_STORAGE_GET_POD(storage, MA_STORAGE_KEY_MQTT_SUB_QOS, _mqtt_topic_config.sub_qos, 0);
                 }
-
-                ret = esp_netif_init();
-                if (ret != ESP_OK) {
-                    MA_LOGE(MA_TAG, "Failed to init netif");
-                    return;
-                }
-                ret = esp_event_loop_create_default();
-                if (ret != ESP_OK) {
-                    MA_LOGE(MA_TAG, "Failed to create event loop");
-                    return;
-                }
-
-                static esp_netif_inherent_config_t esp_netif_config;
-                esp_netif_config            = ESP_NETIF_INHERENT_DEFAULT_WIFI_STA();
-                esp_netif_config.if_desc    = "sscma";
-                esp_netif_config.route_prio = 128;
-                _esp_netif                  = esp_netif_create_wifi(WIFI_IF_STA, &esp_netif_config);
-                esp_wifi_set_default_wifi_sta_handlers();
-
-                static wifi_init_config_t init_cfg;
-                init_cfg = WIFI_INIT_CONFIG_DEFAULT();
-
-                ret = esp_wifi_init(&init_cfg);
-                if (ret != ESP_OK) {
-                    MA_LOGE(MA_TAG, "Failed to init wifi");
-                    return;
-                }
-
-                ret = esp_wifi_set_storage(WIFI_STORAGE_RAM);
-                if (ret != ESP_OK) {
-                    MA_LOGE(MA_TAG, "Failed to set wifi storage");
-                    return;
-                }
-
-                ret = esp_wifi_set_mode(WIFI_MODE_STA);
-                if (ret != ESP_OK) {
-                    MA_LOGE(MA_TAG, "Failed to set wifi mode");
-                    return;
-                }
-
-                ret = esp_wifi_start();
-                if (ret != ESP_OK) {
-                    MA_LOGE(MA_TAG, "Failed to start wifi");
-                    return;
-                }
-
-                _net_sta = NETWORK_IDLE;
             }
-                [[fallthrough]];
 
-            case NETWORK_IDLE: {
-                MA_LOGD(MA_TAG, "Network idle, joining to wifi");
+            if (!_mqtt_client) {
 
-                esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &_wifi_event_handler, nullptr);
-                esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &_wifi_event_handler, nullptr);
-
-                static wifi_config_t cfg = {
-                    .sta =
+                static esp_mqtt_client_config_t esp_mqtt_cfg = {
+                    .broker =
                         {
-                            .ssid        = {},
-                            .password    = {},
-                            .scan_method = WIFI_ALL_CHANNEL_SCAN,
-                            .sort_method = WIFI_CONNECT_AP_BY_SIGNAL,
-                            .threshold =
+                            .address =
                                 {
-                                    .rssi     = -127,
-                                    .authmode = WIFI_AUTH_OPEN,
+                                    .hostname  = _mqtt_server_config.host,
+                                    .transport = _mqtt_server_config.use_ssl ? MQTT_TRANSPORT_OVER_SSL : MQTT_TRANSPORT_OVER_TCP,
+                                    .port      = static_cast<uint16_t>(_mqtt_server_config.port),
+                                },
+                        },
+                    .credentials =
+                        {
+                            .username  = _mqtt_server_config.username,
+                            .client_id = _mqtt_server_config.client_id,
+                            .authentication =
+                                {
+                                    .password = _mqtt_server_config.password,
                                 },
                         },
                 };
 
+                MA_LOGD(MA_TAG, "Connecting to mqtt %s:%d", esp_mqtt_cfg.broker.address.hostname, esp_mqtt_cfg.broker.address.port);
+                MA_LOGD(MA_TAG, "Client id: %s", esp_mqtt_cfg.credentials.client_id);
+                MA_LOGD(MA_TAG, "Username: %s", esp_mqtt_cfg.credentials.username);
+                MA_LOGD(MA_TAG, "Password: %s", esp_mqtt_cfg.credentials.authentication.password);
+                MA_LOGD(MA_TAG, "Use SSL: %d", static_cast<int>(_mqtt_server_config.use_ssl));
 
-                if (cfg.sta.ssid[0] == 0) {
+                if (_mqtt_server_config.use_ssl) {
                     auto storage = ma::get_storage_instance();
-                    if (!storage) {
-                        MA_LOGE(MA_TAG, "Failed to get storage instance");
-                        return;
+                    static std::string custom_ca;
+
+                    if (storage) {
+                        MA_STORAGE_GET_STR(storage, MA_STORAGE_KEY_MQTT_SSL_CA, custom_ca, "");
                     }
-
-                    MA_STORAGE_GET_CSTR(storage, MA_STORAGE_KEY_WIFI_SSID, (char*)cfg.sta.ssid, 32, "");
-                    if (cfg.sta.ssid[0] == 0) {
-                        MA_STORAGE_GET_CSTR(storage, MA_STORAGE_KEY_WIFI_BSSID, (char*)cfg.sta.ssid, 32, "");
-                    }
-                    if (cfg.sta.ssid[0] == 0) {
-                        MA_LOGD(MA_TAG, "No wifi ssid found");
-                        return;
-                    }
-
-                    MA_STORAGE_GET_CSTR(storage, MA_STORAGE_KEY_WIFI_PWD, (char*)cfg.sta.password, 64, "");
-                    int8_t security;
-                    MA_STORAGE_GET_POD(storage, MA_STORAGE_KEY_WIFI_SECURITY, security, 0);
-
-                    std::vector<wifi_auth_mode_t> sec_map = {
-                        WIFI_AUTH_WPA_WPA2_PSK,
-                        WIFI_AUTH_OPEN,
-                        WIFI_AUTH_WEP,
-                        WIFI_AUTH_WPA_WPA2_PSK,
-                        WIFI_AUTH_WPA2_WPA3_PSK,
-                        WIFI_AUTH_WPA3_PSK,
-                    };
-                    cfg.sta.threshold.authmode = security < sec_map.size() ? sec_map[security] : (wifi_auth_mode_t)security;
-                }
-
-                if (esp_wifi_set_config(WIFI_IF_STA, &cfg) != ESP_OK) {
-                    MA_LOGE(MA_TAG, "Failed to set wifi config");
-                    break;
-                }
-
-                do {
-                    static size_t retry = 0;
-                    if (retry++ % 100 == 0) {
-                        MA_LOGE(MA_TAG, "Failed to join to wifi");
-                        esp_wifi_clear_fast_connect();
-                        if (esp_wifi_connect() != ESP_OK) {
-                            MA_LOGE(MA_TAG, "Failed to join to wifi");
-                            esp_wifi_disconnect();
-                        }
-                    }
-                    vTaskDelay(100 / portTICK_PERIOD_MS);
-                } while (_net_sta < NETWORK_JOINED);
-            }
-                [[fallthrough]];
-
-            case NETWORK_JOINED: {
-                MA_LOGD(MA_TAG, "Network joined, connecting to mqtt");
-
-                if (_mqtt_server_config.host[0] == 0) {
-                    auto storage = ma::get_storage_instance();
-                    if (!storage) {
-                        MA_LOGE(MA_TAG, "Failed to get storage instance");
-                        return;
-                    }
-
-                    MA_STORAGE_GET_ASTR(storage, MA_STORAGE_KEY_MQTT_HOST, _mqtt_server_config.host, "");
-                    if (_mqtt_server_config.host[0] == 0) {
-                        MA_LOGD(MA_TAG, "No mqtt host found");
-                        return;
-                    }
-
-                    MA_STORAGE_GET_POD(storage, MA_STORAGE_KEY_MQTT_PORT, _mqtt_server_config.port, 0);
-
-                    MA_STORAGE_GET_ASTR(storage, MA_STORAGE_KEY_MQTT_CLIENTID, _mqtt_server_config.client_id, "");
-                    if (_mqtt_server_config.client_id[0] == 0) {
-                        MA_LOGD(MA_TAG, "No mqtt client id found");
-                        return;
-                    }
-
-                    MA_STORAGE_GET_ASTR(storage, MA_STORAGE_KEY_MQTT_USER, _mqtt_server_config.username, "");
-                    if (_mqtt_server_config.username[0] == 0) {
-                        MA_LOGD(MA_TAG, "No mqtt username found");
-                    }
-
-                    MA_STORAGE_GET_ASTR(storage, MA_STORAGE_KEY_MQTT_PWD, _mqtt_server_config.password, "");
-                    if (_mqtt_server_config.password[0] == 0) {
-                        MA_LOGD(MA_TAG, "No mqtt password found");
-                    }
-
-                    MA_STORAGE_GET_POD(storage, MA_STORAGE_KEY_MQTT_SSL, _mqtt_server_config.use_ssl, 0);
-                    if (_mqtt_server_config.port == 0) {
-                        _mqtt_server_config.port = _mqtt_server_config.use_ssl ? 8883 : 1883;
-                    }
-
-                    {
-                        MA_STORAGE_GET_ASTR(storage, MA_STORAGE_KEY_MQTT_PUB_TOPIC, _mqtt_topic_config.pub_topic, "");
-                        if (_mqtt_topic_config.pub_topic[0] == 0) {
-                            MA_LOGD(MA_TAG, "No mqtt pub topic found");
-                            return;
-                        }
-
-                        MA_STORAGE_GET_ASTR(storage, MA_STORAGE_KEY_MQTT_SUB_TOPIC, _mqtt_topic_config.sub_topic, "");
-                        if (_mqtt_topic_config.sub_topic[0] == 0) {
-                            MA_LOGD(MA_TAG, "No mqtt sub topic found");
-                            return;
-                        }
-
-                        MA_STORAGE_GET_POD(storage, MA_STORAGE_KEY_MQTT_PUB_QOS, _mqtt_topic_config.pub_qos, 0);
-                        MA_STORAGE_GET_POD(storage, MA_STORAGE_KEY_MQTT_SUB_QOS, _mqtt_topic_config.sub_qos, 0);
-                    }
-                }
-
-                if (!_mqtt_client) {
-
-                    static esp_mqtt_client_config_t esp_mqtt_cfg = {
-                        .broker =
-                            {
-                                .address =
-                                    {
-                                        .hostname  = _mqtt_server_config.host,
-                                        .transport = _mqtt_server_config.use_ssl ? MQTT_TRANSPORT_OVER_SSL : MQTT_TRANSPORT_OVER_TCP,
-                                        .port      = static_cast<uint16_t>(_mqtt_server_config.port),
-                                    },
-                            },
-                        .credentials =
-                            {
-                                .username  = _mqtt_server_config.username,
-                                .client_id = _mqtt_server_config.client_id,
-                                .authentication =
-                                    {
-                                        .password = _mqtt_server_config.password,
-                                    },
-                            },
-                    };
-
-                    MA_LOGD(MA_TAG, "Connecting to mqtt %s:%d", esp_mqtt_cfg.broker.address.hostname, esp_mqtt_cfg.broker.address.port);
-                    MA_LOGD(MA_TAG, "Client id: %s", esp_mqtt_cfg.credentials.client_id);
-                    MA_LOGD(MA_TAG, "Username: %s", esp_mqtt_cfg.credentials.username);
-                    MA_LOGD(MA_TAG, "Password: %s", esp_mqtt_cfg.credentials.authentication.password);
-                    MA_LOGD(MA_TAG, "Use SSL: %d", static_cast<int>(_mqtt_server_config.use_ssl));
-
-                    if (_mqtt_server_config.use_ssl) {
-                        auto storage = ma::get_storage_instance();
-                        static std::string custom_ca;
-
-                        if (storage) {
-                            MA_STORAGE_GET_STR(storage, MA_STORAGE_KEY_MQTT_SSL_CA, custom_ca, "");
-                        }
-                        if (custom_ca.size()) {
-                            custom_ca.push_back('\0');
-                            MA_LOGD(MA_TAG, "Using custom CA:\n%s", custom_ca.c_str());
-                            esp_mqtt_cfg.broker.verification.certificate     = custom_ca.c_str();
-                            esp_mqtt_cfg.broker.verification.certificate_len = custom_ca.size();
-                        } else {
-                            auto ret = esp_tls_init_global_ca_store();
-                            if (ret != ESP_OK) {
-                                MA_LOGE(MA_TAG, "Failed to init global ca store");
-                                return;
-                            }
-                            esp_mqtt_cfg.broker.verification.use_global_ca_store = true;
-                        }
-                        static const char* servers[] = {
-                            "pool.ntp.org",
-                            "ntp.ntsc.ac.cn",
-                            "time.windows.com",
-                        };
-                        esp_sntp_config_t ntp_config = ESP_NETIF_SNTP_DEFAULT_CONFIG("");
-                        ntp_config.server_from_dhcp  = true;
-                        ntp_config.num_of_servers    = sizeof servers / sizeof servers[0];
-                        for (size_t i = 0; i < ntp_config.num_of_servers; ++i) {
-                            ntp_config.servers[i] = servers[i];
-                        }
-                        esp_netif_sntp_deinit();
-                        auto ret = esp_netif_sntp_init(&ntp_config);
+                    if (custom_ca.size()) {
+                        custom_ca.push_back('\0');
+                        MA_LOGD(MA_TAG, "Using custom CA:\n%s", custom_ca.c_str());
+                        esp_mqtt_cfg.broker.verification.certificate     = custom_ca.c_str();
+                        esp_mqtt_cfg.broker.verification.certificate_len = custom_ca.size();
+                    } else {
+                        auto ret = esp_tls_init_global_ca_store();
                         if (ret != ESP_OK) {
-                            MA_LOGE(MA_TAG, "Failed to init sntp");
-                            break;
+                            MA_LOGE(MA_TAG, "Failed to init global ca store");
+                            return;
                         }
-                        while (esp_netif_sntp_sync_wait(pdMS_TO_TICKS(10000)) != ESP_OK) {
-                            MA_LOGD(MA_TAG, "Failed to sync time with NTP");
-                        }
-                        std::time_t end_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-                        MA_LOGD(MA_TAG, "Current Time and Date: %s", std::ctime(&end_time));
+                        esp_mqtt_cfg.broker.verification.use_global_ca_store = true;
                     }
-
-                    _mqtt_client = esp_mqtt_client_init(&esp_mqtt_cfg);
-
-                    esp_mqtt_client_register_event(_mqtt_client, (esp_mqtt_event_id_t)ESP_EVENT_ANY_ID, _mqtt_event_handler, nullptr);
-                    esp_mqtt_client_start(_mqtt_client);
-                } else {
-                    esp_mqtt_client_reconnect(_mqtt_client);
-                    vTaskDelay(3000 / portTICK_PERIOD_MS);
+                    static const char* servers[] = {
+                        "pool.ntp.org",
+                        "ntp.ntsc.ac.cn",
+                        "time.windows.com",
+                    };
+                    esp_sntp_config_t ntp_config = ESP_NETIF_SNTP_DEFAULT_CONFIG("");
+                    ntp_config.server_from_dhcp  = true;
+                    ntp_config.num_of_servers    = sizeof servers / sizeof servers[0];
+                    for (size_t i = 0; i < ntp_config.num_of_servers; ++i) {
+                        ntp_config.servers[i] = servers[i];
+                    }
+                    esp_netif_sntp_deinit();
+                    auto ret = esp_netif_sntp_init(&ntp_config);
+                    if (ret != ESP_OK) {
+                        MA_LOGE(MA_TAG, "Failed to init sntp");
+                        break;
+                    }
+                    while (esp_netif_sntp_sync_wait(pdMS_TO_TICKS(10000)) != ESP_OK) {
+                        MA_LOGD(MA_TAG, "Failed to sync time with NTP");
+                    }
+                    std::time_t end_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+                    MA_LOGD(MA_TAG, "Current Time and Date: %s", std::ctime(&end_time));
                 }
 
-            } break;
+                _mqtt_client = esp_mqtt_client_init(&esp_mqtt_cfg);
 
-            case NETWORK_CONNECTED:
-                break;
+                esp_mqtt_client_register_event(_mqtt_client, (esp_mqtt_event_id_t)ESP_EVENT_ANY_ID, _mqtt_event_handler, nullptr);
+                esp_mqtt_client_start(_mqtt_client);
+            }
 
-            default:
-                break;
-        }
+        } break;
 
-        MA_LOGD(MA_TAG, "Network status: %d", _net_sta);
-        MA_LOGD(MA_TAG, "Minimum free heap: %d KB", int(esp_get_minimum_free_heap_size() / 1024));
+        case NETWORK_CONNECTED:
+            break;
 
-        vTaskDelay(3000 / portTICK_PERIOD_MS);
+        default:
+            break;
     }
 }
 
 static void _mqtt_serivice_thread_wrapper(void*) {
     _mqtt_serivice_thread(nullptr);
     while (1) {
-        vTaskDelay(portMAX_DELAY);
+        MA_LOGD(MA_TAG, "Network status: %d", _net_sta);
+        MA_LOGD(MA_TAG, "Minimum free heap: %d KB", int(esp_get_minimum_free_heap_size() / 1024));
+        MA_LOGD(MA_TAG, "Free heap: %d KB", int(esp_get_free_heap_size() / 1024));
+        vTaskDelay(3000 / portTICK_PERIOD_MS);
     }
 }
 
@@ -534,7 +538,7 @@ ma_err_t MQTT::init(void const* config) {
         _rb_rx = new SPSCRingBuffer<char>(4096);
     }
 
-    auto ret = xTaskCreatePinnedToCore(_mqtt_serivice_thread_wrapper, "mqtt_service", 6144, nullptr, 3, &_mqtt_serivice_thread_handler, 1);
+    auto ret = xTaskCreate(_mqtt_serivice_thread_wrapper, "mqtt_service", 8192, nullptr, 1, nullptr);
 
     if (ret != pdPASS) {
         MA_LOGE(MA_TAG, "Failed to create mqtt service thread");

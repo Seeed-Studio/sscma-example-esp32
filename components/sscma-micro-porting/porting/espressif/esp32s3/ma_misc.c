@@ -6,7 +6,9 @@
 
 #include "ma_config_board.h"
 
-void* ma_malloc(size_t size) { return pvPortMalloc(size); }
+void* ma_malloc(size_t size) {
+    return heap_caps_malloc(size, MALLOC_CAP_SPIRAM);
+}
 
 void* ma_calloc(size_t nmemb, size_t size) {
     void* ptr = pvPortMalloc(nmemb * size);
@@ -18,7 +20,9 @@ void* ma_calloc(size_t nmemb, size_t size) {
 
 // void* ma_realloc(void* ptr, size_t size) { return pvPortRealloc(ptr, size); }
 
-void ma_free(void* ptr) { vPortFree(ptr); }
+void ma_free(void* ptr) {
+    free(ptr);
+}
 
 int ma_printf(const char* fmt, ...) {
     va_list args;
@@ -34,10 +38,18 @@ void ma_abort(void) {
     }
 }
 
-void ma_usleep(uint32_t usec) { vTaskDelay(usec / 1000 / portTICK_PERIOD_MS); }
+void ma_usleep(uint32_t usec) {
+    vTaskDelay(usec / 1000 / portTICK_PERIOD_MS);
+}
 
-void ma_sleep(uint32_t msec) { ma_usleep(msec * 1000); }
+void ma_sleep(uint32_t msec) {
+    ma_usleep(msec * 1000);
+}
 
-int64_t ma_get_time_us(void) { return xTaskGetTickCount() * portTICK_PERIOD_MS * 1000; }
+int64_t ma_get_time_us(void) {
+    return xTaskGetTickCount() * portTICK_PERIOD_MS * 1000;
+}
 
-int64_t ma_get_time_ms(void) { return xTaskGetTickCount() * portTICK_PERIOD_MS; }
+int64_t ma_get_time_ms(void) {
+    return xTaskGetTickCount() * portTICK_PERIOD_MS;
+}

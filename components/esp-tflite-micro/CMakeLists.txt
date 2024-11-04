@@ -110,7 +110,7 @@ endif()
 # enable ESP-NN optimizations by Espressif
 target_compile_options(${COMPONENT_LIB} PRIVATE -DESP_NN)
 
-set(common_flags -DTF_LITE_STATIC_MEMORY -DTF_LITE_DISABLE_X86_NEON -O3
+set(common_flags -DTF_LITE_STATIC_MEMORY -DTF_LITE_DISABLE_X86_NEON -DTF_LITE_USE_CTIME -O3
                  -Wstrict-aliasing -Wno-unused-parameter -Wall -Wextra -Wvla
                  -Wsign-compare -Wdouble-promotion -Wswitch -Wunused-function
                  -Wmissing-field-initializers -ffunction-sections -fdata-sections

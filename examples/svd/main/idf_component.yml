@@ -1,0 +1,5 @@
+dependencies:
+  espressif/eigen:
+    version: ^3.4.0
+  idf:
+    version: '>=4.3.0'

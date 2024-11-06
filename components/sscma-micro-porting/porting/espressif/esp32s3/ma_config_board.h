@@ -22,6 +22,8 @@
 
 #define MA_DEBUG_LEVEL                       5
 
+#define MA_TRIGGER_USE_REAL_GPIO             1
+
 #define MA_USE_EXTERNAL_WIFI_STATUS          1
 
 #define MA_USE_LIB_JPEGENC                   1

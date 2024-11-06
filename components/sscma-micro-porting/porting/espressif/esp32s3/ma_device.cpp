@@ -23,6 +23,7 @@
 #include <esp_partition.h>
 #include <hal/efuse_hal.h>
 #include <spi_flash_mmap.h>
+#include <driver/gpio.h>
 
 
 extern "C" {
@@ -58,6 +59,28 @@ namespace ma {
 void __ma_device_background_task() {
     ma_trigger_pm_ctrl();
 }
+
+bool __ma_is_trigger_gpio(int gpio) {
+    return gpio == 1 || gpio == 2 || gpio == 3 || gpio == 41 || gpio == 42;
+}
+
+void __ma_init_gpio_level(int gpio, int level) {
+    gpio_config_t io_conf;
+    io_conf.intr_type    = GPIO_INTR_DISABLE;
+    io_conf.mode         = GPIO_MODE_OUTPUT;
+    io_conf.pin_bit_mask = 1ULL << gpio;
+    io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
+    io_conf.pull_up_en   = GPIO_PULLUP_DISABLE;
+    gpio_config(&io_conf);
+    gpio_set_level((gpio_num_t)gpio, level);
+    MA_LOGV(MA_TAG, "Initializing GPIO %d to %d", gpio, level);
+}
+
+void __ma_set_gpio_level(int gpio, int level) {
+    MA_LOGV(MA_TAG, "Setting GPIO %d to %d", gpio, level);
+    gpio_set_level((gpio_num_t)gpio, level);
+}
+
 
 Device::Device() {
     MA_LOGD(MA_TAG, "Initializing device: %s", MA_BOARD_NAME);

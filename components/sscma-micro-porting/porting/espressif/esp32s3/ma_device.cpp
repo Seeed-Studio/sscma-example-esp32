@@ -12,6 +12,8 @@
 #include "ma_storage_lfs.h"
 #include "ma_transport_console.h"
 #include "ma_transport_serial.h"
+#include "ma_transport_i2c.h"
+#include "ma_transport_spi.h"
 #include "ma_transport_mqtt.h"
 #include "ma_pm.h"
 
@@ -96,6 +98,20 @@ Device::Device() {
             MA_LOGE(MA_TAG, "Failed to initialize serial transport: %d", ret);
         }
         m_transports.push_back(&serial);
+
+        // static I2C i2c;
+        // ret = i2c.init(nullptr);
+        // if (ret != MA_OK) {
+        //     MA_LOGE(MA_TAG, "Failed to initialize i2c transport: %d", ret);
+        // }
+        // m_transports.push_back(&i2c);
+
+        static SPI spi;
+        ret = spi.init(nullptr);
+        if (ret != MA_OK) {
+            MA_LOGE(MA_TAG, "Failed to initialize spi transport: %d", ret);
+        }
+        m_transports.push_back(&spi);
 
         static MQTT mqtt;
         {

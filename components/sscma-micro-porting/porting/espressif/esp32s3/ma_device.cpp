@@ -61,7 +61,13 @@ void __ma_device_background_task() {
 }
 
 bool __ma_is_trigger_gpio(int gpio) {
-    return gpio == 1 || gpio == 2 || gpio == 3 || gpio == 41 || gpio == 42;
+    static int trigger_gpios[] = {1, 2, 3, 21, 41, 42};
+    for (auto t : trigger_gpios) {
+        if (t == gpio) {
+            return true;
+        }
+    }  
+    return false;
 }
 
 void __ma_init_gpio_level(int gpio, int level) {

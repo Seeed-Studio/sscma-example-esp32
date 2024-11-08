@@ -20,7 +20,7 @@
 #define MA_USE_ENGINE_TENSOR_INDEX           1
 #define MA_USE_STATIC_TENSOR_ARENA           1
 
-#define MA_DEBUG_LEVEL                       5
+#define MA_DEBUG_LEVEL                       2
 
 #define MA_TRIGGER_USE_REAL_GPIO             1
 

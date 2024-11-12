@@ -26,7 +26,7 @@
 #define GPIO_SCLK         GPIO_NUM_7
 #define GPIO_CS           GPIO_NUM_4
 
-#define _MA_SPI_ADDR      0x10
+#define _MA_SPI_CMD_PRFX  0x10
 #define _MA_SPI_CMD_READ  0x01
 #define _MA_SPI_CMD_WRITE 0x02
 #define _MA_SPI_CMD_AVAIL 0x03
@@ -43,13 +43,14 @@ static spi_slave_interface_config_t slvcfg = {};
 
 static void slave_task(void*) {
     static spi_slave_transaction_t t = {};
-    static char* chunk               = new char[4096 * 4];
+    static const size_t chunk_size   = 2048;
+    static char* chunk               = new (std::align_val_t(16)) char[chunk_size];
 
-    while (1) { 
+    while (1) {
 
         // half-duplex SPI communication
-        
-        t.length    = 4 * 8;
+
+        t.length    = chunk_size * 8;
         t.tx_buffer = nullptr;
         t.rx_buffer = chunk;
 
@@ -60,49 +61,48 @@ static void slave_task(void*) {
         }
 
         int prefix = chunk[0];
+
+        if (prefix != _MA_SPI_CMD_PRFX) {
+            MA_LOGE(MA_TAG, "Invalid prefix: %d", prefix);
+            continue;
+        }
+
         int cmd    = chunk[1];
-        int len    = (chunk[2] << 8) | chunk[3];
+        size_t len = (chunk[2] << 8) | chunk[3];
 
         switch (cmd) {
             case _MA_SPI_CMD_READ: {
-                int sent = 0;
-                len      = _rb_tx->size() < len ? _rb_tx->size() : len;
-                while (sent < len) {
-                    _rb_tx->pop(chunk, len);
-                    t.length    = len * 8;
-                    t.tx_buffer = chunk;
-                    t.rx_buffer = nullptr;
-                    rc          = spi_slave_transmit(RCV_HOST, &t, portMAX_DELAY);
-                    if (rc != ESP_OK) {
-                        MA_LOGE(MA_TAG, "SPI transmit failed %d", rc);
-                    }
-                    sent += len;
+                size_t sent = _rb_tx->pop(chunk, chunk_size > len ? len : chunk_size);
+                t.length    = sent * 8;
+                t.tx_buffer = chunk;
+                t.rx_buffer = nullptr;
+                MA_LOGV(MA_TAG, "SPI slave read: %d/%d", sent, len);
+                rc = spi_slave_transmit(RCV_HOST, &t, portMAX_DELAY);
+                if (rc != ESP_OK) {
+                    MA_LOGE(MA_TAG, "SPI transmit failed %d", rc);
                 }
             } break;
 
             case _MA_SPI_CMD_WRITE: {
-                int received = 0;
-                while (received < len) {
-                    t.length    = len * 8;
-                    t.tx_buffer = nullptr;
-                    t.rx_buffer = chunk;
-                    rc          = spi_slave_transmit(RCV_HOST, &t, portMAX_DELAY);
-                    if (rc != ESP_OK) {
-                        MA_LOGE(MA_TAG, "SPI transmit failed %d", rc);
-                    }
-                    _rb_rx->push(chunk, len);
-                    received += len;
-                }
+                char* data = chunk + 4;
+                _rb_rx->push(data, len < chunk_size - 4 ? len : chunk_size - 4);
+
+#if MA_LOG_LEVEL >= MA_LOG_LEVEL_VERBOSE
+                data[len] = '\0';
+                MA_LOGV(MA_TAG, "SPI slave write: %s", data);
+#endif
+
             } break;
 
             case _MA_SPI_CMD_AVAIL: {
-                int avail   = _rb_rx->size();
-                chunk[0]    = avail >> 8;
-                chunk[1]    = avail & 0xFF;
-                t.length    = 2 * 8;
-                t.tx_buffer = chunk;
-                t.rx_buffer = nullptr;
-                rc          = spi_slave_transmit(RCV_HOST, &t, portMAX_DELAY);
+                size_t avail = _rb_tx->size();
+                chunk[0]     = avail >> 8;
+                chunk[1]     = avail & 0xFF;
+                t.length     = 2 * 8;
+                t.tx_buffer  = chunk;
+                t.rx_buffer  = nullptr;
+                MA_LOGV(MA_TAG, "SPI slave avail: %d", avail);
+                rc = spi_slave_transmit(RCV_HOST, &t, portMAX_DELAY);
                 if (rc != ESP_OK) {
                     MA_LOGE(MA_TAG, "SPI transmit failed %d", rc);
                 }
@@ -154,8 +154,6 @@ ma_err_t SPI::init(const void* config) {
         _rb_tx = new SPSCRingBuffer<char>(4096 * 4);
     }
 
-    gpio_set_pull_mode(GPIO_MOSI, GPIO_PULLUP_ONLY);
-    gpio_set_pull_mode(GPIO_SCLK, GPIO_PULLUP_ONLY);
     gpio_set_pull_mode(GPIO_CS, GPIO_PULLUP_ONLY);
 
     if (spi_slave_initialize(RCV_HOST, &buscfg, &slvcfg, SPI_DMA_CH_AUTO) != ESP_OK) {

@@ -14,9 +14,11 @@
 #include "core/utils/ma_ringbuffer.hpp"
 #include "driver/gpio.h"
 #include "driver/i2c_slave.h"
-#include "driver/i2c.h"
 
-#define _MA_I2C_ADDR      0x10
+#include <sdkconfig.h>
+
+#define _MA_I2C_ADDR      0x62
+#define _MA_I2C_CMD_PRFX  0x10
 #define _MA_I2C_CMD_READ  0x01
 #define _MA_I2C_CMD_WRITE 0x02
 #define _MA_I2C_CMD_AVAIL 0x03
@@ -53,15 +55,15 @@ static i2c_slave_event_callbacks_t cbs = {
 };
 
 static void slave_task(void* args) {
-    static uint8_t* buf = new uint8_t[128];
-    static char* chunk  = new char[1024 * 16];
+    static const size_t chunk_size = 4096;
+    static char* chunk             = new char[chunk_size];
 
     int rc = ESP_OK;
 
     while (1) {
         i2c_slave_rx_done_event_data_t rx_data;
 
-        rc = i2c_slave_receive(slave_handle, buf, 128);
+        rc = i2c_slave_receive(slave_handle, reinterpret_cast<uint8_t*>(chunk), chunk_size);
         if (rc != ESP_OK) {
             MA_LOGE(MA_TAG, "I2C slave receive failed: %d", rc);
             continue;
@@ -71,40 +73,40 @@ static void slave_task(void* args) {
             const uint8_t* data = rx_data.buffer;
 
             int prefix = data[0];
-            int cmd    = data[1];
-            int len    = data[2] << 8 | data[3];
+
+            if (prefix != _MA_I2C_CMD_PRFX) {
+                MA_LOGE(MA_TAG, "Invalid prefix: %d", prefix);
+                continue;
+            }
+
+            int cmd = data[1];
+            int len = data[2] << 8 | data[3];
 
             switch (cmd) {
                 case _MA_I2C_CMD_READ: {
-                    int sent = 0;
-                    len      = _rb_tx->size() < len ? _rb_tx->size() : len;
-                    while (sent < len) {
-                        _rb_tx->pop(chunk, len);
-                        rc = i2c_slave_write_buffer((i2c_port_t)i2c_slave_config.i2c_port, reinterpret_cast<uint8_t*>(chunk), len, -1);
-                        if (rc != ESP_OK) {
-                            MA_LOGE(MA_TAG, "I2C slave write failed: %d", rc);
-                        }
-                        sent += len;
+                    size_t sent = _rb_tx->pop(chunk, chunk_size > len ? len : chunk_size);
+                    MA_LOGV(MA_TAG, "I2C slave read: %d/%d", sent, len);
+                    rc = i2c_slave_transmit(slave_handle, reinterpret_cast<uint8_t*>(chunk), sent, -1);
+                    if (rc != ESP_OK) {
+                        MA_LOGE(MA_TAG, "I2C slave transmit failed: %d", rc);
                     }
                 } break;
 
                 case _MA_I2C_CMD_WRITE: {
-                    int received = 0;
-                    while (received < len) {
-                        rc = i2c_slave_read_buffer((i2c_port_t)i2c_slave_config.i2c_port, reinterpret_cast<uint8_t*>(chunk), len, -1);
-                        if (rc != ESP_OK) {
-                            MA_LOGE(MA_TAG, "I2C slave read failed: %d", rc);
-                        }
-                        _rb_rx->push(chunk, len);
-                        received += len;
-                    }
+                    char* data = chunk + 4;
+                    _rb_rx->push(data, len < chunk_size - 4 ? len : chunk_size - 4);
+#if MA_LOG_LEVEL >= MA_LOG_LEVEL_VERBOSE
+                    data[len] = '\0';
+                    MA_LOGV(MA_TAG, "I2C slave write: %s", data);
+#endif
                 } break;
 
                 case _MA_I2C_CMD_AVAIL: {
-                    int avail = _rb_rx->size();
+                    int avail = _rb_tx->size();
                     chunk[0]  = avail >> 8;
                     chunk[1]  = avail & 0xFF;
-                    rc        = i2c_slave_write_buffer((i2c_port_t)i2c_slave_config.i2c_port, reinterpret_cast<uint8_t*>(chunk), 2, -1);
+                    MA_LOGV(MA_TAG, "I2C slave avail: %d", avail);
+                    rc = i2c_slave_transmit(slave_handle, reinterpret_cast<uint8_t*>(chunk), 2, -1);
                     if (rc != ESP_OK) {
                         MA_LOGE(MA_TAG, "I2C slave write failed: %d", rc);
                     }

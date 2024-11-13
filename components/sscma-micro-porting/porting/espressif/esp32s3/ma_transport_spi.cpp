@@ -15,6 +15,8 @@
 #include "driver/gpio.h"
 #include "driver/spi_slave.h"
 
+#include <sdkconfig.h>
+
 #ifdef CONFIG_IDF_TARGET_ESP32
 #define RCV_HOST HSPI_HOST
 #else
@@ -43,7 +45,7 @@ static spi_slave_interface_config_t slvcfg = {};
 
 static void slave_task(void*) {
     static spi_slave_transaction_t t = {};
-    static const size_t chunk_size   = 2048;
+    static const size_t chunk_size   = 2048 + 1024 + 512;
     static char* chunk               = new (std::align_val_t(16)) char[chunk_size];
 
     while (1) {
@@ -86,12 +88,10 @@ static void slave_task(void*) {
             case _MA_SPI_CMD_WRITE: {
                 char* data = chunk + 4;
                 _rb_rx->push(data, len < chunk_size - 4 ? len : chunk_size - 4);
-
 #if MA_LOG_LEVEL >= MA_LOG_LEVEL_VERBOSE
                 data[len] = '\0';
                 MA_LOGV(MA_TAG, "SPI slave write: %s", data);
 #endif
-
             } break;
 
             case _MA_SPI_CMD_AVAIL: {
@@ -154,6 +154,8 @@ ma_err_t SPI::init(const void* config) {
         _rb_tx = new SPSCRingBuffer<char>(4096 * 4);
     }
 
+    gpio_set_pull_mode(GPIO_MOSI, GPIO_PULLUP_ONLY);
+    gpio_set_pull_mode(GPIO_SCLK, GPIO_PULLUP_ONLY);
     gpio_set_pull_mode(GPIO_CS, GPIO_PULLUP_ONLY);
 
     if (spi_slave_initialize(RCV_HOST, &buscfg, &slvcfg, SPI_DMA_CH_AUTO) != ESP_OK) {

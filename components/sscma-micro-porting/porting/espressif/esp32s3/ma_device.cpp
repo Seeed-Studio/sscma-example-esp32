@@ -128,12 +128,12 @@ Device::Device() {
         }
         m_transports.push_back(&serial);
 
-        // static I2C i2c;
-        // ret = i2c.init(nullptr);
-        // if (ret != MA_OK) {
-        //     MA_LOGE(MA_TAG, "Failed to initialize i2c transport: %d", ret);
-        // }
-        // m_transports.push_back(&i2c);
+        static I2C i2c;
+        ret = i2c.init(nullptr);
+        if (ret != MA_OK) {
+            MA_LOGE(MA_TAG, "Failed to initialize i2c transport: %d", ret);
+        }
+        m_transports.push_back(&i2c);
 
         static SPI spi;
         ret = spi.init(nullptr);

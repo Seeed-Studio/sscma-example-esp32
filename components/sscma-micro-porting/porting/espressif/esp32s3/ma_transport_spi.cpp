@@ -43,10 +43,11 @@ static spi_bus_config_t buscfg = {};
 
 static spi_slave_interface_config_t slvcfg = {};
 
+static constexpr size_t chunk_size = 2048 + 1024 + 512;
+DMA_ATTR static char chunk[chunk_size];
+
 static void slave_task(void*) {
     static spi_slave_transaction_t t = {};
-    static const size_t chunk_size   = 2048 + 1024 + 512;
-    static char* chunk               = new (std::align_val_t(16)) char[chunk_size];
 
     while (1) {
 
@@ -63,14 +64,13 @@ static void slave_task(void*) {
         }
 
         int prefix = chunk[0];
-
         if (prefix != _MA_SPI_CMD_PRFX) {
             MA_LOGE(MA_TAG, "Invalid prefix: %d", prefix);
             continue;
         }
 
         int cmd    = chunk[1];
-        size_t len = (chunk[2] << 8) | chunk[3];
+        size_t len = ((chunk[2] << 8) | chunk[3]) & 0xFFFF;
 
         switch (cmd) {
             case _MA_SPI_CMD_READ: {
@@ -162,7 +162,7 @@ ma_err_t SPI::init(const void* config) {
         return MA_FAILED;
     }
 
-    if (xTaskCreate(slave_task, "spi_slave_task", 4096, NULL, 5, &spi_task_handle) != pdPASS) {
+    if (xTaskCreatePinnedToCore(slave_task, "spi_slave_task", 4096, NULL, 5, &spi_task_handle, 0) != pdPASS) {
         return MA_FAILED;
     }
 

@@ -1,4 +1,11 @@
-#include <osal/ma_osal_freertos.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/event_groups.h>
+#include <freertos/portmacro.h>
+#include <freertos/queue.h>
+#include <freertos/semphr.h>
+#include <freertos/task.h>
+#include <freertos/timers.h>
+
 #include <porting/ma_misc.h>
 #include <stdarg.h>
 #include <stdint.h>

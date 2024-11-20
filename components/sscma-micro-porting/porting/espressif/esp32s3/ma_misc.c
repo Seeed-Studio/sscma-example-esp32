@@ -10,6 +10,7 @@
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "ma_config_board.h"
 

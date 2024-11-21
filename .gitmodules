@@ -1,3 +1,3 @@
-[submodule "components/madeploy/madeploy"]
-	path = components/madeploy/madeploy
+[submodule "components/sscma-micro/sscma-micro"]
+	path = components/sscma-micro/sscma-micro
 	url = https://github.com/Seeed-Studio/madeploy

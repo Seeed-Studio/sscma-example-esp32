@@ -18,7 +18,7 @@ endif()
 
 if(NOT DEFINED SSCMA_PORTING_ROOT_DIR)
     set(SSCMA_PORTING_ROOT_DIR ${CMAKE_CURRENT_LIST_DIR})
-    set(SSCMA_ROOT_DIR ${CMAKE_CURRENT_LIST_DIR}/madeploy)
+    set(SSCMA_ROOT_DIR ${CMAKE_CURRENT_LIST_DIR}/sscma-micro)
 endif()
 
 include(${SSCMA_ROOT_DIR}/3rdparty/littlefs/CMakeLists.txt)

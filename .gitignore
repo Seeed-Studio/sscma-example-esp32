@@ -10,6 +10,3 @@ sdkconfig.old
 *.orig
 *.swp
 *dependencies.lock
-*.tflite
-*.lite
-!model_zoo/*.*

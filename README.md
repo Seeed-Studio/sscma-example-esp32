@@ -19,7 +19,7 @@ The project provides examples of how to deploy models from SSCMA to Espressif ch
 
 Follow instructions in this guide
 [ESP-IDF - Get Started](https://docs.espressif.com/projects/esp-idf/en/latest/get-started/index.html)
-to setup the built toolchain used by SSCMA examples. Currently we're using the latest version `v5.1`.
+to setup the built toolchain used by SSCMA examples. Currently we're using the latest version `v5.3`.
 
 ### Clone and Setup the Repository
 
@@ -112,13 +112,8 @@ Please refer to [SSCMA Model Zoo](https://github.com/Seeed-Studio/sscma-model-zo
 
 - If you find any issue in using these examples, or wish to submit an enhancement request, please use the raise a [Issue](https://github.com/Seeed-Studio/sscma-example-esp32/issues) or submit a [Pull Request](https://github.com/Seeed-Studio/sscma-example-esp32/pulls).
 
-
 ## License
 
 ```
-These examples are covered under MIT License.
-
-These examples use the ESP-IDF which is covered under Apache License 2.0.
-
-TensorFlow, FlashDB, JPEGENC and other third-party libraries are distribute under their own License.
+This software is licensed under the Apache 2.0 license, see LICENSE for more information.
 ```

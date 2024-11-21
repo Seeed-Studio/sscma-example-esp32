@@ -112,7 +112,8 @@ idf_component_register(
 if(COMPILER_TARGET_IS_XIAO_ESP32S3)
     target_compile_definitions(${COMPONENT_LIB} PUBLIC MA_PORTING_SEEED_XIAO_ESP32S3=1)
 elseif(COMPILER_TARGET_IS_ESP32S3_EYE)
+    target_compile_definitions(${COMPONENT_LIB} PUBLIC MA_PORTING_ESPRESSIF_ESP32S3_EYE=1)
 else()
-    message(FATAL_ERROR "PLATFORM unknown.")
+    target_compile_definitions(${COMPONENT_LIB} PUBLIC MA_PORTING_SEEED_XIAO_ESP32S3=1)
 endif()
 

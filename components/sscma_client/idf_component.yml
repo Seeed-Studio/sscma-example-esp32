@@ -1,7 +1,0 @@
-version: "1.0.0"
-description: SSCMA client
-url: https://github.com/Seeed-Studio/SenseCAP-Watcher/tree/main/components/sscma_client
-dependencies:
-  idf: ">=5.1.0"
-  esp_io_expander:
-    version: "^1.0.1"

@@ -1,0 +1,10 @@
+version: "1.0.0"
+description: client component for sscma at server
+url: https://github.com/Seeed-Studio/sscma-example-esp32/components/sscma-client
+issus: https://github.com/Seeed-Studio/sscma-example-esp32/issues
+documentation: https://github.com/Seeed-Studio/sscma-example-esp32#readme
+
+dependencies:
+  idf: ">=5.1.0"
+  esp_io_expander:
+    version: "^1.0.1"

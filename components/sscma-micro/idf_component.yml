@@ -1,5 +1,8 @@
 version: "2.0.0"
-description: madeploy
+description: SSCMA Micro porting for Espressif Chipsets
+url: https://github.com/Seeed-Studio/sscma-example-esp32/components/sscma-micro
+issus: https://github.com/Seeed-Studio/sscma-example-esp32/issues
+documentation: https://github.com/Seeed-Studio/sscma-example-esp32#readme
 
 targets:
   - esp32s3
@@ -8,6 +11,6 @@ dependencies:
   idf: ">=5.1.0"
   espressif/mdns: ">=1.4.2"
   espressif/esp32-camera:
-    version: ">=2.0.15"
+    version: "^2.0.15"
   espressif/esp-tflite-micro:
-    version: ">=1.3.2"
+    version: "^1.3.2"

@@ -7,3 +7,6 @@
 [submodule "components/sscma-micro"]
 	path = components/sscma-micro
 	url = https://github.com/Seeed-Studio/SSCMA-Micro
+[submodule "components/madeploy/madeploy"]
+	path = components/madeploy/madeploy
+	url = https://github.com/Seeed-Studio/madeploy

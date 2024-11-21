@@ -1,0 +1,14 @@
+menu "ModelAssistant Depoly Configuration"
+    choice MA_DEPLOY_BOARD 
+        prompt "Select board"
+        default MA_PORTING_SEEED_XIAO_ESP32S3
+
+        config MA_PORTING_SEEED_XIAO_ESP32S3
+            bool "Seeed XIAO-ESP32-S3"
+            
+        config MA_PORTING_ESPRESSIF_ESP32S3_EYE
+            bool "Espressif ESP32S3-EYE"
+    endchoice
+endmenu
+
+   

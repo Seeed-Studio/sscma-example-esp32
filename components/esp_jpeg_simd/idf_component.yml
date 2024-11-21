@@ -1,0 +1,5 @@
+version: "1.0.0"
+description: ESP Jpeg Codec SIMD - Jpeg decoder and encoder by SIMD
+url: https://github.com/Seeed-Studio/SenseCAP-Watcher/tree/main/components/esp_jpeg_simd
+dependencies:
+  idf: ">=4.4.2"

@@ -14,7 +14,7 @@
 
 ### 安装 ESP IDF
 
-按照这个指南中的说明进行操作：[ESP-IDF - 入门指南](https://docs.espressif.com/projects/esp-idf/en/latest/get-started/index.html)，以设置 SSCMA 示例使用的构建工具链。目前我们使用的是最新版本 `v5.1`。
+按照这个指南中的说明进行操作：[ESP-IDF - 入门指南](https://docs.espressif.com/projects/esp-idf/en/latest/get-started/index.html)，以设置 SSCMA 示例使用的构建工具链。目前我们使用的是最新版本 `v5.3`。
 
 ### 克隆并设置仓库
 
@@ -108,9 +108,5 @@
 ## 许可证
 
 ```
-这些示例受 MIT 许可证保护。
-
-这些示例使用的 ESP-IDF 受 Apache 许可证 2.0 保护。
-
-TensorFlow、FlashDB、JPEGENC 和其他第三方库使用其自己的许可证分发。
+本项目根据 Apache 2.0 许可证进行许可。请参阅 LICENSE 了解详细信息。
 ```

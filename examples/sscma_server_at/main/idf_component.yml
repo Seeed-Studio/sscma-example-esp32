@@ -1,0 +1,5 @@
+## IDF Component Manager Manifest File
+dependencies:
+  idf: ">=5.0"
+  sscma-micro:
+    override_path: "../../../components/sscma-micro"

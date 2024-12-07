@@ -28,7 +28,7 @@
 
 #define PRODUCT_NAME_PREFIX          "xiao_esp32"
 #define PRODUCT_NAME_SUFFIX          "s3"
-#define PORT_DEVICE_NAME             "XIAO (ESP32-S3)"
+#define PORT_DEVICE_NAME             "XIAO ESP32S3 Sense"
 
 #define LED_0_PIN                    GPIO_NUM_21
 

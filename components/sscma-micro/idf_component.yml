@@ -1,7 +1,7 @@
 version: "2.0.0"
 description: SSCMA Micro porting for Espressif Chipsets
 url: https://github.com/Seeed-Studio/sscma-example-esp32/components/sscma-micro
-issus: https://github.com/Seeed-Studio/sscma-example-esp32/issues
+issues: https://github.com/Seeed-Studio/sscma-example-esp32/issues
 documentation: https://github.com/Seeed-Studio/sscma-example-esp32#readme
 
 targets:

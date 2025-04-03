@@ -90,12 +90,15 @@ ma_err_t CameraESP32::init(size_t preset_idx) noexcept {
         return MA_EIO;
     }
 
-    _sensor->set_vflip(_sensor, 1);
-    _sensor->set_hmirror(_sensor, 1);
-
-    if (_sensor->id.PID == OV3660_PID) {
-        _sensor->set_brightness(_sensor, 1);   // up the blightness just a bit
+    switch (_sensor->id.PID) {
+    case OV3660_PID:
+        _sensor->set_brightness(_sensor, 1);   // up the brightness just a bit
         _sensor->set_saturation(_sensor, -2);  // lower the saturation
+        break;
+
+    default:
+        _sensor->set_vflip(_sensor, 1);
+        _sensor->set_hmirror(_sensor, 1);
     }
 
     _fb = esp_camera_fb_get();

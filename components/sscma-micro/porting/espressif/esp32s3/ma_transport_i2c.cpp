@@ -156,7 +156,7 @@ ma_err_t I2C::init(const void* config) {
         return MA_FAILED;
     }
 
-    rc = i2c_driver_install(_MA_I2C_PORT, I2C_MODE_SLAVE, 4096, 4096, ESP_INTR_FLAG_IRAM);
+    rc = i2c_driver_install(_MA_I2C_PORT, I2C_MODE_SLAVE, 4096, 4096, ESP_INTR_FLAG_SHARED);
     if (rc != ESP_OK) {
         MA_LOGE(MA_TAG, "Failed to install I2C driver: %d", rc);
         return MA_FAILED;

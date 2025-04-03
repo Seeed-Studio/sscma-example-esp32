@@ -43,7 +43,7 @@ int lfs_flashbd_create(const struct lfs_config* cfg, const struct lfs_flashbd_co
         return LFS_ERR_INVAL;
     }
 
-    bd->flash_addr = _partition->address;
+    bd->flash_addr = (void*)_partition->address;
 
     LFS_FLASHBD_TRACE("lfs_flashbd_create -> %d", success ? 0 : LFS_ERR_IO);
 
